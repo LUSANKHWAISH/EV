@@ -100,3 +100,38 @@ class AgentRunResult(BaseModel):
     status: AgentStatus
     step: Optional[AgentStepResult] = None
     error: Optional[str] = None
+
+# Verifier models
+class VerificationStatus(str, Enum):
+    VERIFIED = "VERIFIED"
+    NOT_VERIFIED = "NOT_VERIFIED"
+    INDETERMINATE = "INDETERMINATE"
+    ERROR = "ERROR"
+
+class VerificationType(str, Enum):
+    PROCESS_EXISTS = "PROCESS_EXISTS"
+    PROCESS_NOT_EXISTS = "PROCESS_NOT_EXISTS"
+    TCP_PORT_EXISTS = "TCP_PORT_EXISTS"
+    TCP_PORT_NOT_EXISTS = "TCP_PORT_NOT_EXISTS"
+    FILE_EXISTS = "FILE_EXISTS"
+    FILE_NOT_EXISTS = "FILE_NOT_EXISTS"
+    DIRECTORY_EXISTS = "DIRECTORY_EXISTS"
+    TEXT_CONTAINS = "TEXT_CONTAINS"
+    TEXT_NOT_CONTAINS = "TEXT_NOT_CONTAINS"
+    RESULT_NOT_EMPTY = "RESULT_NOT_EMPTY"
+    RESULT_EMPTY = "RESULT_EMPTY"
+
+class VerificationRequest(BaseModel):
+    verification_type: VerificationType
+    evidence: Any
+    expected_text: Optional[str] = None
+    # If needed, other parameters can be added here for specific verification types.
+
+class VerificationResult(BaseModel):
+    verification_type: VerificationType
+    status: VerificationStatus
+    success: bool  # True if VERIFIED, False otherwise (NOT_VERIFIED, INDETERMINATE, ERROR)
+    message: str
+    evidence_summary: Any
+    timestamp: datetime = Field(default_factory=datetime.now)
+    error: Optional[str] = None
