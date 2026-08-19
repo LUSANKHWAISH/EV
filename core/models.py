@@ -1,6 +1,7 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Any, List
+from enum import Enum
 
 class PowerShellResult(BaseModel):
     """
@@ -61,4 +62,41 @@ class TextReadResult(BaseModel):
     encoding: Optional[str] = None
     truncated: bool
     size_bytes: Optional[int] = None
+    error: Optional[str] = None
+
+# Agent orchestration models
+class AgentStatus(str, Enum):
+    PENDING = "PENDING"
+    RUNNING = "RUNNING"
+    COMPLETED = "COMPLETED"
+    FAILED = "FAILED"
+
+class AgentAction(str, Enum):
+    FIND_PROCESS = "FIND_PROCESS"
+    FIND_TCP_PORT = "FIND_TCP_PORT"
+    GET_FILE_INFO = "GET_FILE_INFO"
+    LIST_DIRECTORY = "LIST_DIRECTORY"
+    READ_TEXT_FILE = "READ_TEXT_FILE"
+    FIND_FILES = "FIND_FILES"
+    SEARCH_TEXT = "SEARCH_TEXT"
+
+class AgentTask(BaseModel):
+    task_id: str
+    action: AgentAction
+    parameters: dict
+    created_at: datetime = Field(default_factory=datetime.now)
+
+class AgentStepResult(BaseModel):
+    action: AgentAction
+    success: bool
+    started_at: datetime
+    finished_at: datetime
+    duration_seconds: float
+    result: Optional[Any] = None
+    error: Optional[str] = None
+
+class AgentRunResult(BaseModel):
+    task_id: str
+    status: AgentStatus
+    step: Optional[AgentStepResult] = None
     error: Optional[str] = None
