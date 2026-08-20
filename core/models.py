@@ -226,6 +226,39 @@ class ActionCategory(str, Enum):
     UNKNOWN = "UNKNOWN"
 
 
+# Event / State Bus models
+class EVState(str, Enum):
+    IDLE = "IDLE"
+    LISTENING = "LISTENING"
+    PLANNING = "PLANNING"
+    AWAITING_APPROVAL = "AWAITING_APPROVAL"
+    EXECUTING = "EXECUTING"
+    VERIFYING = "VERIFYING"
+    RECOVERING = "RECOVERING"
+    SPEAKING = "SPEAKING"
+    SUCCESS = "SUCCESS"
+    FAILED = "FAILED"
+    STOPPED = "STOPPED"
+
+
+class EVEventType(str, Enum):
+    STATE_CHANGED = "STATE_CHANGED"
+    STATUS = "STATUS"
+    APPROVAL_REQUIRED = "APPROVAL_REQUIRED"
+    ACTION_STARTED = "ACTION_STARTED"
+    ACTION_COMPLETED = "ACTION_COMPLETED"
+    VERIFICATION_RESULT = "VERIFICATION_RESULT"
+    RECOVERY_RESULT = "RECOVERY_RESULT"
+    ERROR = "ERROR"
+
+
+class EVEventSeverity(str, Enum):
+    INFO = "INFO"
+    WARNING = "WARNING"
+    ERROR = "ERROR"
+    CRITICAL = "CRITICAL"
+
+
 class RiskAssessmentRequest(BaseModel):
     """
     Structured request for risk assessment of a proposed action.
