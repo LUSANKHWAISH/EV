@@ -135,3 +135,56 @@ class VerificationResult(BaseModel):
     evidence_summary: Any
     timestamp: datetime = Field(default_factory=datetime.now)
     error: Optional[str] = None
+
+# Backup models
+class BackupStatus(str, Enum):
+    CREATED = "CREATED"
+    RESTORED = "RESTORED"
+    SKIPPED = "SKIPPED"
+    FAILED = "FAILED"
+
+class FileBackupRecord(BaseModel):
+    """
+    Structured record of a file backup operation for restoration purposes.
+    """
+    original_path: str
+    backup_path: str
+    original_size_bytes: int
+    backup_size_bytes: int
+    sha256: str
+    created_at: datetime = Field(default_factory=datetime.now)
+    original_exists: bool
+    success: bool
+    message: str
+
+class BackupResult(BaseModel):
+    """
+    Structured result of a backup operation.
+    """
+    status: BackupStatus
+    success: bool
+    executed: bool
+    original_path: str
+    backup_path: Optional[str] = None
+    message: str
+    error: Optional[str] = None
+    started_at: datetime = Field(default_factory=datetime.now)
+    finished_at: datetime = Field(default_factory=datetime.now)
+    duration_seconds: float
+    backup_record: Optional[FileBackupRecord] = None
+
+class RestoreResult(BaseModel):
+    """
+    Structured result of a restore operation.
+    """
+    status: BackupStatus  # Reuse BackupStatus for consistency
+    success: bool
+    executed: bool
+    original_path: str
+    backup_path: str
+    message: str
+    error: Optional[str] = None
+    started_at: datetime = Field(default_factory=datetime.now)
+    finished_at: datetime = Field(default_factory=datetime.now)
+    duration_seconds: float
+    safety_backup_path: Optional[str] = None  # Path to safety backup of overwritten file
