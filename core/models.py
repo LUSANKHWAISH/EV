@@ -188,3 +188,69 @@ class RestoreResult(BaseModel):
     finished_at: datetime = Field(default_factory=datetime.now)
     duration_seconds: float
     safety_backup_path: Optional[str] = None  # Path to safety backup of overwritten file
+
+
+# Risk / Permission Engine models
+class RiskLevel(str, Enum):
+    NONE = "NONE"
+    LOW = "LOW"
+    MEDIUM = "MEDIUM"
+    HIGH = "HIGH"
+    CRITICAL = "CRITICAL"
+
+
+class PermissionDecision(str, Enum):
+    ALLOW = "ALLOW"
+    REQUIRE_APPROVAL = "REQUIRE_APPROVAL"
+    DENY = "DENY"
+    INDETERMINATE = "INDETERMINATE"
+
+
+class ActionCategory(str, Enum):
+    READ_ONLY_OBSERVATION = "READ_ONLY_OBSERVATION"
+    FILE_CREATE = "FILE_CREATE"
+    FILE_MODIFY = "FILE_MODIFY"
+    FILE_DELETE = "FILE_DELETE"
+    FILE_RESTORE = "FILE_RESTORE"
+    PROCESS_START = "PROCESS_START"
+    PROCESS_STOP = "PROCESS_STOP"
+    COMMAND_EXECUTION = "COMMAND_EXECUTION"
+    NETWORK_CONFIGURATION = "NETWORK_CONFIGURATION"
+    SERVICE_CONFIGURATION = "SERVICE_CONFIGURATION"
+    REGISTRY_MODIFICATION = "REGISTRY_MODIFICATION"
+    SOFTWARE_INSTALL = "SOFTWARE_INSTALL"
+    SOFTWARE_UNINSTALL = "SOFTWARE_UNINSTALL"
+    SYSTEM_POWER = "SYSTEM_POWER"
+    SECURITY_CONFIGURATION = "SECURITY_CONFIGURATION"
+    CREDENTIAL_ACCESS = "CREDENTIAL_ACCESS"
+    UNKNOWN = "UNKNOWN"
+
+
+class RiskAssessmentRequest(BaseModel):
+    """
+    Structured request for risk assessment of a proposed action.
+    """
+    action_category: ActionCategory
+    target: Optional[str] = None
+    description: Optional[str] = None
+    has_backup: bool = False
+    reversible: bool = False
+    requires_elevation: bool = False
+    affects_system: bool = False
+    affects_security: bool = False
+    user_approved: bool = False
+
+
+class RiskAssessmentResult(BaseModel):
+    """
+    Structured result of a risk assessment.
+    """
+    action_category: ActionCategory
+    risk_level: RiskLevel
+    decision: PermissionDecision
+    allowed: bool
+    requires_approval: bool
+    reason: str
+    policy_rule: str
+    evaluated_at: datetime = Field(default_factory=datetime.now)
+    error: Optional[str] = None
