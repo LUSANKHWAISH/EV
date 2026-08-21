@@ -1,0 +1,5 @@
+# Component module for E.V. GUI
+EVWindow 1.0 EVWindow.qml
+EVTopBar 1.0 EVTopBar.qml
+EVStatusIndicator 1.0 EVStatusIndicator.qml
+EVCorePlaceholder 1.0 EVCorePlaceholder.qml

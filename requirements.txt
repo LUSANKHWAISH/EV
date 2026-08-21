@@ -1,2 +1,3 @@
-﻿pydantic
+pydantic
 python-dotenv
+PySide6>=6.5.0

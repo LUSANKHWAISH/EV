@@ -1,0 +1,108 @@
+# Main GUI entry point for E.V.
+# Bootstrap application and load QML root.
+import argparse
+import sys
+from pathlib import Path
+
+from PySide6.QtCore import QTimer, QUrl
+from PySide6.QtGui import QGuiApplication
+from PySide6.QtQml import QQmlApplicationEngine
+
+from core.events import EVEventBus
+from core.models import EVState
+from gui.bridge import GuiBridge
+
+
+# Representative states cycled by the development-only visual demo.
+# Observation only: no commands, no filesystem access, no system actions.
+DEMO_STATE_SEQUENCE = (
+    EVState.IDLE,
+    EVState.LISTENING,
+    EVState.PLANNING,
+    EVState.AWAITING_APPROVAL,
+    EVState.EXECUTING,
+    EVState.VERIFYING,
+    EVState.SUCCESS,
+    EVState.SPEAKING,
+    EVState.FAILED,
+    EVState.RECOVERING,
+)
+
+# Slow, human-observable cadence for the development demo.
+DEMO_INTERVAL_MS = 2000
+
+
+def _parse_args(argv: list) -> argparse.Namespace:
+    """Parse command line arguments. Demo mode is disabled by default."""
+    parser = argparse.ArgumentParser(
+        prog="gui.app",
+        description="E.V. - Enhanced Virtual Intelligence GUI",
+    )
+    parser.add_argument(
+        "--demo-states",
+        action="store_true",
+        default=False,
+        help=(
+            "Development only: slowly cycle representative EVState values "
+            "through the event bus to verify GUI state bindings. "
+            "Performs no commands, filesystem, or system actions."
+        ),
+    )
+    return parser.parse_args(argv)
+
+
+def _start_state_demo(app: QGuiApplication, event_bus: EVEventBus) -> QTimer:
+    """
+    Development-only state demo.
+
+    Publishes representative state changes via EVEventBus.set_state() only.
+    Performs no command execution, no filesystem mutation, and no system actions.
+    The timer is parented to `app` so it stays alive for the process lifetime.
+    """
+    index = {"value": 0}
+
+    def advance() -> None:
+        event_bus.set_state(DEMO_STATE_SEQUENCE[index["value"]])
+        index["value"] = (index["value"] + 1) % len(DEMO_STATE_SEQUENCE)
+
+    timer = QTimer(app)
+    timer.setInterval(DEMO_INTERVAL_MS)
+    timer.timeout.connect(advance)
+    timer.start()
+    return timer
+
+
+def main() -> None:
+    """Main entry point for the GUI application."""
+    args = _parse_args(sys.argv[1:])
+
+    app = QGuiApplication.instance()
+    if app is None:
+        # Pass only the program name; CLI flags are handled by argparse above.
+        app = QGuiApplication(sys.argv[:1])
+    engine = QQmlApplicationEngine()
+
+    # Create event bus
+    event_bus = EVEventBus(initial_state=EVState.IDLE)
+
+    # Create bridge and register context property for QML
+    bridge = GuiBridge(event_bus)
+    engine.rootContext().setContextProperty("guiBridge", bridge)
+
+    # Load root QML
+    qml_file = Path(__file__).parent / "qml" / "Main.qml"
+    engine.load(QUrl.fromLocalFile(str(qml_file)))
+
+    if not engine.rootObjects():
+        sys.exit(-1)
+
+    # Development-only visual state demo (disabled by default).
+    if args.demo_states:
+        _start_state_demo(app, event_bus)
+
+    app.aboutToQuit.connect(bridge.shutdown)
+    sys.exit(app.exec())
+
+
+if __name__ == "__main__":
+    main()
