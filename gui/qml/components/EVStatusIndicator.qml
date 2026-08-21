@@ -8,8 +8,8 @@ Item {
 
     Rectangle {
         anchors.fill: parent
-        color: Theme.surface
-        radius: Theme.radiusMD
+        color: Theme.surfaceBase
+        radius: Theme.radiusM
     }
 
     ColumnLayout {
@@ -19,18 +19,18 @@ Item {
 
         Text {
             id: stateText
-            text: typeof guiBridge !== "undefined" ? guiBridge.currentState : "IDLE"
-            color: Theme.accent
-            font.pointSize: 16
-            font.bold: true
+            text: (typeof guiBridge !== "undefined" && guiBridge !== null) ? guiBridge.currentState : "IDLE"
+            color: Theme.textPrimary
+            font.pointSize: Theme.fontSizeBody
+            font.weight: Theme.fontWeightMedium
             Layout.alignment: Qt.AlignHCenter | Qt.AlignTop
         }
 
         Text {
             id: stateDesc
-            text: typeof guiBridge !== "undefined" ? guiBridge.getStateDescription(guiBridge.currentState) : ""
+            text: (typeof guiBridge !== "undefined" && guiBridge !== null) ? guiBridge.getStateDescription(guiBridge.currentState) : ""
             color: Theme.textSecondary
-            font.pointSize: 12
+            font.pointSize: Theme.fontSizeLabel
             Layout.alignment: Qt.AlignHCenter | Qt.AlignBottom
         }
     }

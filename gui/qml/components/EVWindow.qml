@@ -1,7 +1,13 @@
 import QtQuick 2.15
-import QtQuick.Controls 2.15
 import QtQuick.Window 2.15
+import QtQuick.Controls 2.15
 import "../theme"
+import ".." as Main
+
+// EVWindow.qml provides the architectural window shell.
+// It is an ApplicationWindow with a frameless style, custom top bar, and window controls.
+// It contains Main.qml as its central content.
+// Uses the E.V. Design System from Theme.qml and components.
 
 ApplicationWindow {
     id: windowRoot
@@ -11,8 +17,20 @@ ApplicationWindow {
     minimumWidth: 800
     minimumHeight: 600
     title: "E.V. - Enhanced Virtual Intelligence"
-    color: Theme.background
-    flags: Qt.FramelessWindowHint | Qt.Window
+    color: Theme.backgroundDeep
+
+    // Window flags for custom chrome (frameless)
+    flags: Qt.Window
+           | Qt.FramelessWindowHint
+           | Qt.WindowSystemMenuHint
+           | Qt.WindowMinMaxButtonsHint
+           | Qt.WindowCloseButtonHint
+
+    // Configure Qt Quick Controls to use Basic style (avoids native Windows warnings)
+    // This is typically done in C++/Python before QML loading, but we can also set it here
+    // as a fallback or to ensure consistency. The primary configuration should be in gui/app.py.
+    // Note: Actually setting the style should be done before QML engine initialization.
+    // We'll rely on gui/app.py to do this properly.
 
     // Main content layout
     Item {

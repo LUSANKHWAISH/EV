@@ -7,13 +7,13 @@ Item {
     Rectangle {
         anchors.fill: parent
         color: Theme.surfaceRaised
-        radius: Theme.radiusLG
+        radius: Theme.radiusL
     }
 
     Text {
         text: "E.V. Core"
         color: Theme.textSecondary
-        font.pointSize: 24
+        font.pointSize: Theme.fontSizeSection
         anchors.centerIn: parent
     }
 }

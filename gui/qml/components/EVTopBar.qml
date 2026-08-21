@@ -1,133 +1,315 @@
 import QtQuick 2.15
-import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
 import QtQuick.Window 2.15
 import "../theme"
 
 Item {
     id: root
-    height: Theme.spacingLG * 2
 
-    required property Window targetWindow
+    property Window targetWindow: null
+
+    height: Theme.baseUnit * 7
 
     Rectangle {
         anchors.fill: parent
         color: Theme.surfaceRaised
     }
 
-    // Window drag area using native startSystemMove
+    Rectangle {
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+
+        height: Theme.hairline
+        color: Theme.edgeSubtle
+    }
+
+    // Native Windows system move area.
+    // Window control MouseAreas below sit above this layer and consume
+    // their own mouse events.
     MouseArea {
+        id: dragArea
+
         anchors.fill: parent
-        onPressed: function(mouse) {
-            if (mouse.button === Qt.LeftButton && targetWindow) {
-                if (typeof targetWindow.startSystemMove === "function") {
-                    targetWindow.startSystemMove();
-                }
+        acceptedButtons: Qt.LeftButton
+
+        onPressed: {
+            if (root.targetWindow) {
+                root.targetWindow.startSystemMove()
             }
         }
-        onDoubleClicked: function(mouse) {
-            if (mouse.button === Qt.LeftButton && targetWindow) {
-                if (targetWindow.visibility === Window.Maximized) {
-                    targetWindow.showNormal();
-                } else {
-                    targetWindow.showMaximized();
-                }
+
+        onDoubleClicked: {
+            if (!root.targetWindow) {
+                return
+            }
+
+            if (root.targetWindow.visibility === Window.Maximized) {
+                root.targetWindow.showNormal()
+            } else {
+                root.targetWindow.showMaximized()
             }
         }
     }
 
     RowLayout {
         anchors.fill: parent
-        anchors.leftMargin: Theme.spacingMD
-        anchors.rightMargin: Theme.spacingSM
-        spacing: Theme.spacingSM
+        anchors.leftMargin: Theme.baseUnit * 2
+        anchors.rightMargin: Theme.baseUnit
+
+        spacing: Theme.baseUnit
 
         Text {
-            text: "E.V. - Enhanced Virtual Intelligence"
+            text: "E.V."
+
             color: Theme.textPrimary
-            font.pointSize: 12
-            font.bold: true
-            elide: Text.ElideRight
-            Layout.alignment: Qt.AlignLeft | Qt.AlignVCenter
+            font.family: Theme.fontFamily
+            font.pointSize: Theme.fontSizeLabel
+            font.weight: Theme.fontWeightMedium
+
+            Layout.alignment: Qt.AlignVCenter
+        }
+
+        Rectangle {
+            width: Theme.hairline
+            height: Theme.baseUnit * 2
+
+            color: Theme.edgeStandard
+            Layout.alignment: Qt.AlignVCenter
+        }
+
+        Text {
+            text: "ENHANCED VIRTUAL INTELLIGENCE"
+
+            color: Theme.textSecondary
+            font.family: Theme.fontFamily
+            font.pointSize: Theme.fontSizeLabel
+            font.weight: Theme.fontWeightMedium
+
+            opacity: 0.72
+
+            Layout.alignment: Qt.AlignVCenter
+        }
+
+        Item {
             Layout.fillWidth: true
         }
 
-        RowLayout {
-            spacing: Theme.spacingXS
-            Layout.alignment: Qt.AlignRight | Qt.AlignVCenter
+        // ====================================================
+        // MINIMIZE
+        // ====================================================
 
-            // Minimize Button
-            Button {
-                id: minimizeButton
-                implicitWidth: Theme.spacingLG
-                implicitHeight: Theme.spacingLG
-                contentItem: Text {
-                    text: "_"
-                    color: Theme.textPrimary
-                    font.pointSize: 12
-                    font.bold: true
-                    horizontalAlignment: Text.AlignHCenter
-                    verticalAlignment: Text.AlignVCenter
-                }
-                background: Rectangle {
-                    color: minimizeButton.down ? Theme.surfaceOverlay : (minimizeButton.hovered ? Theme.surface : Theme.surfaceRaised)
-                    radius: Theme.radiusSM
-                }
+        Rectangle {
+            id: minimizeButton
+
+            width: Theme.baseUnit * 5
+            height: Theme.baseUnit * 4
+
+            radius: Theme.radiusS
+
+            color: minimizeArea.pressed
+                ? Theme.surfaceElevated
+                : minimizeArea.containsMouse
+                    ? Theme.surfaceBase
+                    : "transparent"
+
+            border.width: minimizeArea.containsMouse
+                ? Theme.borderThin
+                : 0
+
+            border.color: Theme.edgeSubtle
+
+            Layout.alignment: Qt.AlignVCenter
+            z: 10
+
+            Rectangle {
+                width: Theme.baseUnit * 1.5
+                height: Math.max(1, Theme.hairline)
+
+                anchors.centerIn: parent
+
+                color: Theme.textSecondary
+            }
+
+            MouseArea {
+                id: minimizeArea
+
+                anchors.fill: parent
+                hoverEnabled: true
+                acceptedButtons: Qt.LeftButton
+                cursorShape: Qt.PointingHandCursor
+
                 onClicked: {
-                    if (targetWindow) {
-                        targetWindow.showMinimized();
+                    if (root.targetWindow) {
+                        root.targetWindow.showMinimized()
                     }
                 }
             }
+        }
 
-            // Maximize / Restore Button
-            Button {
-                id: maximizeButton
-                implicitWidth: Theme.spacingLG
-                implicitHeight: Theme.spacingLG
-                contentItem: Text {
-                    text: (targetWindow && targetWindow.visibility === Window.Maximized) ? "[]" : "[ ]"
-                    color: Theme.textPrimary
-                    font.pointSize: 11
-                    font.bold: true
-                    horizontalAlignment: Text.AlignHCenter
-                    verticalAlignment: Text.AlignVCenter
-                }
-                background: Rectangle {
-                    color: maximizeButton.down ? Theme.surfaceOverlay : (maximizeButton.hovered ? Theme.surface : Theme.surfaceRaised)
-                    radius: Theme.radiusSM
-                }
+        // ====================================================
+        // MAXIMIZE / RESTORE
+        // ====================================================
+
+        Rectangle {
+            id: maximizeButton
+
+            width: Theme.baseUnit * 5
+            height: Theme.baseUnit * 4
+
+            radius: Theme.radiusS
+
+            color: maximizeArea.pressed
+                ? Theme.surfaceElevated
+                : maximizeArea.containsMouse
+                    ? Theme.surfaceBase
+                    : "transparent"
+
+            border.width: maximizeArea.containsMouse
+                ? Theme.borderThin
+                : 0
+
+            border.color: Theme.edgeSubtle
+
+            Layout.alignment: Qt.AlignVCenter
+            z: 10
+
+            // Normal maximize glyph
+            Rectangle {
+                visible: !root.targetWindow ||
+                         root.targetWindow.visibility !== Window.Maximized
+
+                width: Theme.baseUnit * 1.45
+                height: Theme.baseUnit * 1.25
+
+                anchors.centerIn: parent
+
+                color: "transparent"
+                border.width: Math.max(1, Theme.hairline)
+                border.color: Theme.textSecondary
+            }
+
+            // Restore glyph - rear frame
+            Rectangle {
+                visible: root.targetWindow &&
+                         root.targetWindow.visibility === Window.Maximized
+
+                width: Theme.baseUnit * 1.25
+                height: Theme.baseUnit
+
+                x: parent.width / 2 - width / 2 + 2
+                y: parent.height / 2 - height / 2 - 2
+
+                color: "transparent"
+                border.width: Math.max(1, Theme.hairline)
+                border.color: Theme.textSecondary
+            }
+
+            // Restore glyph - front frame
+            Rectangle {
+                visible: root.targetWindow &&
+                         root.targetWindow.visibility === Window.Maximized
+
+                width: Theme.baseUnit * 1.25
+                height: Theme.baseUnit
+
+                x: parent.width / 2 - width / 2 - 2
+                y: parent.height / 2 - height / 2 + 2
+
+                color: Theme.surfaceRaised
+                border.width: Math.max(1, Theme.hairline)
+                border.color: Theme.textSecondary
+            }
+
+            MouseArea {
+                id: maximizeArea
+
+                anchors.fill: parent
+                hoverEnabled: true
+                acceptedButtons: Qt.LeftButton
+                cursorShape: Qt.PointingHandCursor
+
                 onClicked: {
-                    if (targetWindow) {
-                        if (targetWindow.visibility === Window.Maximized) {
-                            targetWindow.showNormal();
-                        } else {
-                            targetWindow.showMaximized();
-                        }
+                    if (!root.targetWindow) {
+                        return
+                    }
+
+                    if (root.targetWindow.visibility === Window.Maximized) {
+                        root.targetWindow.showNormal()
+                    } else {
+                        root.targetWindow.showMaximized()
                     }
                 }
             }
+        }
 
-            // Close Button
-            Button {
-                id: closeButton
-                implicitWidth: Theme.spacingLG
-                implicitHeight: Theme.spacingLG
-                contentItem: Text {
-                    text: "X"
-                    color: closeButton.hovered ? Theme.error : Theme.textPrimary
-                    font.pointSize: 12
-                    font.bold: true
-                    horizontalAlignment: Text.AlignHCenter
-                    verticalAlignment: Text.AlignVCenter
+        // ====================================================
+        // CLOSE
+        // ====================================================
+
+        Rectangle {
+            id: closeButton
+
+            width: Theme.baseUnit * 5
+            height: Theme.baseUnit * 4
+
+            radius: Theme.radiusS
+
+            color: closeArea.pressed
+                ? Theme.surfaceElevated
+                : closeArea.containsMouse
+                    ? Theme.surfaceBase
+                    : "transparent"
+
+            border.width: closeArea.containsMouse
+                ? Theme.borderThin
+                : 0
+
+            border.color: closeArea.containsMouse
+                ? Theme.edgeStandard
+                : Theme.edgeSubtle
+
+            Layout.alignment: Qt.AlignVCenter
+            z: 10
+
+            Item {
+                width: Theme.baseUnit * 1.5
+                height: Theme.baseUnit * 1.5
+
+                anchors.centerIn: parent
+
+                Rectangle {
+                    width: parent.width
+                    height: Math.max(1, Theme.hairline)
+
+                    anchors.centerIn: parent
+
+                    rotation: 45
+                    color: Theme.textSecondary
                 }
-                background: Rectangle {
-                    color: closeButton.down ? Theme.surfaceOverlay : (closeButton.hovered ? Theme.surface : Theme.surfaceRaised)
-                    radius: Theme.radiusSM
+
+                Rectangle {
+                    width: parent.width
+                    height: Math.max(1, Theme.hairline)
+
+                    anchors.centerIn: parent
+
+                    rotation: -45
+                    color: Theme.textSecondary
                 }
+            }
+
+            MouseArea {
+                id: closeArea
+
+                anchors.fill: parent
+                hoverEnabled: true
+                acceptedButtons: Qt.LeftButton
+                cursorShape: Qt.PointingHandCursor
+
                 onClicked: {
-                    if (targetWindow) {
-                        targetWindow.close();
+                    if (root.targetWindow) {
+                        root.targetWindow.close()
                     }
                 }
             }

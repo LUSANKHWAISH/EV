@@ -7,10 +7,12 @@ from pathlib import Path
 from PySide6.QtCore import QTimer, QUrl
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtQml import QQmlApplicationEngine
+from PySide6.QtQuickControls2 import QQuickStyle
 
 from core.events import EVEventBus
 from core.models import EVState
 from gui.bridge import GuiBridge
+from gui.windows_chrome import install_windows_native_chrome
 
 
 # Representative states cycled by the development-only visual demo.
@@ -80,6 +82,10 @@ def main() -> None:
     if app is None:
         # Pass only the program name; CLI flags are handled by argparse above.
         app = QGuiApplication(sys.argv[:1])
+
+    # Set Qt Quick Controls style to Basic before loading QML
+    QQuickStyle.setStyle('Basic')
+
     engine = QQmlApplicationEngine()
 
     # Create event bus
@@ -95,6 +101,18 @@ def main() -> None:
 
     if not engine.rootObjects():
         sys.exit(-1)
+
+    # Windows-only native chrome integration.
+    #
+    # The QML window remains visually frameless, while Windows receives
+    # the native frame capabilities required for Aero Snap and normal
+    # desktop window management.
+    root_window = engine.rootObjects()[0]
+    native_chrome = install_windows_native_chrome(app, root_window)
+
+    # Keep the native event filter alive for the complete application
+    # lifetime. QAbstractNativeEventFilter must not be garbage-collected.
+    setattr(app, "_ev_windows_native_chrome", native_chrome)
 
     # Development-only visual state demo (disabled by default).
     if args.demo_states:
