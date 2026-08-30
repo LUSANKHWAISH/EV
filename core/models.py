@@ -287,3 +287,40 @@ class RiskAssessmentResult(BaseModel):
     policy_rule: str
     evaluated_at: datetime = Field(default_factory=datetime.now)
     error: Optional[str] = None
+
+# Persistent task history models
+class TaskHistoryEventType(str, Enum):
+    TASK_CREATED = "TASK_CREATED"
+    TASK_STARTED = "TASK_STARTED"
+    TASK_COMPLETED = "TASK_COMPLETED"
+    TASK_FAILED = "TASK_FAILED"
+    VERIFICATION_RESULT = "VERIFICATION_RESULT"
+    RISK_ASSESSMENT = "RISK_ASSESSMENT"
+    BACKUP_RESULT = "BACKUP_RESULT"
+    RESTORE_RESULT = "RESTORE_RESULT"
+    RECOVERY_RESULT = "RECOVERY_RESULT"
+    NOTE = "NOTE"
+
+
+class TaskHistoryRecord(BaseModel):
+    task_id: str
+    action: AgentAction
+    parameters: dict
+    created_at: datetime
+    status: AgentStatus
+    started_at: Optional[datetime] = None
+    finished_at: Optional[datetime] = None
+    duration_seconds: Optional[float] = None
+    success: Optional[bool] = None
+    result_summary: Optional[dict] = None
+    error: Optional[str] = None
+    updated_at: datetime
+
+
+class TaskHistoryEventRecord(BaseModel):
+    event_id: int
+    task_id: str
+    event_type: TaskHistoryEventType
+    payload: dict
+    created_at: datetime
+

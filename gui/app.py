@@ -35,19 +35,27 @@ DEMO_INTERVAL_MS = 2000
 
 
 def _parse_args(argv: list) -> argparse.Namespace:
-    """Parse command line arguments. Demo mode is disabled by default."""
+    """Parse command line arguments.
+
+    The representative state progression is enabled by default so the HUD
+    visibly advances through the E.V. lifecycle on a normal launch. Pass
+    --no-demo-states for a static window pinned to the initial state.
+    """
     parser = argparse.ArgumentParser(
         prog="gui.app",
         description="E.V. - Enhanced Virtual Intelligence GUI",
     )
     parser.add_argument(
         "--demo-states",
-        action="store_true",
-        default=False,
+        action=argparse.BooleanOptionalAction,
+        default=True,
         help=(
-            "Development only: slowly cycle representative EVState values "
-            "through the event bus to verify GUI state bindings. "
-            "Performs no commands, filesystem, or system actions."
+            "Slowly cycle representative EVState values through the event "
+            "bus so the GUI visibly progresses through the E.V. lifecycle "
+            "(OBSERVE -> LISTEN -> PLAN -> APPROVAL -> EXECUTE -> VERIFY -> "
+            "COMPLETE -> RESPOND). Enabled by default; use --no-demo-states "
+            "for a static window pinned to the initial state. Performs no "
+            "commands, filesystem, or system actions."
         ),
     )
     return parser.parse_args(argv)
@@ -114,7 +122,9 @@ def main() -> None:
     # lifetime. QAbstractNativeEventFilter must not be garbage-collected.
     setattr(app, "_ev_windows_native_chrome", native_chrome)
 
-    # Development-only visual state demo (disabled by default).
+    # Representative lifecycle state progression (enabled by default).
+    # Drives the HUD through the E.V. lifecycle via EVEventBus.set_state()
+    # only; --no-demo-states pins the window to the initial state.
     if args.demo_states:
         _start_state_demo(app, event_bus)
 

@@ -8,11 +8,11 @@ Item {
 
     property Window targetWindow: null
 
-    height: Theme.baseUnit * 7
+    height: Theme.topBarHeight
 
     Rectangle {
         anchors.fill: parent
-        color: Theme.surfaceRaised
+        color: "transparent"
     }
 
     Rectangle {
@@ -54,10 +54,10 @@ Item {
 
     RowLayout {
         anchors.fill: parent
-        anchors.leftMargin: Theme.baseUnit * 2
-        anchors.rightMargin: Theme.baseUnit
+        anchors.leftMargin: Theme.spacingXS
+        anchors.rightMargin: Theme.spacingXXS
 
-        spacing: Theme.baseUnit
+        spacing: Theme.spacingXXS
 
         Text {
             text: "E.V."
@@ -72,7 +72,7 @@ Item {
 
         Rectangle {
             width: Theme.hairline
-            height: Theme.baseUnit * 2
+            height: Theme.spacingXS
 
             color: Theme.edgeStandard
             Layout.alignment: Qt.AlignVCenter
@@ -86,7 +86,7 @@ Item {
             font.pointSize: Theme.fontSizeLabel
             font.weight: Theme.fontWeightMedium
 
-            opacity: 0.72
+            opacity: Theme.opacityStandard
 
             Layout.alignment: Qt.AlignVCenter
         }
@@ -102,8 +102,8 @@ Item {
         Rectangle {
             id: minimizeButton
 
-            width: Theme.baseUnit * 5
-            height: Theme.baseUnit * 4
+            width: Theme.windowControlWidth
+            height: Theme.windowControlHeight
 
             radius: Theme.radiusS
 
@@ -154,8 +154,8 @@ Item {
         Rectangle {
             id: maximizeButton
 
-            width: Theme.baseUnit * 5
-            height: Theme.baseUnit * 4
+            width: Theme.windowControlWidth
+            height: Theme.windowControlHeight
 
             radius: Theme.radiusS
 
@@ -250,8 +250,8 @@ Item {
         Rectangle {
             id: closeButton
 
-            width: Theme.baseUnit * 5
-            height: Theme.baseUnit * 4
+            width: Theme.windowControlWidth
+            height: Theme.windowControlHeight
 
             radius: Theme.radiusS
 

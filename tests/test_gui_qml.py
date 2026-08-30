@@ -82,6 +82,11 @@ def test_qml_components_importable(qml_engine):
         "EVButton.qml",
         "EVIconButton.qml",
         "EVSignalIndicator.qml",
+        "EVIntelligenceCore.qml",
+        "EVFlagshipStage.qml",
+        "EVCoreRing.qml",
+        "EVCoreLattice.qml",
+        "EVTelemetryRail.qml",
     ]
 
     failures = []
@@ -136,6 +141,7 @@ def test_qml_components_importable(qml_engine):
         + "\n\n".join(failures)
     )
 
+
 def test_qmldir_registers_all_components():
     """The QML module manifest must expose every E.V. GUI component."""
     qmldir_path = COMPONENT_ROOT / "qmldir"
@@ -153,6 +159,12 @@ def test_qmldir_registers_all_components():
         "EVButton 1.0 EVButton.qml",
         "EVIconButton 1.0 EVIconButton.qml",
         "EVSignalIndicator 1.0 EVSignalIndicator.qml",
+        "EVIntelligenceCore 1.0 EVIntelligenceCore.qml",
+        "EVFlagshipStage 1.0 EVFlagshipStage.qml",
+        "EVCoreRing 1.0 EVCoreRing.qml",
+        "EVCoreLattice 1.0 EVCoreLattice.qml",
+        "EVTelemetryRail 1.0 EVTelemetryRail.qml",
+        "EVIntelligenceTaskRail 1.0 EVIntelligenceTaskRail.qml",
     }
 
     actual = {
@@ -179,6 +191,11 @@ def test_design_system_tokens_used():
         "EVWindow.qml",
         "EVStatusIndicator.qml",
         "EVCorePlaceholder.qml",
+        "EVIntelligenceCore.qml",
+        "EVFlagshipStage.qml",
+        "EVCoreRing.qml",
+        "EVCoreLattice.qml",
+        "EVTelemetryRail.qml",
     ]
 
     for filename in component_files:
@@ -204,3 +221,35 @@ def test_application_configures_basic_style():
     app_source = (PROJECT_ROOT / "gui" / "app.py").read_text(encoding="utf-8")
 
     assert "QQuickStyle.setStyle('Basic')" in app_source
+
+
+def test_flagship_components_instantiate_with_state(qml_engine):
+    """Test that flagship components can instantiate and respond to state changes."""
+    # Test EVIntelligenceCore
+    core_component = QQmlComponent(
+        qml_engine,
+        QUrl.fromLocalFile(str(COMPONENT_ROOT / "EVIntelligenceCore.qml")),
+    )
+    assert not core_component.isError(), core_component.errors()
+    core_instance = core_component.create(qml_engine.rootContext())
+    assert core_instance is not None, "EVIntelligenceCore failed to instantiate"
+    # Set a state and ensure no runtime error
+    core_instance.state = EVState.EXECUTING.value
+    # Process events to allow animations to start
+    app = QGuiApplication.instance()
+    if app:
+        app.processEvents()
+    core_instance.deleteLater()
+
+    # Test EVFlagshipStage
+    stage_component = QQmlComponent(
+        qml_engine,
+        QUrl.fromLocalFile(str(COMPONENT_ROOT / "EVFlagshipStage.qml")),
+    )
+    assert not stage_component.isError(), stage_component.errors()
+    stage_instance = stage_component.create(qml_engine.rootContext())
+    assert stage_instance is not None, "EVFlagshipStage failed to instantiate"
+    stage_instance.state = EVState.VERIFYING.value
+    if app:
+        app.processEvents()
+    stage_instance.deleteLater()

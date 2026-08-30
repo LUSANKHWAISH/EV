@@ -12,6 +12,7 @@ from .models import (
     AgentStepResult,
     AgentRunResult,
 )
+from .history import EVTaskHistoryStore
 from tools.processes import find_processes
 from tools.network import find_tcp_port
 from tools.filesystem import (
@@ -52,6 +53,8 @@ class EVAgent:
         Returns AgentRunResult with status and optional step details.
         """
         started_at = datetime.now()
+        self._history("record_task", task)
+        self._history("mark_started", task.task_id, started_at=started_at)
         logger.info(
             "Agent task started: task_id=%s action=%s",
             task.task_id,
@@ -66,7 +69,7 @@ class EVAgent:
             logger.error("Agent task failed: %s", error_msg)
             finished_at = datetime.now()
             duration = (finished_at - started_at).total_seconds()
-            return AgentRunResult(
+            result = AgentRunResult(
                 task_id=task.task_id,
                 status=AgentStatus.FAILED,
                 error=error_msg,
@@ -79,6 +82,8 @@ class EVAgent:
                     error=error_msg,
                 ),
             )
+            self._history("record_run", task, result)
+            return result
 
         # Validate parameters based on action
         validation_error = self._validate_parameters(task.action, task.parameters)
@@ -86,7 +91,7 @@ class EVAgent:
             logger.error("Agent task failed: %s", validation_error)
             finished_at = datetime.now()
             duration = (finished_at - started_at).total_seconds()
-            return AgentRunResult(
+            result = AgentRunResult(
                 task_id=task.task_id,
                 status=AgentStatus.FAILED,
                 error=validation_error,
@@ -99,6 +104,8 @@ class EVAgent:
                     error=validation_error,
                 ),
             )
+            self._history("record_run", task, result)
+            return result
 
         # Execute the approved action
         try:
@@ -111,7 +118,7 @@ class EVAgent:
                 task.action.value,
                 duration,
             )
-            return AgentRunResult(
+            result = AgentRunResult(
                 task_id=task.task_id,
                 status=AgentStatus.COMPLETED,
                 step=AgentStepResult(
@@ -123,12 +130,14 @@ class EVAgent:
                     result=result,
                 ),
             )
+            self._history("record_run", task, result)
+            return result
         except Exception as exc:  # pragma: no cover - defensive
             logger.exception("Agent task error: task_id=%s action=%s", task.task_id, task.action.value)
             finished_at = datetime.now()
             duration = (finished_at - started_at).total_seconds()
             error_msg = f"{type(exc).__name__}: {exc}"
-            return AgentRunResult(
+            result = AgentRunResult(
                 task_id=task.task_id,
                 status=AgentStatus.FAILED,
                 error=error_msg,
@@ -141,6 +150,8 @@ class EVAgent:
                     error=error_msg,
                 ),
             )
+            self._history("record_run", task, result)
+            return result
 
     def _validate_parameters(self, action: AgentAction, params: Dict[str, Any]) -> Optional[str]:
         """Validate required parameters for each action."""
@@ -197,3 +208,13 @@ class EVAgent:
                 if not isinstance(exclude_dirs, list) or not all(isinstance(d, str) for d in exclude_dirs):
                     return "SEARCH_TEXT exclude_dirs must be list of strings if provided"
         return None
+    def __init__(self, history_store: Optional[EVTaskHistoryStore] = None):
+        self._history_store = history_store
+
+    def _history(self, method, *args, **kwargs):
+        if self._history_store is None:
+            return
+        try:
+            getattr(self._history_store, method)(*args, **kwargs)
+        except Exception:
+            logger.exception("Agent task history persistence failed")

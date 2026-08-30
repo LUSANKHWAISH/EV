@@ -7,12 +7,49 @@ from datetime import datetime
 
 from core.models import AgentTask, AgentAction, AgentStatus, AgentStepResult
 from core.agent import EVAgent
+from core.history import EVTaskHistoryStore
+from tempfile import TemporaryDirectory
+from pathlib import Path
 from pydantic import ValidationError
 
 
 class TestEVAgent(unittest.TestCase):
     def setUp(self):
         self.agent = EVAgent()
+
+    def _task(self, task_id='history-test', **kwargs):
+        return AgentTask(task_id=task_id, action=kwargs.pop('action', AgentAction.FIND_PROCESS),
+                         parameters=kwargs.pop('parameters', {'name': 'python'}), created_at=datetime.now())
+
+    def test_history_lifecycle_and_exactly_once(self):
+        with TemporaryDirectory() as directory:
+            store = EVTaskHistoryStore(Path(directory) / 'history.sqlite3')
+            task = self._task()
+            with patch('core.agent.find_processes', return_value=[]) as handler:
+                result = EVAgent(store).run(task)
+            self.assertEqual(result.status, AgentStatus.COMPLETED)
+            self.assertEqual(handler.call_count, 1)
+            self.assertEqual([event.event_type.value for event in store.get_events(task.task_id)],
+                             ['TASK_CREATED', 'TASK_STARTED', 'TASK_COMPLETED'])
+
+    def test_history_failure_does_not_retry_or_change_result(self):
+        store = MagicMock()
+        store.record_task.side_effect = RuntimeError('history unavailable')
+        store.mark_started.side_effect = RuntimeError('history unavailable')
+        store.record_run.side_effect = RuntimeError('history unavailable')
+        task = self._task()
+        with patch('core.agent.find_processes', return_value=[]) as handler:
+            result = EVAgent(store).run(task)
+        self.assertEqual(result.status, AgentStatus.COMPLETED)
+        self.assertEqual(handler.call_count, 1)
+
+    def test_failed_paths_are_recorded(self):
+        with TemporaryDirectory() as directory:
+            store = EVTaskHistoryStore(Path(directory) / 'history.sqlite3')
+            task = self._task(parameters={})
+            result = EVAgent(store).run(task)
+            self.assertEqual(result.status, AgentStatus.FAILED)
+            self.assertEqual(store.get_task(task.task_id).status, AgentStatus.FAILED)
 
     def test_find_process_dispatch(self):
         mock_result = [MagicMock()]

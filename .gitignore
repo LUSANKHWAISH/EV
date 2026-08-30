@@ -1,4 +1,4 @@
-﻿# Python
+# Python
 __pycache__/
 *.py[cod]
 .venv/
@@ -27,3 +27,11 @@ Desktop.ini
 
 # EV backups directory
 /backups/
+
+# EV persistent task history runtime database
+/data/*.sqlite
+/data/*.sqlite3
+/data/*.db
+/data/*-wal
+/data/*-shm
+

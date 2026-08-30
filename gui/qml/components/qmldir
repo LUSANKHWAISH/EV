@@ -10,3 +10,9 @@ EVStateBadge 1.0 EVStateBadge.qml
 EVButton 1.0 EVButton.qml
 EVIconButton 1.0 EVIconButton.qml
 EVSignalIndicator 1.0 EVSignalIndicator.qml
+EVIntelligenceCore 1.0 EVIntelligenceCore.qml
+EVFlagshipStage 1.0 EVFlagshipStage.qml
+EVCoreRing 1.0 EVCoreRing.qml
+EVCoreLattice 1.0 EVCoreLattice.qml
+EVTelemetryRail 1.0 EVTelemetryRail.qml
+EVIntelligenceTaskRail 1.0 EVIntelligenceTaskRail.qml

@@ -78,6 +78,7 @@ QtObject {
     readonly property real letterSpacingTight: -0.5
     readonly property real letterSpacingNormal: 0
     readonly property real letterSpacingWide: 0.5
+    readonly property real letterSpacingEmphasis: 0.85
 
     // Line height
     readonly property real lineHeightTight: 1.2
@@ -100,10 +101,10 @@ QtObject {
     readonly property int spacingXL: baseUnit * 6    // 48px
     readonly property int spacingXXL: baseUnit * 8   // 64px
     readonly property int spacingXXXL: baseUnit * 10 // 80px
-    // Additional spacing tokens used in components
-    readonly property int spacingLG: baseUnit * 3    // 24px (same as spacingS)
-    readonly property int spacingMD: baseUnit * 2    // 16px (same as spacingXS)
-    readonly property int spacingSM: baseUnit        // 8px (same as spacingXXS)
+    // Compatibility aliases. New/updated components use the canonical scale above.
+    readonly property int spacingLG: spacingS
+    readonly property int spacingMD: spacingXS
+    readonly property int spacingSM: spacingXXS
 
     // Radii (restrained, engineering)
     readonly property int radiusNone: 0
@@ -118,6 +119,29 @@ QtObject {
     readonly property int borderThin: 1
     readonly property int borderStandard: 2
     readonly property int borderThick: 3
+
+    // Core ring thickness for intelligence components
+    readonly property real coreRingThickness: 2
+
+    // Window / chrome geometry
+    readonly property int windowDefaultWidth: 1280
+    readonly property int windowDefaultHeight: 720
+    readonly property int windowMinimumWidth: 800
+    readonly property int windowMinimumHeight: 600
+    readonly property int stageCompactWidth: 900
+    readonly property int stageCompactHeight: 620
+    readonly property int topBarHeight: baseUnit * 6
+    readonly property int windowControlWidth: baseUnit * 5
+    readonly property int windowControlHeight: baseUnit * 4
+    readonly property int windowResizeEdgeSize: 6
+    readonly property int windowResizeCornerSize: 10
+
+    // Opacity / emphasis hierarchy
+    readonly property real opacityEmphasis: 0.88
+    readonly property real opacitySignal: 0.86
+    readonly property real opacityStandard: 0.72
+    readonly property real opacityMuted: 0.62
+    readonly property real opacitySubtle: 0.50
 
     // ==================================
     // MOTION SYSTEM
@@ -152,19 +176,21 @@ QtObject {
     // STATE IDENTITY SYSTEM
     // ==================================
     // Functions to map state to identity properties
+    // State is expected to be a string from guiBridge.currentState
     function stateColor(state) {
+        if (!state) return textPrimary
         switch (state) {
-        case EVState.IDLE: return stateColorIdle
-        case EVState.LISTENING: return stateColorListening
-        case EVState.PLANNING: return stateColorPlanning
-        case EVState.AWAITING_APPROVAL: return stateColorAwaitingApproval
-        case EVState.EXECUTING: return stateColorExecuting
-        case EVState.VERIFYING: return stateColorVerifying
-        case EVState.RECOVERING: return stateColorRecovering
-        case EVState.SPEAKING: return stateColorSpeaking
-        case EVState.SUCCESS: return stateColorSuccess
-        case EVState.FAILED: return stateColorFailed
-        case EVState.STOPPED: return stateColorStopped
+        case "IDLE": return stateColorIdle
+        case "LISTENING": return stateColorListening
+        case "PLANNING": return stateColorPlanning
+        case "AWAITING_APPROVAL": return stateColorAwaitingApproval
+        case "EXECUTING": return stateColorExecuting
+        case "VERIFYING": return stateColorVerifying
+        case "RECOVERING": return stateColorRecovering
+        case "SPEAKING": return stateColorSpeaking
+        case "SUCCESS": return stateColorSuccess
+        case "FAILED": return stateColorFailed
+        case "STOPPED": return stateColorStopped
         default: return textPrimary
         }
     }
@@ -178,28 +204,30 @@ QtObject {
 
     function stateEnergy(state) {
         // Returns a value from 0.0 to 1.0 representing the energy/intensity of the state
+        if (!state) return 0.0
         switch (state) {
-        case EVState.IDLE: return 0.1
-        case EVState.LISTENING: return 0.3
-        case EVState.PLANNING: return 0.5
-        case EVState.AWAITING_APPROVAL: return 0.7
-        case EVState.EXECUTING: return 0.9
-        case EVState.VERIFYING: return 0.6
-        case EVState.RECOVERING: return 0.4
-        case EVState.SPEAKING: return 0.8
-        case EVState.SUCCESS: return 0.2
-        case EVState.FAILED: return 0.5
-        case EVState.STOPPED: return 0.0
+        case "IDLE": return 0.1
+        case "LISTENING": return 0.3
+        case "PLANNING": return 0.5
+        case "AWAITING_APPROVAL": return 0.7
+        case "EXECUTING": return 0.9
+        case "VERIFYING": return 0.6
+        case "RECOVERING": return 0.4
+        case "SPEAKING": return 0.8
+        case "SUCCESS": return 0.2
+        case "FAILED": return 0.5
+        case "STOPPED": return 0.0
         default: return 0.0
         }
     }
 
     function statePulseDuration(state) {
         // Returns a suggested pulse duration for state visualization
+        if (!state) return motionInstant
         switch (state) {
-        case EVState.LISTENING: return motionAmbient
-        case EVState.SPEAKING: return motionDeliberate
-        case EVState.VERIFYING: return motionStandard
+        case "LISTENING": return motionAmbient
+        case "SPEAKING": return motionDeliberate
+        case "VERIFYING": return motionStandard
         default: return motionInstant
         }
     }

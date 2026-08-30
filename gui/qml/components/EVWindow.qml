@@ -12,10 +12,10 @@ import ".." as Main
 ApplicationWindow {
     id: windowRoot
     visible: true
-    width: 1280
-    height: 720
-    minimumWidth: 800
-    minimumHeight: 600
+    width: Theme.windowDefaultWidth
+    height: Theme.windowDefaultHeight
+    minimumWidth: Theme.windowMinimumWidth
+    minimumHeight: Theme.windowMinimumHeight
     title: "E.V. - Enhanced Virtual Intelligence"
     color: Theme.backgroundDeep
 
@@ -32,7 +32,10 @@ ApplicationWindow {
     // Note: Actually setting the style should be done before QML engine initialization.
     // We'll rely on gui/app.py to do this properly.
 
-    // Main content layout
+    // Main content layout.
+    // The flagship stage receives the full workspace below the custom
+    // window chrome. State presentation is handled inside the stage
+    // instead of consuming permanent vertical space in a second header.
     Item {
         id: contentContainer
         anchors.fill: parent
@@ -40,38 +43,39 @@ ApplicationWindow {
         EVTopBar {
             id: topBar
             targetWindow: windowRoot
+
             anchors.top: parent.top
             anchors.left: parent.left
             anchors.right: parent.right
-            height: Theme.spacingLG * 2
+
+            height: Theme.topBarHeight
         }
 
-        EVStatusIndicator {
-            id: statusIndicator
+        EVFlagshipStage {
+            id: flagshipStage
+
             anchors.top: topBar.bottom
             anchors.left: parent.left
             anchors.right: parent.right
-            anchors.margins: Theme.spacingMD
-            height: Theme.spacingLG * 3
-        }
-
-        EVCorePlaceholder {
-            id: corePlaceholder
-            anchors.top: statusIndicator.bottom
-            anchors.left: parent.left
-            anchors.right: parent.right
             anchors.bottom: parent.bottom
-            anchors.margins: Theme.spacingMD
+
+            anchors.topMargin: Theme.spacingXXXS
+            anchors.leftMargin: Theme.spacingXS
+            anchors.rightMargin: Theme.spacingXS
+            anchors.bottomMargin: Theme.spacingXXS
+
+            state: guiBridge.currentState
+            visualMode: "STANDARD"
+            themeProfile: "EV_CORE"
         }
     }
-
     // Frameless edge and corner resize handlers using startSystemResize
     MouseArea {
         id: topResize
         anchors.top: parent.top
         anchors.left: parent.left
         anchors.right: parent.right
-        height: 6
+        height: Theme.windowResizeEdgeSize
         cursorShape: Qt.SizeVerCursor
         onPressed: function() {
             if (typeof windowRoot.startSystemResize === "function") {
@@ -85,7 +89,7 @@ ApplicationWindow {
         anchors.bottom: parent.bottom
         anchors.left: parent.left
         anchors.right: parent.right
-        height: 6
+        height: Theme.windowResizeEdgeSize
         cursorShape: Qt.SizeVerCursor
         onPressed: function() {
             if (typeof windowRoot.startSystemResize === "function") {
@@ -99,7 +103,7 @@ ApplicationWindow {
         anchors.top: parent.top
         anchors.bottom: parent.bottom
         anchors.left: parent.left
-        width: 6
+        width: Theme.windowResizeEdgeSize
         cursorShape: Qt.SizeHorCursor
         onPressed: function() {
             if (typeof windowRoot.startSystemResize === "function") {
@@ -113,7 +117,7 @@ ApplicationWindow {
         anchors.top: parent.top
         anchors.bottom: parent.bottom
         anchors.right: parent.right
-        width: 6
+        width: Theme.windowResizeEdgeSize
         cursorShape: Qt.SizeHorCursor
         onPressed: function() {
             if (typeof windowRoot.startSystemResize === "function") {
@@ -126,8 +130,8 @@ ApplicationWindow {
         id: topLeftResize
         anchors.top: parent.top
         anchors.left: parent.left
-        width: 10
-        height: 10
+        width: Theme.windowResizeCornerSize
+        height: Theme.windowResizeCornerSize
         cursorShape: Qt.SizeFDiagCursor
         onPressed: function() {
             if (typeof windowRoot.startSystemResize === "function") {
@@ -140,8 +144,8 @@ ApplicationWindow {
         id: topRightResize
         anchors.top: parent.top
         anchors.right: parent.right
-        width: 10
-        height: 10
+        width: Theme.windowResizeCornerSize
+        height: Theme.windowResizeCornerSize
         cursorShape: Qt.SizeBDiagCursor
         onPressed: function() {
             if (typeof windowRoot.startSystemResize === "function") {
@@ -154,8 +158,8 @@ ApplicationWindow {
         id: bottomLeftResize
         anchors.bottom: parent.bottom
         anchors.left: parent.left
-        width: 10
-        height: 10
+        width: Theme.windowResizeCornerSize
+        height: Theme.windowResizeCornerSize
         cursorShape: Qt.SizeBDiagCursor
         onPressed: function() {
             if (typeof windowRoot.startSystemResize === "function") {
@@ -168,8 +172,8 @@ ApplicationWindow {
         id: bottomRightResize
         anchors.bottom: parent.bottom
         anchors.right: parent.right
-        width: 10
-        height: 10
+        width: Theme.windowResizeCornerSize
+        height: Theme.windowResizeCornerSize
         cursorShape: Qt.SizeFDiagCursor
         onPressed: function() {
             if (typeof windowRoot.startSystemResize === "function") {
