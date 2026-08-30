@@ -1,115 +1,108 @@
-# Regression tests for the GUI launcher (gui/app.py) state-progression wiring.
-#
-# Root cause guarded here: the launcher previously gated the lifecycle state
-# driver behind a --demo-states flag that defaulted to False, so a normal
-# `python gui/app.py` launch never published any STATE_CHANGED event and the
-# HUD stayed pinned at the initial state (displayed as "OBSERVE"). These tests
-# lock in that the driver is wired on the default launch path and that the
-# sequence it publishes is fully observable end-to-end through the bridge.
+# Regression tests for the GUI launcher (gui/app.py) production wiring.
+import argparse
 import sys
+from unittest.mock import patch, MagicMock
 
 import pytest
-from PySide6.QtCore import QCoreApplication, QTimer
+from PySide6.QtCore import QCoreApplication
 from PySide6.QtGui import QGuiApplication
 
 from core.events import EVEventBus
 from core.models import EVState
-from gui.app import (
-    DEMO_INTERVAL_MS,
-    DEMO_STATE_SEQUENCE,
-    _parse_args,
-    _start_state_demo,
-)
+from core.orchestrator import EVOrchestrator
+from gui.app import _parse_args, main
 from gui.bridge import GuiBridge
 
+# --- Argument parsing ------------------------------------------------------
 
-# --- Argument parsing: the actual root-cause guard -------------------------
-
-def test_demo_states_enabled_by_default():
-    """A plain launch (no flags) must drive the lifecycle progression."""
+def test_parse_args_returns_namespace():
+    """Verify the CLI parser works and handles basic arguments."""
     args = _parse_args([])
-    assert args.demo_states is True
+    assert isinstance(args, argparse.Namespace)
 
+def test_parse_args_accepts_help():
+    """Verify --help is handled by argparse."""
+    with pytest.raises(SystemExit):
+        _parse_args(["--help"])
 
-def test_no_demo_states_flag_disables_progression():
-    """--no-demo-states must pin the window to the initial state."""
-    args = _parse_args(["--no-demo-states"])
-    assert args.demo_states is False
-
-
-def test_demo_states_flag_still_accepted():
-    """--demo-states remains valid (backward compatible)."""
-    args = _parse_args(["--demo-states"])
-    assert args.demo_states is True
-
-
-# --- The sequence covers the documented lifecycle --------------------------
-
-def test_sequence_covers_acceptance_lifecycle_in_order():
-    """DEMO_STATE_SEQUENCE must contain the OBSERVE->...->COMPLETE lifecycle
-    (IDLE->LISTENING->PLANNING->AWAITING_APPROVAL->EXECUTING->VERIFYING->
-    SUCCESS) in order."""
-    lifecycle = [
-        EVState.IDLE,
-        EVState.LISTENING,
-        EVState.PLANNING,
-        EVState.AWAITING_APPROVAL,
-        EVState.EXECUTING,
-        EVState.VERIFYING,
-        EVState.SUCCESS,
-    ]
-    indices = [DEMO_STATE_SEQUENCE.index(s) for s in lifecycle]
-    assert indices == sorted(indices), "lifecycle states must appear in order"
-
-
-def test_sequence_starts_at_initial_state():
-    """The sequence must begin at IDLE (the HUD's initial/OBSERVE state)."""
-    assert DEMO_STATE_SEQUENCE[0] == EVState.IDLE
-
-
-# --- Qt-level structural + integration guards ------------------------------
+# --- Production Architecture Wiring ----------------------------------------
 
 @pytest.fixture
-def app():
-    instance = QGuiApplication.instance()
-    if instance is None:
-        instance = QGuiApplication(sys.argv[:1])
-    yield instance
+def mock_gui_env():
+    """Mock out the blocking Qt/GUI components for testing main()."""
+    with patch("gui.app.QGuiApplication") as mock_app, \
+         patch("gui.app.QQmlApplicationEngine") as mock_engine, \
+         patch("gui.app.install_windows_native_chrome"), \
+         patch("sys.exit") as mock_exit, \
+         patch("sys.argv", ["gui.app"]):
 
+        # Make app.exec() return 0 instead of blocking
+        mock_app_instance = MagicMock()
+        mock_app_instance.exec.return_value = 0
+        mock_app.instance.return_value = mock_app_instance
+        mock_app.return_value = mock_app_instance
 
-def test_start_state_demo_creates_running_timer(app):
-    """_start_state_demo must create an active, correctly-configured QTimer
-    parented to the application (so a driver actually runs)."""
-    event_bus = EVEventBus(initial_state=EVState.IDLE)
-    timer = _start_state_demo(app, event_bus)
-    try:
-        assert isinstance(timer, QTimer)
-        assert timer.isActive()
-        assert timer.interval() == DEMO_INTERVAL_MS
-        assert timer.parent() is app
-    finally:
-        timer.stop()
+        # Make engine.rootObjects() return a dummy window
+        mock_engine_instance = MagicMock()
+        mock_engine_instance.rootObjects.return_value = [MagicMock()]
+        mock_engine.return_value = mock_engine_instance
 
+        yield mock_app_instance, mock_engine_instance, mock_exit
 
-def test_default_sequence_is_observable_through_bridge(app):
-    """Publishing the launcher's sequence through the real event bus must move
-    the real bridge through each state (i.e. it does not get stuck at OBSERVE).
-    This exercises the bus->bridge path the default launch now relies on,
-    without depending on the slow QTimer cadence."""
-    event_bus = EVEventBus(initial_state=EVState.IDLE)
-    bridge = GuiBridge(event_bus)
-    try:
-        seen = []
-        for state in DEMO_STATE_SEQUENCE:
-            event_bus.set_state(state)
-            QCoreApplication.processEvents()
-            seen.append(bridge.currentState)
+def test_main_creates_shared_event_bus(mock_gui_env):
+    """Verify main() creates exactly one EVEventBus and passes it to components."""
+    mock_app, mock_engine, mock_exit = mock_gui_env
 
-        # The bridge must have left the initial IDLE/OBSERVE state and visited
-        # every distinct state in the sequence.
-        assert bridge.currentState == DEMO_STATE_SEQUENCE[-1].value
-        for state in DEMO_STATE_SEQUENCE:
-            assert state.value in seen
-        assert any(s != EVState.IDLE.value for s in seen)
-    finally:
-        bridge.shutdown()
+    with patch("gui.app.EVEventBus") as mock_bus_cls, \
+         patch("gui.app.GuiBridge") as mock_bridge_cls, \
+         patch("gui.app.EVOrchestrator") as mock_orch_cls:
+
+        mock_bus_instance = MagicMock()
+        mock_bus_cls.return_value = mock_bus_instance
+
+        main()
+
+        # Bus should be created once
+        mock_bus_cls.assert_called_once_with(initial_state=EVState.IDLE)
+
+        # Bridge should receive the exact same bus
+        mock_bridge_cls.assert_called_once_with(mock_bus_instance)
+
+        # Orchestrator should receive the exact same bus
+        mock_orch_cls.assert_called_once_with(event_bus=mock_bus_instance)
+
+def test_main_registers_bridge_with_qml(mock_gui_env):
+    """Verify the GuiBridge is exposed to QML."""
+    mock_app, mock_engine, mock_exit = mock_gui_env
+
+    with patch("gui.app.GuiBridge") as mock_bridge_cls:
+        mock_bridge_instance = MagicMock()
+        mock_bridge_cls.return_value = mock_bridge_instance
+
+        main()
+
+        root_context = mock_engine.rootContext.return_value
+        root_context.setContextProperty.assert_called_once_with("guiBridge", mock_bridge_instance)
+
+def test_main_retains_orchestrator(mock_gui_env):
+    """Verify the EVOrchestrator is kept alive by attaching it to the app."""
+    mock_app, mock_engine, mock_exit = mock_gui_env
+
+    with patch("gui.app.EVOrchestrator") as mock_orch_cls:
+        mock_orch_instance = MagicMock()
+        mock_orch_cls.return_value = mock_orch_instance
+
+        main()
+
+        # The app instance must retain the orchestrator to prevent garbage collection
+        assert getattr(mock_app, "_ev_orchestrator") is mock_orch_instance
+
+def test_main_executes_and_exits(mock_gui_env):
+    """Verify main() calls app.exec() and exits with its return code."""
+    mock_app, mock_engine, mock_exit = mock_gui_env
+    mock_app.exec.return_value = 42
+
+    main()
+
+    mock_app.exec.assert_called_once()
+    mock_exit.assert_called_once_with(42)

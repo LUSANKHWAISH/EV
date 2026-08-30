@@ -326,3 +326,46 @@ def test_status_empty_message_ignored(bridge, event_bus, app):
     )
     QCoreApplication.processEvents()
     assert bridge.latestObservation == "Old message"
+
+
+def test_orchestrator_end_to_end(app):
+    """
+    Verify the complete production wiring:
+    EVAgent -> EVEventBus -> GuiBridge -> QML property updates
+    """
+    from core.events import EVEventBus
+    from core.models import EVState, AgentTask, AgentAction
+    from core.orchestrator import EVOrchestrator
+    from gui.bridge import GuiBridge
+    from PySide6.QtCore import QCoreApplication
+    from unittest.mock import patch
+
+    event_bus = EVEventBus(initial_state=EVState.IDLE)
+    bridge = GuiBridge(event_bus)
+    orchestrator = EVOrchestrator(event_bus=event_bus)
+
+    assert orchestrator.event_bus is bridge._event_bus, "Must share exact EventBus instance"
+
+    task = AgentTask(
+        task_id="t1",
+        action=AgentAction.FIND_PROCESS,
+        parameters={"name": "test_process"}
+    )
+
+    # Track signal emissions manually
+    task_emissions = []
+    obs_emissions = []
+
+    bridge.currentTaskChanged.connect(lambda: task_emissions.append(bridge.currentTask))
+    bridge.latestObservationChanged.connect(lambda: obs_emissions.append(bridge.latestObservation))
+
+    with patch('core.agent.find_processes', return_value=[]):
+        thread = orchestrator.execute_task(task)
+        thread.join(timeout=3.0)
+        assert not thread.is_alive(), "Orchestrator thread timed out"
+        QCoreApplication.processEvents()
+
+    assert len(task_emissions) >= 2
+    assert len(obs_emissions) >= 2
+    assert any(t.startswith("FIND_PROCESS") for t in task_emissions)
+    assert any(obs != "" for obs in obs_emissions)
