@@ -272,5 +272,95 @@ class TestEVAgent(unittest.TestCase):
                 self.fail(f"_get_handler does not handle action {action}")
 
 
+    def test_event_lifecycle_successful(self):
+        from core.events import EVEventBus, EVEventType
+        event_bus = MagicMock(spec=EVEventBus)
+        agent = EVAgent(event_bus=event_bus)
+
+        mock_result = [MagicMock()]
+        with patch('core.agent.find_processes', return_value=mock_result):
+            task = self._task()
+            result = agent.run(task)
+
+        self.assertEqual(result.status, AgentStatus.COMPLETED)
+
+        # Check calls to event_bus.publish
+        calls = event_bus.publish.call_args_list
+        self.assertEqual(len(calls), 3)
+
+        self.assertEqual(calls[0].kwargs['event_type'], EVEventType.ACTION_STARTED)
+        self.assertEqual(calls[0].kwargs['correlation_id'], task.task_id)
+
+        self.assertEqual(calls[1].kwargs['event_type'], EVEventType.STATUS)
+        self.assertEqual(calls[1].kwargs['correlation_id'], task.task_id)
+
+        self.assertEqual(calls[2].kwargs['event_type'], EVEventType.ACTION_COMPLETED)
+        self.assertEqual(calls[2].kwargs['correlation_id'], task.task_id)
+        self.assertTrue(calls[2].kwargs['data']['success'])
+        self.assertIn('duration_seconds', calls[2].kwargs['data'])
+
+    def test_event_lifecycle_validation_failure(self):
+        from core.events import EVEventBus, EVEventType
+        event_bus = MagicMock(spec=EVEventBus)
+        agent = EVAgent(event_bus=event_bus)
+
+        task = AgentTask(
+            task_id='test-fail-valid',
+            action=AgentAction.FIND_PROCESS,
+            parameters={},  # missing 'name'
+            created_at=datetime.now()
+        )
+        result = agent.run(task)
+
+        self.assertEqual(result.status, AgentStatus.FAILED)
+
+        calls = event_bus.publish.call_args_list
+        self.assertEqual(len(calls), 3)
+        self.assertEqual(calls[0].kwargs['event_type'], EVEventType.ACTION_STARTED)
+        self.assertEqual(calls[1].kwargs['event_type'], EVEventType.STATUS)
+        self.assertEqual(calls[2].kwargs['event_type'], EVEventType.ACTION_COMPLETED)
+        self.assertFalse(calls[2].kwargs['data']['success'])
+
+    def test_event_lifecycle_tool_exception(self):
+        from core.events import EVEventBus, EVEventType
+        event_bus = MagicMock(spec=EVEventBus)
+        agent = EVAgent(event_bus=event_bus)
+
+        with patch('core.agent.find_processes', side_effect=RuntimeError('simulated error')):
+            task = self._task()
+            result = agent.run(task)
+
+        self.assertEqual(result.status, AgentStatus.FAILED)
+
+        calls = event_bus.publish.call_args_list
+        self.assertEqual(len(calls), 3)
+        self.assertEqual(calls[0].kwargs['event_type'], EVEventType.ACTION_STARTED)
+        self.assertEqual(calls[1].kwargs['event_type'], EVEventType.STATUS)
+        self.assertEqual(calls[2].kwargs['event_type'], EVEventType.ACTION_COMPLETED)
+        self.assertFalse(calls[2].kwargs['data']['success'])
+
+    def test_no_event_bus(self):
+        # Already tested by other tests implicitly, but explicit test here
+        agent = EVAgent()
+        with patch('core.agent.find_processes', return_value=[]):
+            task = self._task()
+            result = agent.run(task)
+        self.assertEqual(result.status, AgentStatus.COMPLETED)
+
+    def test_event_bus_failure_isolation(self):
+        from core.events import EVEventBus
+        event_bus = MagicMock(spec=EVEventBus)
+        event_bus.publish.side_effect = RuntimeError("event bus broken")
+
+        agent = EVAgent(event_bus=event_bus)
+
+        with patch('core.agent.find_processes', return_value=[]):
+            task = self._task()
+            result = agent.run(task)
+
+        # Agent task succeeds despite telemetry failures
+        self.assertEqual(result.status, AgentStatus.COMPLETED)
+        self.assertEqual(event_bus.publish.call_count, 3)
+
 if __name__ == '__main__':
     unittest.main()

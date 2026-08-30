@@ -11,8 +11,10 @@ from .models import (
     AgentStatus,
     AgentStepResult,
     AgentRunResult,
+    EVEventType,
 )
 from .history import EVTaskHistoryStore
+from .events import EVEventBus
 from tools.processes import find_processes
 from tools.network import find_tcp_port
 from tools.filesystem import (
@@ -60,6 +62,12 @@ class EVAgent:
             task.task_id,
             task.action.value,
         )
+        self._publish_event(
+            event_type=EVEventType.ACTION_STARTED,
+            correlation_id=task.task_id,
+            message=f"{task.action.value}: started",
+            data={"task_id": task.task_id, "action": task.action.value}
+        )
 
         # Validate action is supported via whitelist
         try:
@@ -82,6 +90,22 @@ class EVAgent:
                     error=error_msg,
                 ),
             )
+            self._publish_event(
+                event_type=EVEventType.STATUS,
+                correlation_id=task.task_id,
+                message=error_msg,
+            )
+            self._publish_event(
+                event_type=EVEventType.ACTION_COMPLETED,
+                correlation_id=task.task_id,
+                message=f"{task.action.value}: failed (unsupported)",
+                data={
+                    "task_id": task.task_id,
+                    "action": task.action.value,
+                    "success": False,
+                    "duration_seconds": duration,
+                }
+            )
             self._history("record_run", task, result)
             return result
 
@@ -103,6 +127,22 @@ class EVAgent:
                     duration_seconds=duration,
                     error=validation_error,
                 ),
+            )
+            self._publish_event(
+                event_type=EVEventType.STATUS,
+                correlation_id=task.task_id,
+                message=validation_error,
+            )
+            self._publish_event(
+                event_type=EVEventType.ACTION_COMPLETED,
+                correlation_id=task.task_id,
+                message=f"{task.action.value}: failed (validation)",
+                data={
+                    "task_id": task.task_id,
+                    "action": task.action.value,
+                    "success": False,
+                    "duration_seconds": duration,
+                }
             )
             self._history("record_run", task, result)
             return result
@@ -130,6 +170,22 @@ class EVAgent:
                     result=result,
                 ),
             )
+            self._publish_event(
+                event_type=EVEventType.STATUS,
+                correlation_id=task.task_id,
+                message=f"{task.action.value}: completed successfully",
+            )
+            self._publish_event(
+                event_type=EVEventType.ACTION_COMPLETED,
+                correlation_id=task.task_id,
+                message=f"{task.action.value}: finished",
+                data={
+                    "task_id": task.task_id,
+                    "action": task.action.value,
+                    "success": True,
+                    "duration_seconds": duration,
+                }
+            )
             self._history("record_run", task, result)
             return result
         except Exception as exc:  # pragma: no cover - defensive
@@ -149,6 +205,22 @@ class EVAgent:
                     duration_seconds=duration,
                     error=error_msg,
                 ),
+            )
+            self._publish_event(
+                event_type=EVEventType.STATUS,
+                correlation_id=task.task_id,
+                message=error_msg,
+            )
+            self._publish_event(
+                event_type=EVEventType.ACTION_COMPLETED,
+                correlation_id=task.task_id,
+                message=f"{task.action.value}: failed (exception)",
+                data={
+                    "task_id": task.task_id,
+                    "action": task.action.value,
+                    "success": False,
+                    "duration_seconds": duration,
+                }
             )
             self._history("record_run", task, result)
             return result
@@ -208,8 +280,34 @@ class EVAgent:
                 if not isinstance(exclude_dirs, list) or not all(isinstance(d, str) for d in exclude_dirs):
                     return "SEARCH_TEXT exclude_dirs must be list of strings if provided"
         return None
-    def __init__(self, history_store: Optional[EVTaskHistoryStore] = None):
+
+    def __init__(
+        self,
+        history_store: Optional[EVTaskHistoryStore] = None,
+        event_bus: Optional[EVEventBus] = None,
+    ):
         self._history_store = history_store
+        self._event_bus = event_bus
+
+    def _publish_event(
+        self,
+        event_type: EVEventType,
+        correlation_id: str,
+        message: Optional[str] = None,
+        data: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        if self._event_bus is None:
+            return
+        try:
+            self._event_bus.publish(
+                event_type=event_type,
+                source="agent",
+                correlation_id=correlation_id,
+                message=message,
+                data=data,
+            )
+        except Exception:
+            logger.exception("Agent telemetry publication failed")
 
     def _history(self, method, *args, **kwargs):
         if self._history_store is None:
