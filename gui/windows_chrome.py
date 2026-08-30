@@ -151,7 +151,7 @@ def install_windows_native_chrome(app, window):
 
     ctypes.set_last_error(0)
 
-    SetWindowLongW(
+    prev_style = SetWindowLongW(
         hwnd,
         GWL_STYLE,
         ctypes.c_long(new_style).value,
@@ -159,7 +159,7 @@ def install_windows_native_chrome(app, window):
 
     error = ctypes.get_last_error()
 
-    if error:
+    if not prev_style and error:
         raise ctypes.WinError(error)
 
     # Force Windows to recalculate the frame. WM_NCCALCSIZE above

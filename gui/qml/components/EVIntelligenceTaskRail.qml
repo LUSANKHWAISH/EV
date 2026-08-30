@@ -11,7 +11,7 @@ Item {
 
     // Properties from bridge (placeholder values)
     property var state: null
-    property string activeTask: "INITIALIZING"
+    property string activeTask: (typeof guiBridge !== "undefined" && guiBridge.currentTask !== "") ? guiBridge.currentTask : "IDLE"
     property string currentPhase: "BOOT"
     property string currentAction: "SYNC"
     property string riskLevel: "NOMINAL"

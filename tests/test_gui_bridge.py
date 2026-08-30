@@ -233,3 +233,96 @@ def test_worker_thread_event_reaches_qt_state_via_queued_handoff(bridge, event_b
     assert spy.count() == 1
     assert spy.at(0)[0] == EVState.PLANNING.value
     assert bridge.currentState == EVState.PLANNING.value
+
+
+def test_bridge_initializes_with_empty_task_and_observation(bridge):
+    """Test 1: Bridge starts with safe empty/default values."""
+    assert bridge.currentTask == ""
+    assert bridge.latestObservation == ""
+
+
+def test_action_started_updates_current_task(bridge, event_bus, app):
+    """Test 2: ACTION_STARTED event updates currentTask."""
+    spy = QSignalSpy(bridge.currentTaskChanged)
+    assert spy.isValid()
+    event_bus.publish(
+        event_type=EVEventType.ACTION_STARTED,
+        source="system",
+        message="Scanning system",
+    )
+    QCoreApplication.processEvents()
+
+    assert bridge.currentTask == "Scanning system"
+    assert spy.count() == 1
+    assert spy.at(0)[0] == "Scanning system"
+
+
+def test_status_updates_latest_observation(bridge, event_bus, app):
+    """Test 3: STATUS event updates latestObservation."""
+    spy = QSignalSpy(bridge.latestObservationChanged)
+    assert spy.isValid()
+    event_bus.publish(
+        event_type=EVEventType.STATUS,
+        source="system",
+        message="Observation complete",
+    )
+    QCoreApplication.processEvents()
+
+    assert bridge.latestObservation == "Observation complete"
+    assert spy.count() == 1
+    assert spy.at(0)[0] == "Observation complete"
+
+
+def test_action_completed_clears_task_and_updates_observation(bridge, event_bus, app):
+    """Test 4: ACTION_COMPLETED event clears currentTask and updates observation if message present."""
+    event_bus.publish(
+        event_type=EVEventType.ACTION_STARTED,
+        source="system",
+        message="Scanning system",
+    )
+    QCoreApplication.processEvents()
+
+    spy_task = QSignalSpy(bridge.currentTaskChanged)
+    spy_obs = QSignalSpy(bridge.latestObservationChanged)
+
+    event_bus.publish(
+        event_type=EVEventType.ACTION_COMPLETED,
+        source="system",
+        message="Scan successful",
+    )
+    QCoreApplication.processEvents()
+
+    assert bridge.currentTask == ""
+    assert bridge.latestObservation == "Scan successful"
+    assert spy_task.count() == 1
+    assert spy_task.at(0)[0] == ""
+    assert spy_obs.count() == 1
+    assert spy_obs.at(0)[0] == "Scan successful"
+
+
+def test_action_started_fallback_message(bridge, event_bus, app):
+    """Test 6: Safe handling if message is empty/missing."""
+    event_bus.publish(
+        event_type=EVEventType.ACTION_STARTED,
+        source="system",
+        message=None,
+    )
+    QCoreApplication.processEvents()
+    assert bridge.currentTask == "Active"
+
+
+def test_status_empty_message_ignored(bridge, event_bus, app):
+    """Test 6b: Empty status message doesn't overwrite observation."""
+    event_bus.publish(
+        event_type=EVEventType.STATUS,
+        source="system",
+        message="Old message",
+    )
+    QCoreApplication.processEvents()
+    event_bus.publish(
+        event_type=EVEventType.STATUS,
+        source="system",
+        message=None,
+    )
+    QCoreApplication.processEvents()
+    assert bridge.latestObservation == "Old message"

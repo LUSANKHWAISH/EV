@@ -159,6 +159,32 @@ Item {
             font.pointSize: Theme.fontSizeLabel
             font.weight: Theme.fontWeightRegular
         }
+
+        Rectangle {
+            width: parent.width
+            height: Theme.hairline
+            color: Theme.edgeSubtle
+        }
+
+        Text {
+            text: "OBSERVATION"
+            color: Theme.textTertiary
+
+            font.family: Theme.fontFamily
+            font.pointSize: Theme.fontSizeLabelSmall
+            font.weight: Theme.fontWeightMedium
+        }
+
+        Text {
+            text: (typeof guiBridge !== "undefined" && guiBridge.latestObservation !== "") ? guiBridge.latestObservation : "None"
+            color: Theme.textSecondary
+
+            font.family: Theme.fontFamily
+            font.pointSize: Theme.fontSizeLabel
+            font.weight: Theme.fontWeightRegular
+            wrapMode: Text.Wrap
+            width: parent.width
+        }
     }
 
     // Expanded but narrow: collapse visually instead of stacking unreadably.
