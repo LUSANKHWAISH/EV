@@ -20,6 +20,7 @@ class GuiBridge(QObject):
     stateChanged = Signal(str)
     currentTaskChanged = Signal(str)
     latestObservationChanged = Signal(str)
+    taskSubmitted = Signal(str)
 
     # Internal signal for safe cross-thread queued handoff
     _stateChangeRequested = Signal(object)
@@ -139,6 +140,11 @@ class GuiBridge(QObject):
             return descriptions.get(state, "Invalid state")
         except (ValueError, KeyError):
             return "Invalid state"
+
+    @Slot(str)
+    def submitTask(self, command: str) -> None:
+        """Called by QML to submit a user task."""
+        self.taskSubmitted.emit(command)
 
     def shutdown(self) -> None:
         """Unsubscribe from the event bus. Idempotent."""

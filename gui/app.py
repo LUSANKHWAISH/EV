@@ -9,9 +9,13 @@ from PySide6.QtGui import QGuiApplication
 from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtQuickControls2 import QQuickStyle
 
+import logging
+
 from core.events import EVEventBus
 from core.models import EVState
 from core.orchestrator import EVOrchestrator
+
+logger = logging.getLogger(__name__)
 from gui.bridge import GuiBridge
 from gui.windows_chrome import install_windows_native_chrome
 
@@ -48,6 +52,13 @@ def main() -> None:
 
     # Instantiate production backend orchestrator
     orchestrator = EVOrchestrator(event_bus=event_bus)
+
+    def handle_task_submission(command: str) -> None:
+        if not command.strip():
+            return
+        orchestrator.submit_command(command.strip())
+
+    bridge.taskSubmitted.connect(handle_task_submission)
 
     # Load root QML
     qml_file = Path(__file__).parent / "qml" / "Main.qml"

@@ -57,17 +57,28 @@ ApplicationWindow {
             anchors.top: topBar.bottom
             anchors.left: parent.left
             anchors.right: parent.right
-            anchors.bottom: parent.bottom
+            anchors.bottom: commandInput.top
 
             anchors.topMargin: Theme.spacingXXXS
             anchors.leftMargin: Theme.spacingXS
             anchors.rightMargin: Theme.spacingXS
-            anchors.bottomMargin: Theme.spacingXXS
+            anchors.bottomMargin: Theme.spacingXS
 
             state: guiBridge.currentState
             visualMode: "STANDARD"
             themeProfile: "EV_CORE"
         }
+
+        EVCommandInput {
+            id: commandInput
+            anchors.bottom: parent.bottom
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.leftMargin: Theme.spacingXS
+            anchors.rightMargin: Theme.spacingXS
+            anchors.bottomMargin: Theme.spacingXS
+        }
+
     }
     // Frameless edge and corner resize handlers using startSystemResize
     MouseArea {
