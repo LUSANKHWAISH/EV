@@ -21,11 +21,15 @@ class GuiBridge(QObject):
     currentTaskChanged = Signal(str)
     latestObservationChanged = Signal(str)
     taskSubmitted = Signal(str)
+    approvalRequested = Signal(str, str, str, str)  # task_id, action, risk_level, reason
+    approvalResolved = Signal(str, bool)             # task_id, approved
+    approvalSubmitted = Signal(str, bool)            # task_id, approved (for orchestrator hook)
 
     # Internal signal for safe cross-thread queued handoff
     _stateChangeRequested = Signal(object)
     _currentTaskChangeRequested = Signal(str)
     _latestObservationChangeRequested = Signal(str)
+    _approvalRequestQueued = Signal(str, str, str, str)
 
     def __init__(self, event_bus: EVEventBus) -> None:
         super().__init__()
@@ -50,6 +54,10 @@ class GuiBridge(QObject):
             self._on_latest_observation_changed_internal,
             type=Qt.ConnectionType.QueuedConnection,
         )
+        self._approvalRequestQueued.connect(
+            self._on_approval_requested_internal,
+            type=Qt.ConnectionType.QueuedConnection,
+        )
 
         token = self._event_bus.subscribe(
             self._on_event_received,
@@ -57,6 +65,8 @@ class GuiBridge(QObject):
                 EVEventType.STATE_CHANGED,
                 EVEventType.ACTION_STARTED,
                 EVEventType.ACTION_COMPLETED,
+                EVEventType.VERIFICATION_RESULT,
+                EVEventType.APPROVAL_REQUIRED,
                 EVEventType.STATUS,
             ],
         )
@@ -77,6 +87,15 @@ class GuiBridge(QObject):
             self._currentTaskChangeRequested.emit("")
             if event.message:
                 self._latestObservationChangeRequested.emit(event.message)
+        elif event.event_type == EVEventType.VERIFICATION_RESULT:
+            if event.message:
+                self._latestObservationChangeRequested.emit(event.message)
+        elif event.event_type == EVEventType.APPROVAL_REQUIRED:
+            task_id = str(event.data.get("task_id") if event.data else event.correlation_id or "")
+            action = str(event.data.get("action") if event.data else "")
+            risk_level = str(event.data.get("risk_level") if event.data else "")
+            reason = str(event.data.get("reason") if event.data else event.message or "")
+            self._approvalRequestQueued.emit(task_id, action, risk_level, reason)
         elif event.event_type == EVEventType.STATUS:
             if event.message:
                 self._latestObservationChangeRequested.emit(event.message)
@@ -91,6 +110,11 @@ class GuiBridge(QObject):
             return
         self._state = new_state
         self.stateChanged.emit(new_state.value)
+
+    @Slot(str, str, str, str)
+    def _on_approval_requested_internal(self, task_id: str, action: str, risk_level: str, reason: str) -> None:
+        """Slot executed in Qt thread when approval is required."""
+        self.approvalRequested.emit(task_id, action, risk_level, reason)
 
     @Property(str, notify=stateChanged)
     def currentState(self) -> str:
@@ -145,6 +169,12 @@ class GuiBridge(QObject):
     def submitTask(self, command: str) -> None:
         """Called by QML to submit a user task."""
         self.taskSubmitted.emit(command)
+
+    @Slot(str, bool)
+    def submitApproval(self, task_id: str, approved: bool) -> None:
+        """Called by QML or tests to submit user approval or denial."""
+        self.approvalSubmitted.emit(task_id, approved)
+        self.approvalResolved.emit(task_id, approved)
 
     def shutdown(self) -> None:
         """Unsubscribe from the event bus. Idempotent."""

@@ -1,23 +1,71 @@
 # Main GUI entry point for E.V.
 # Bootstrap application and load QML root.
 import argparse
-import sys
+import logging
+import os
 from pathlib import Path
+import sys
+from typing import List, Optional
 
 from PySide6.QtCore import QTimer, QUrl
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtQuickControls2 import QQuickStyle
 
-import logging
-
+from core.brain_provider import EVBrainProvider
+from core.brain_provider_manager import EVBrainProviderManager
+from core.brain_router import BrainRouter
 from core.events import EVEventBus
 from core.models import EVState
 from core.orchestrator import EVOrchestrator
-
-logger = logging.getLogger(__name__)
 from gui.bridge import GuiBridge
 from gui.windows_chrome import install_windows_native_chrome
+from providers.gemini_provider import GeminiProvider
+from providers.openai_compatible_provider import (
+    AzureOpenAIProvider,
+    OpenRouterProvider,
+)
+
+logger = logging.getLogger(__name__)
+
+
+def build_production_router() -> BrainRouter:
+    """
+    Discover configured provider credentials in environment variables and build a BrainRouter.
+    Credentials are never logged, printed, or exposed.
+    """
+    providers: List[EVBrainProvider] = []
+
+    # 1. Gemini Provider (Primary if GEMINI_API_KEY / GOOGLE_API_KEY is present)
+    gemini_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
+    if gemini_key:
+        try:
+            providers.append(GeminiProvider(api_key=gemini_key))
+            logger.info("Configured GeminiProvider from environment credentials")
+        except Exception as exc:
+            logger.warning("Failed to initialize GeminiProvider: %s", exc)
+
+    # 2. OpenRouter Provider (Fallback or Primary if OPENROUTER_API_KEY is present)
+    openrouter_key = os.getenv("OPENROUTER_API_KEY")
+    if openrouter_key:
+        try:
+            providers.append(OpenRouterProvider(api_key=openrouter_key))
+            logger.info("Configured OpenRouterProvider from environment credentials")
+        except Exception as exc:
+            logger.warning("Failed to initialize OpenRouterProvider: %s", exc)
+
+    # 3. Azure OpenAI Provider
+    azure_key = os.getenv("AZURE_OPENAI_API_KEY")
+    azure_endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
+    if azure_key and azure_endpoint:
+        try:
+            providers.append(AzureOpenAIProvider(api_key=azure_key, endpoint=azure_endpoint))
+            logger.info("Configured AzureOpenAIProvider from environment credentials")
+        except Exception as exc:
+            logger.warning("Failed to initialize AzureOpenAIProvider: %s", exc)
+
+    provider_mgr = EVBrainProviderManager(providers) if providers else None
+    return BrainRouter(provider_manager=provider_mgr)
 
 
 def _parse_args(argv: list) -> argparse.Namespace:
@@ -50,8 +98,9 @@ def main() -> None:
     bridge = GuiBridge(event_bus)
     engine.rootContext().setContextProperty("guiBridge", bridge)
 
-    # Instantiate production backend orchestrator
-    orchestrator = EVOrchestrator(event_bus=event_bus)
+    # Discover providers and instantiate production backend orchestrator
+    router = build_production_router()
+    orchestrator = EVOrchestrator(event_bus=event_bus, router=router)
 
     def handle_task_submission(command: str) -> None:
         if not command.strip():
@@ -59,6 +108,11 @@ def main() -> None:
         orchestrator.submit_command(command.strip())
 
     bridge.taskSubmitted.connect(handle_task_submission)
+
+    def handle_approval_submission(task_id: str, approved: bool) -> None:
+        orchestrator.resolve_approval(task_id, approved)
+
+    bridge.approvalSubmitted.connect(handle_approval_submission)
 
     # Load root QML
     qml_file = Path(__file__).parent / "qml" / "Main.qml"
