@@ -115,11 +115,12 @@ class EVAgent:
     def _get_tool_params(self, parameters: dict) -> dict:
         """Return a copy of parameters with resolver metadata stripped out.
 
-        The resolver embeds 'verification_type' into the parameters dict for
-        Task 004 compatibility. The observation tools don't accept this kwarg,
-        so we strip it before dispatching.
+        The resolver embeds 'verification_type' and verification expectations into
+        the parameters dict. The tools don't accept these kwargs, so we strip them
+        before dispatching.
         """
-        return {k: v for k, v in parameters.items() if k != "verification_type"}
+        ignored_keys = {"verification_type", "expected_text"}
+        return {k: v for k, v in parameters.items() if k not in ignored_keys}
 
     def _extract_target_name(self, task: AgentTask) -> str:
         """Extract a human-readable target name from the task parameters."""
@@ -331,12 +332,16 @@ class EVAgent:
             # Check if mutating tool itself reported failure
             if is_mutation and hasattr(evidence, "success") and not evidence.success:
                 error_msg = getattr(evidence, "error", "File action failed")
-                self._rollback_if_needed(
+                restore_res = self._rollback_if_needed(
                     task=task,
                     target_path_obj=target_path_obj,
                     target_existed_before=target_existed_before,
                     backup_record_res=backup_record_res,
                 )
+                if restore_res is not None and not restore_res.success:
+                    restore_err_detail = restore_res.error or restore_res.message or "restore failed"
+                    error_msg = f"{error_msg} | Recovery restore failed: {restore_err_detail}"
+
                 finished_at = datetime.now()
                 duration = (finished_at - started_at).total_seconds()
                 result = AgentRunResult(
@@ -432,16 +437,20 @@ class EVAgent:
             return result
         except Exception as exc:  # pragma: no cover - defensive
             logger.exception("Agent task error: task_id=%s action=%s", task.task_id, task.action.value)
+            error_msg = f"{type(exc).__name__}: {exc}"
             if is_mutation:
-                self._rollback_if_needed(
+                restore_res = self._rollback_if_needed(
                     task=task,
                     target_path_obj=target_path_obj,
                     target_existed_before=target_existed_before,
                     backup_record_res=backup_record_res,
                 )
+                if restore_res is not None and not restore_res.success:
+                    restore_err_detail = restore_res.error or restore_res.message or "restore failed"
+                    error_msg = f"{error_msg} | Recovery restore failed: {restore_err_detail}"
+
             finished_at = datetime.now()
             duration = (finished_at - started_at).total_seconds()
-            error_msg = f"{type(exc).__name__}: {exc}"
             result = AgentRunResult(
                 task_id=task.task_id,
                 status=AgentStatus.FAILED,
@@ -480,9 +489,19 @@ class EVAgent:
         target_path_obj: Optional[Any],
         target_existed_before: bool,
         backup_record_res: Optional[Any],
-    ) -> None:
-        """Trigger deterministic rollback and recovery when a mutation fails."""
+    ) -> Optional[Any]:
+        """Trigger deterministic rollback and recovery when a mutation fails.
+
+        Guarantees idempotency: executes recovery at most once per task execution.
+        """
+        task_id = task.task_id
+        if task_id in self._recovered_tasks:
+            logger.debug("Rollback already attempted for task %s; skipping duplicate", task_id)
+            return self._recovered_tasks[task_id]
+
         self._set_state_safe("RECOVERING")
+        restore_res = None
+
         if backup_record_res and backup_record_res.success and backup_record_res.backup_path:
             restore_res = self._backup_manager.restore_file(
                 backup_path=backup_record_res.backup_path,
@@ -506,6 +525,9 @@ class EVAgent:
                 target_path_obj.unlink()
             except OSError:
                 pass
+
+        self._recovered_tasks[task_id] = restore_res
+        return restore_res
 
     def _run_verification(
         self,
@@ -553,16 +575,20 @@ class EVAgent:
                 task.task_id,
                 task.verification_type.value,
             )
+            error_msg = f"Verification error: {type(exc).__name__}: {exc}"
             if is_mutation:
-                self._rollback_if_needed(
+                restore_res = self._rollback_if_needed(
                     task=task,
                     target_path_obj=target_path_obj,
                     target_existed_before=target_existed_before,
                     backup_record_res=backup_record_res,
                 )
+                if restore_res is not None and not restore_res.success:
+                    restore_err_detail = restore_res.error or restore_res.message or "restore failed"
+                    error_msg = f"{error_msg} | Recovery restore failed: {restore_err_detail}"
+
             finished_at = datetime.now()
             duration = (finished_at - started_at).total_seconds()
-            error_msg = f"Verification error: {type(exc).__name__}: {exc}"
 
             result = AgentRunResult(
                 task_id=task.task_id,
@@ -611,8 +637,9 @@ class EVAgent:
         )
 
         is_success = v_result.status == VerificationStatus.VERIFIED
+        restore_res = None
         if not is_success and is_mutation:
-            self._rollback_if_needed(
+            restore_res = self._rollback_if_needed(
                 task=task,
                 target_path_obj=target_path_obj,
                 target_existed_before=target_existed_before,
@@ -620,6 +647,12 @@ class EVAgent:
             )
 
         agent_status = AgentStatus.COMPLETED if is_success else AgentStatus.FAILED
+        error_val = None
+        if not is_success:
+            error_val = v_message
+            if restore_res is not None and not restore_res.success:
+                restore_err_detail = restore_res.error or restore_res.message or "restore failed"
+                error_val = f"{v_message} | Recovery restore failed: {restore_err_detail}"
 
         logger.info(
             "Verification complete: task_id=%s type=%s status=%s duration=%.3fs",
@@ -632,6 +665,7 @@ class EVAgent:
         result = AgentRunResult(
             task_id=task.task_id,
             status=agent_status,
+            error=error_val,
             step=AgentStepResult(
                 action=task.action,
                 success=is_success,
@@ -639,6 +673,7 @@ class EVAgent:
                 finished_at=finished_at,
                 duration_seconds=duration,
                 result=v_result,
+                error=error_val,
             ),
         )
 
@@ -784,6 +819,7 @@ class EVAgent:
         self._verifier = EVVerifier()
         self._backup_manager = backup_manager or EVBackupManager()
         self._allowed_roots = allowed_roots
+        self._recovered_tasks: Dict[str, Any] = {}
 
     def _publish_event(
         self,
