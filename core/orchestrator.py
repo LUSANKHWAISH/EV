@@ -4,7 +4,9 @@ from pathlib import Path
 from typing import List, Optional
 
 from core.agent import EVAgent
+from core.brain_models import BrainDecisionType
 from core.brain_router import BrainRouter, RouteType
+from core.conversation import EVConversationContextStore, PendingClarificationContext
 from core.events import EVEventBus, EVEvent
 from core.history import EVTaskHistoryStore
 from core.models import (
@@ -20,6 +22,7 @@ from core.models import (
     RiskAssessmentResult,
     RiskLevel,
 )
+from core.resolver import CommandResolver
 from core.risk import EVRiskEngine
 
 logger = logging.getLogger(__name__)
@@ -59,16 +62,19 @@ class EVOrchestrator:
     """
     Long-lived production execution owner for the E.V. agent.
     Manages the lifecycle of a single agent, coordinates intent routing,
-    enforces risk and human-in-the-loop approval gating, and executes tasks in the background.
+    enforces risk and human-in-the-loop approval gating, manages multi-turn
+    conversational context, and executes tasks in the background.
     """
     def __init__(
         self,
         event_bus: EVEventBus,
         router: Optional[BrainRouter] = None,
         risk_engine: Optional[EVRiskEngine] = None,
+        context_store: Optional[EVConversationContextStore] = None,
     ):
         self.event_bus = event_bus
         self.history_store = EVTaskHistoryStore()
+        self.context_store = context_store or EVConversationContextStore()
         self.agent = EVAgent(
             history_store=self.history_store,
             event_bus=self.event_bus,
@@ -78,6 +84,7 @@ class EVOrchestrator:
         self.risk_engine = risk_engine or EVRiskEngine()
         self._pending_lock = threading.RLock()
         self._pending_approval: Optional[dict] = None
+        self._resolver = CommandResolver()
 
     def _assess_task_risk(self, task: AgentTask, user_approved: bool = False) -> RiskAssessmentResult:
         """
@@ -113,10 +120,108 @@ class EVOrchestrator:
         )
         return self.risk_engine.assess(req)
 
+    def _reconstruct_request(self, original_request: str, clarification_answer: str) -> str:
+        """
+        Deterministically combine an original request and clarification answer into a unified request.
+        """
+        orig = (original_request or "").strip()
+        ans = (clarification_answer or "").strip()
+        lower_orig = orig.lower()
+
+        # Check common deterministic mutation/observation command templates
+        candidates = []
+        if "delete" in lower_orig or "remove" in lower_orig:
+            candidates.append(f"delete file {ans}")
+
+        if "write" in lower_orig or "create" in lower_orig:
+            candidates.append(f"write file {ans}")
+            candidates.append(f"{orig} {ans}")
+
+        if "read" in lower_orig or "cat" in lower_orig or "show" in lower_orig:
+            candidates.append(f"read file {ans}")
+
+        if "dir" in lower_orig or "list" in lower_orig or "ls" in lower_orig:
+            candidates.append(f"list dir {ans}")
+
+        if "process" in lower_orig or "ps" in lower_orig:
+            candidates.append(f"find process {ans}")
+
+        if "service" in lower_orig:
+            candidates.append(f"find service {ans}")
+
+        if "port" in lower_orig:
+            candidates.append(f"find port {ans}")
+
+        # General raw concatenation candidate
+        candidates.append(f"{orig} {ans}")
+
+        # Test if any candidate can be deterministically resolved by fast path
+        for cand in candidates:
+            try:
+                self._resolver.resolve(cand)
+                return cand
+            except ValueError:
+                continue
+
+        # Fallback to structured natural language context
+        return f"{orig} (specified: {ans})"
+
     def submit_command(self, raw_text: str) -> Optional[threading.Thread]:
         """
         Routes a raw text string through BrainRouter, evaluates risk gate, and submits task(s).
+        Integrates with EVConversationContextStore for multi-turn clarification.
         """
+        if not raw_text or not isinstance(raw_text, str) or not raw_text.strip():
+            return None
+
+        cleaned_text = raw_text.strip()
+
+        # Check for active pending clarification
+        pending_clarification = self.context_store.get_pending_clarification()
+        effective_text = cleaned_text
+
+        if pending_clarification is not None:
+            # 1. Check if user explicitly cancelled
+            if self.context_store.is_cancellation(cleaned_text):
+                self.context_store.clear_pending_clarification()
+                logger.info("Pending clarification cancelled by user")
+                self.event_bus.publish(
+                    event_type=EVEventType.STATUS,
+                    source="orchestrator",
+                    message="Clarification request cancelled.",
+                )
+                self.context_store.add_turn(
+                    user_message=cleaned_text,
+                    assistant_message="Clarification request cancelled.",
+                )
+                return None
+
+            # 2. Check if user provided an explicit, standalone command
+            is_standalone_command = False
+            try:
+                self._resolver.resolve(cleaned_text)
+                is_standalone_command = True
+            except ValueError:
+                is_standalone_command = False
+
+            if is_standalone_command:
+                logger.info("Explicit new command received; superseding pending clarification")
+                self.context_store.clear_pending_clarification()
+                effective_text = cleaned_text
+            else:
+                # 3. User supplied a clarification answer: reconstruct effective request
+                effective_text = self._reconstruct_request(
+                    pending_clarification.original_request,
+                    cleaned_text,
+                )
+                logger.info(
+                    "Reconstructed request from clarification: '%s' + '%s' -> '%s'",
+                    pending_clarification.original_request,
+                    cleaned_text,
+                    effective_text,
+                )
+                self.context_store.clear_pending_clarification()
+
         recent_tasks = None
         try:
             recent_tasks = self.history_store.list_tasks(limit=10)
@@ -124,7 +229,7 @@ class EVOrchestrator:
             logger.debug("Failed to query history store for routing context: %s", exc)
 
         routing_result = self.router.route(
-            user_input=raw_text,
+            user_input=effective_text,
             current_state=self.event_bus.current_state or EVState.IDLE,
             recent_tasks=recent_tasks,
         )
@@ -133,29 +238,52 @@ class EVOrchestrator:
             if routing_result.error and "No Brain provider manager" not in routing_result.error and "non-empty string" not in routing_result.error:
                 error_msg = f"Command failed: {routing_result.error}"
             else:
-                error_msg = f"Unrecognized command: {raw_text}"
-            logger.warning("Command routing failed: %s (error: %s)", raw_text, routing_result.error)
+                error_msg = f"Unrecognized command: {effective_text}"
+            logger.warning("Command routing failed: %s (error: %s)", effective_text, routing_result.error)
             self.event_bus.publish(
                 event_type=EVEventType.STATUS,
                 source="orchestrator",
                 message=error_msg,
             )
+            self.context_store.add_turn(user_message=cleaned_text, assistant_message=error_msg)
             return None
 
         if routing_result.route_type == RouteType.NO_ACTION:
             msg = routing_result.message or "No action required"
+            # Check if Brain requested clarification
+            if routing_result.decision and routing_result.decision.decision_type == BrainDecisionType.REQUEST_CLARIFICATION:
+                clarification_msg = routing_result.decision.clarification_prompt or msg
+                self.context_store.set_pending_clarification(
+                    original_request=effective_text,
+                    clarification_prompt=clarification_msg,
+                )
+                logger.info("Brain requested clarification: '%s' for request: '%s'", clarification_msg, effective_text)
+                self.event_bus.publish(
+                    event_type=EVEventType.STATUS,
+                    source="orchestrator",
+                    message=clarification_msg,
+                    data={
+                        "clarification_prompt": clarification_msg,
+                        "original_request": effective_text,
+                    },
+                )
+                self.context_store.add_turn(user_message=cleaned_text, assistant_message=clarification_msg)
+                return None
+
             logger.info("Brain returned informational response: %s", msg)
             self.event_bus.publish(
                 event_type=EVEventType.STATUS,
                 source="orchestrator",
                 message=msg,
             )
+            self.context_store.add_turn(user_message=cleaned_text, assistant_message=msg)
             return None
 
         if not routing_result.tasks:
             logger.warning("Routing succeeded but produced 0 tasks")
             return None
 
+        self.context_store.add_turn(user_message=cleaned_text, assistant_message=f"Dispatched {len(routing_result.tasks)} task(s)")
         return self._dispatch_tasks(routing_result.tasks)
 
     def _dispatch_tasks(self, tasks: List[AgentTask]) -> Optional[threading.Thread]:
