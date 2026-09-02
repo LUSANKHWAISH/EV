@@ -415,6 +415,20 @@ class EVAgent:
                     result=evidence,
                 ),
             )
+            if is_mutation:
+                b_path = backup_record_res.backup_path if backup_record_res else None
+                b_sha = (
+                    backup_record_res.backup_record.sha256
+                    if (backup_record_res and backup_record_res.backup_record)
+                    else None
+                )
+                self._task_mutations[task.task_id] = {
+                    "target_path": str(target_path_obj) if target_path_obj else task.parameters.get("path"),
+                    "target_existed_before": target_existed_before,
+                    "backup_path": b_path,
+                    "original_sha256": b_sha,
+                    "action": task.action,
+                }
             self._publish_event(
                 event_type=EVEventType.STATUS,
                 correlation_id=task.task_id,
@@ -676,6 +690,20 @@ class EVAgent:
                 error=error_val,
             ),
         )
+        if is_success and is_mutation:
+            b_path = backup_record_res.backup_path if backup_record_res else None
+            b_sha = (
+                backup_record_res.backup_record.sha256
+                if (backup_record_res and backup_record_res.backup_record)
+                else None
+            )
+            self._task_mutations[task.task_id] = {
+                "target_path": str(target_path_obj) if target_path_obj else task.parameters.get("path"),
+                "target_existed_before": target_existed_before,
+                "backup_path": b_path,
+                "original_sha256": b_sha,
+                "action": task.action,
+            }
 
         # Publish VERIFICATION_RESULT event
         self._publish_event(
@@ -820,6 +848,16 @@ class EVAgent:
         self._backup_manager = backup_manager or EVBackupManager()
         self._allowed_roots = allowed_roots
         self._recovered_tasks: Dict[str, Any] = {}
+        self._task_mutations: Dict[str, Dict[str, Any]] = {}
+
+    @property
+    def backup_manager(self) -> EVBackupManager:
+        """Return the configured EVBackupManager instance."""
+        return self._backup_manager
+
+    def get_task_mutation(self, task_id: str) -> Optional[Dict[str, Any]]:
+        """Return the recorded mutation metadata for a completed task."""
+        return self._task_mutations.get(task_id)
 
     def _publish_event(
         self,

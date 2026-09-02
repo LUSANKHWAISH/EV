@@ -24,6 +24,7 @@ from core.models import (
 )
 from core.resolver import CommandResolver
 from core.risk import EVRiskEngine
+from core.transaction import CompoundTransaction, TransactionStatus
 
 logger = logging.getLogger(__name__)
 
@@ -308,17 +309,20 @@ class EVOrchestrator:
                 if len(tasks) == 1:
                     return self.execute_task(first_task)
                 else:
-                    return self.execute_tasks(tasks)
+                    tx = CompoundTransaction(tasks=tasks)
+                    return self.execute_tasks(tasks, transaction=tx)
             except RuntimeError as e:
                 logger.warning("Task submission rejected: %s", e)
                 return None
 
         elif risk_result.decision == PermissionDecision.REQUIRE_APPROVAL:
+            tx = CompoundTransaction(tasks=tasks)
             with self._pending_lock:
                 self._pending_approval = {
                     "task": first_task,
                     "remaining_tasks": tasks[1:],
                     "risk_assessment": risk_result,
+                    "transaction": tx,
                 }
             logger.info(
                 "Task %s requires approval (risk=%s, reason=%s)",
@@ -342,6 +346,7 @@ class EVOrchestrator:
                     "risk_level": risk_result.risk_level.value,
                     "reason": risk_result.reason,
                     "parameters": first_task.parameters,
+                    "transaction_id": tx.transaction_id,
                 },
             )
             return None
@@ -396,10 +401,17 @@ class EVOrchestrator:
             approval_data = self._pending_approval
             self._pending_approval = None
             remaining_tasks = approval_data.get("remaining_tasks") or []
+            tx = approval_data.get("transaction")
 
         if not approved:
             # User Denial
             logger.info("Task %s denied by user", task_id)
+            if tx:
+                tx.rollback(
+                    backup_manager=self.agent.backup_manager,
+                    failed_step_index=0,
+                    failure_reason="Execution denied by user",
+                )
             try:
                 self.history_store.record_task(pending_task)
                 self.history_store.record_run(
@@ -436,6 +448,12 @@ class EVOrchestrator:
                 task_id,
                 second_assessment.reason,
             )
+            if tx:
+                tx.rollback(
+                    backup_manager=self.agent.backup_manager,
+                    failed_step_index=0,
+                    failure_reason=f"Secondary risk denial: {second_assessment.reason}",
+                )
             self.event_bus.publish(
                 event_type=EVEventType.STATUS,
                 source="orchestrator",
@@ -450,59 +468,38 @@ class EVOrchestrator:
         # Authorized: Execute approved task (and any remaining batch tasks)
         all_tasks = [pending_task] + remaining_tasks
         try:
-            if len(all_tasks) == 1:
-                self.execute_task(pending_task)
-            else:
-                self.execute_tasks(all_tasks)
+            self.execute_tasks(all_tasks, transaction=tx)
             return True
         except Exception as exc:
             logger.exception("Failed to execute approved task %s: %s", task_id, exc)
+            if tx:
+                tx.rollback(
+                    backup_manager=self.agent.backup_manager,
+                    failed_step_index=0,
+                    failure_reason=str(exc),
+                )
             self.event_bus.set_state(EVState.FAILED)
             self.event_bus.set_state(EVState.IDLE)
             return True
 
-    def execute_task(self, task: AgentTask) -> threading.Thread:
+    def execute_task(
+        self,
+        task: AgentTask,
+        transaction: Optional[CompoundTransaction] = None,
+    ) -> threading.Thread:
         """
         Submit a single task for background execution.
         Returns the daemon thread handle.
         """
-        if not self._execution_lock.acquire(blocking=False):
-            raise RuntimeError("Agent already executing a task")
+        return self.execute_tasks([task], transaction=transaction)
 
-        def _run_wrapper() -> None:
-            try:
-                try:
-                    self.event_bus.set_state(EVState.EXECUTING)
-                    result = self.agent.run(task)
-                    if result.status == AgentStatus.COMPLETED:
-                        self.event_bus.set_state(EVState.SUCCESS)
-                    else:
-                        self.event_bus.set_state(EVState.FAILED)
-                except Exception as e:
-                    logger.exception(f"Unexpected error in agent execution for task {task.task_id}: {e}")
-                    try:
-                        self.event_bus.set_state(EVState.FAILED)
-                    except Exception as nested_e:
-                        logger.error(f"Failed to set FAILED state during exception handling: {nested_e}")
-            finally:
-                if self.event_bus.current_state != EVState.AWAITING_APPROVAL:
-                    try:
-                        self.event_bus.set_state(EVState.IDLE)
-                    except Exception as final_e:
-                        logger.error(f"Failed to set IDLE state in finally block: {final_e}")
-                self._execution_lock.release()
-
-        thread = threading.Thread(
-            target=_run_wrapper,
-            daemon=True,
-            name=f"EVAgentThread-{task.task_id}"
-        )
-        thread.start()
-        return thread
-
-    def execute_tasks(self, tasks: List[AgentTask]) -> threading.Thread:
+    def execute_tasks(
+        self,
+        tasks: List[AgentTask],
+        transaction: Optional[CompoundTransaction] = None,
+    ) -> threading.Thread:
         """
-        Submit a list of tasks for sequential background execution.
+        Submit a list of tasks for sequential background execution within a CompoundTransaction.
         Returns the daemon thread handle.
         """
         if not tasks:
@@ -510,6 +507,10 @@ class EVOrchestrator:
 
         if not self._execution_lock.acquire(blocking=False):
             raise RuntimeError("Agent already executing a task")
+
+        tx = transaction or CompoundTransaction(tasks=tasks)
+        if tx.status == TransactionStatus.PENDING:
+            tx.begin()
 
         def _run_wrapper() -> None:
             try:
@@ -532,6 +533,7 @@ class EVOrchestrator:
                                         "task": task,
                                         "remaining_tasks": tasks[idx + 1:],
                                         "risk_assessment": risk_result,
+                                        "transaction": tx,
                                     }
                                 logger.info("Batch paused at task %s for user approval", task.task_id)
                                 self.event_bus.set_state(
@@ -550,6 +552,7 @@ class EVOrchestrator:
                                         "risk_level": risk_result.risk_level.value,
                                         "reason": risk_result.reason,
                                         "parameters": task.parameters,
+                                        "transaction_id": tx.transaction_id,
                                     },
                                 )
                                 return  # Release execution lock and await user approval
@@ -557,19 +560,46 @@ class EVOrchestrator:
                             elif risk_result.decision != PermissionDecision.ALLOW:
                                 logger.warning("Batch task %s denied by risk engine", task.task_id)
                                 all_completed = False
+                                tx.rollback(
+                                    backup_manager=self.agent.backup_manager,
+                                    failed_step_index=idx,
+                                    failure_reason=f"Risk denial: {risk_result.reason}",
+                                )
                                 break
 
                         result = self.agent.run(task)
-                        if result.status != AgentStatus.COMPLETED:
+                        if result.status == AgentStatus.COMPLETED:
+                            mutation_info = self.agent.get_task_mutation(task.task_id)
+                            if mutation_info:
+                                tx.record_mutation_step(
+                                    step_index=idx,
+                                    task=task,
+                                    target_path=mutation_info["target_path"],
+                                    target_existed_before=mutation_info["target_existed_before"],
+                                    backup_path=mutation_info.get("backup_path"),
+                                    original_sha256=mutation_info.get("original_sha256"),
+                                )
+                        else:
                             all_completed = False
+                            tx.rollback(
+                                backup_manager=self.agent.backup_manager,
+                                failed_step_index=idx,
+                                failure_reason=result.error or "Task execution failed",
+                            )
                             break
 
                     if all_completed:
+                        tx.commit()
                         self.event_bus.set_state(EVState.SUCCESS)
                     else:
                         self.event_bus.set_state(EVState.FAILED)
                 except Exception as e:
                     logger.exception(f"Unexpected error in agent execution for tasks batch: {e}")
+                    tx.rollback(
+                        backup_manager=self.agent.backup_manager,
+                        failed_step_index=idx if 'idx' in locals() else None,
+                        failure_reason=str(e),
+                    )
                     try:
                         self.event_bus.set_state(EVState.FAILED)
                     except Exception as nested_e:
