@@ -31,6 +31,14 @@ from core.models import (
 from core.resolver import CommandResolver
 from core.risk import EVRiskEngine
 from core.transaction import CompoundTransaction, TransactionStatus
+from core.task_queue import (
+    EVTaskQueue,
+    QueuedCommand,
+    QueueFullError,
+    QueueItemStatus,
+    TaskExecutionThread,
+    TaskPriority,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -73,10 +81,9 @@ def get_action_category(action: AgentAction, parameters: Optional[dict] = None) 
 
 class EVOrchestrator:
     """
-    Long-lived production execution owner for the E.V. agent.
-    Manages the lifecycle of a single agent, coordinates intent routing,
-    enforces risk and human-in-the-loop approval gating, manages multi-turn
-    conversational context, and executes tasks in the background.
+    Central orchestration engine for E.V.
+    Coordinates command resolution, risk management, agent execution,
+    and event publishing.
     """
     def __init__(
         self,
@@ -85,6 +92,8 @@ class EVOrchestrator:
         risk_engine: Optional[EVRiskEngine] = None,
         context_store: Optional[EVConversationContextStore] = None,
         memory_store: Optional[EVConversationMemoryStore] = None,
+        task_queue: Optional[EVTaskQueue] = None,
+        enable_queue: bool = False,
     ):
         self.event_bus = event_bus
         self.history_store = EVTaskHistoryStore()
@@ -111,6 +120,197 @@ class EVOrchestrator:
         self._resolver = CommandResolver()
         self._active_cancellation_token: Optional[CancellationToken] = None
         self._token_lock = threading.Lock()
+
+        # Task 012: Command Queue runtime integration
+        self.task_queue: EVTaskQueue = task_queue or EVTaskQueue()
+        self.enable_queue: bool = enable_queue
+        self._shutdown_event: threading.Event = threading.Event()
+        self._worker_thread: Optional[threading.Thread] = None
+        if self.enable_queue:
+            self.start_queue_worker()
+
+    def start_queue_worker(self) -> None:
+        """Start the dedicated queue worker daemon thread if not already active."""
+        with self.task_queue._lock:
+            if self._worker_thread is None or not self._worker_thread.is_alive():
+                self._shutdown_event.clear()
+                self._worker_thread = threading.Thread(
+                    target=self._queue_worker_loop,
+                    name="EVQueueWorker",
+                    daemon=True,
+                )
+                self._worker_thread.start()
+                logger.info("EVOrchestrator queue worker thread started")
+
+    def stop_queue_worker(self, timeout: float = 5.0) -> None:
+        """Stop the dedicated queue worker daemon thread."""
+        self._shutdown_event.set()
+        with self.task_queue.condition:
+            self.task_queue.condition.notify_all()
+        if self._worker_thread and self._worker_thread.is_alive():
+            self._worker_thread.join(timeout=timeout)
+            logger.info("EVOrchestrator queue worker thread stopped")
+
+    def _queue_worker_loop(self) -> None:
+        """
+        Dedicated queue worker loop. Sequentially consumes items from EVTaskQueue,
+        pausing execution while any command is awaiting approval.
+        """
+        logger.info("Queue worker loop initialized")
+        while not self._shutdown_event.is_set():
+            item: Optional[QueuedCommand] = None
+            with self.task_queue.condition:
+                while not self.task_queue._items and not self._shutdown_event.is_set():
+                    self.task_queue.condition.wait(timeout=0.5)
+
+                if self._shutdown_event.is_set():
+                    break
+
+                if self.task_queue._items:
+                    # Check if currently awaiting approval or if active execution is in progress
+                    with self._pending_lock:
+                        is_awaiting = self._pending_approval is not None
+
+                    if is_awaiting or self._execution_lock.locked():
+                        # Queue worker MUST pause execution of later queued commands
+                        # while awaiting approval or while another execution is running
+                        self.task_queue.condition.wait(timeout=0.1)
+                        continue
+
+                    item = self.task_queue.pop()
+
+            if item is None:
+                continue
+
+            if item.cancellation_token.is_cancelled() or item.status == QueueItemStatus.CANCELLED:
+                item.completion_event.set()
+                continue
+
+            # Execute the dequeued command outside the queue lock
+            self._execute_queued_item(item)
+
+        logger.info("Queue worker loop terminated")
+
+    def _execute_queued_item(self, item: QueuedCommand) -> None:
+        """
+        Execute a dequeued command: assess risk, check approval, or run tasks.
+        """
+        if not item.tasks:
+            item.status = QueueItemStatus.COMPLETED
+            item.completion_event.set()
+            return
+
+        item.status = QueueItemStatus.EXECUTING
+        self.event_bus.publish(
+            event_type=EVEventType.STATUS,
+            source="orchestrator",
+            message=f"Processing queued command: {item.command_text[:50]}",
+            data={
+                "event": "TASK_DEQUEUED",
+                "command_id": item.command_id,
+                "queue_size": self.task_queue.size(),
+            },
+        )
+
+        first_task = item.tasks[0]
+        risk_result = self._assess_task_risk(first_task, user_approved=False)
+
+        try:
+            self.history_store.record_task(first_task)
+            self.history_store.attach_risk_assessment(first_task.task_id, risk_result)
+        except Exception as exc:
+            logger.debug("Failed to record task or attach risk assessment: %s", exc)
+
+        if risk_result.decision == PermissionDecision.ALLOW:
+            tx = item.transaction or CompoundTransaction(tasks=item.tasks)
+            try:
+                thread = None
+                while not self._shutdown_event.is_set():
+                    try:
+                        thread = self.execute_tasks(
+                            item.tasks,
+                            transaction=tx,
+                            cancellation_token=item.cancellation_token,
+                        )
+                        break
+                    except RuntimeError as re:
+                        if "Agent already executing a task" in str(re):
+                            with self.task_queue.condition:
+                                self.task_queue.condition.wait(timeout=0.1)
+                            continue
+                        raise
+
+                if thread is not None:
+                    thread.join()
+                if item.cancellation_token.is_cancelled():
+                    item.status = QueueItemStatus.CANCELLED
+                elif tx.status == TransactionStatus.COMMITTED:
+                    item.status = QueueItemStatus.COMPLETED
+                else:
+                    item.status = QueueItemStatus.FAILED
+            except Exception as exc:
+                logger.exception("Error executing queued command %s: %s", item.command_id, exc)
+                item.status = QueueItemStatus.FAILED
+                item.error = str(exc)
+            finally:
+                item.completion_event.set()
+
+        elif risk_result.decision == PermissionDecision.REQUIRE_APPROVAL:
+            tx = item.transaction or CompoundTransaction(tasks=item.tasks)
+            item.status = QueueItemStatus.AWAITING_APPROVAL
+            with self._pending_lock:
+                self._pending_approval = {
+                    "task": first_task,
+                    "remaining_tasks": item.tasks[1:],
+                    "risk_assessment": risk_result,
+                    "transaction": tx,
+                    "queued_command": item,
+                }
+            logger.info(
+                "Queued task %s requires approval (risk=%s, reason=%s)",
+                first_task.task_id,
+                risk_result.risk_level.value,
+                risk_result.reason,
+            )
+            self.event_bus.set_state(
+                EVState.AWAITING_APPROVAL,
+                reason=f"Approval required: {risk_result.reason}",
+                correlation_id=first_task.task_id,
+                data={
+                    "transaction_id": tx.transaction_id,
+                    "task_id": first_task.task_id,
+                    "command_id": item.command_id,
+                },
+            )
+            self.event_bus.publish(
+                event_type=EVEventType.APPROVAL_REQUIRED,
+                source="orchestrator",
+                correlation_id=first_task.task_id,
+                message=f"Approval required for {first_task.action.value}: {risk_result.reason}",
+                data={
+                    "task_id": first_task.task_id,
+                    "command_id": item.command_id,
+                    "action": first_task.action.value,
+                    "risk_level": risk_result.risk_level.value,
+                    "reason": risk_result.reason,
+                    "parameters": first_task.parameters,
+                    "transaction_id": tx.transaction_id,
+                },
+            )
+            # Item completion_event will be signaled when approval is resolved or cancelled
+
+        else:
+            logger.warning("Queued task %s denied by risk engine: %s", first_task.task_id, risk_result.reason)
+            item.status = QueueItemStatus.FAILED
+            item.error = f"Security policy denial: {risk_result.reason}"
+            item.completion_event.set()
+            self.event_bus.publish(
+                event_type=EVEventType.STATUS,
+                source="orchestrator",
+                correlation_id=first_task.task_id,
+                message=f"Action denied by security policy: {risk_result.reason}",
+                data={"task_id": first_task.task_id, "command_id": item.command_id, "reason": risk_result.reason},
+            )
 
     def _assess_task_risk(self, task: AgentTask, user_approved: bool = False) -> RiskAssessmentResult:
         """
@@ -192,10 +392,16 @@ class EVOrchestrator:
         # Fallback to structured natural language context
         return f"{orig} (specified: {ans})"
 
-    def submit_command(self, raw_text: str) -> Optional[threading.Thread]:
+    def submit_command(
+        self,
+        raw_text: str,
+        queue: Optional[bool] = None,
+        priority: TaskPriority = TaskPriority.USER_INTERACTIVE,
+    ) -> Optional[threading.Thread]:
         """
         Routes a raw text string through BrainRouter, evaluates risk gate, and submits task(s).
         Integrates with EVConversationContextStore for multi-turn clarification.
+        Supports deterministic queueing when enabled, or direct execution.
         Deterministically intercepts STOP/CANCEL/ABORT control commands without Brain/LLM routing.
         """
         if not raw_text or not isinstance(raw_text, str) or not raw_text.strip():
@@ -207,6 +413,12 @@ class EVOrchestrator:
         # Step 0: Deterministically intercept STOP / CANCEL / ABORT control commands
         if lower_text in ("stop", "cancel", "abort"):
             logger.info("Control command '%s' intercepted", lower_text)
+
+            # 0. Cancel queued commands
+            self.task_queue.cancel_all(
+                reason=f"Queued commands cancelled via '{lower_text}' command",
+                source=CancellationSource.USER_COMMAND,
+            )
 
             # 1. Cancel pending approval if present
             with self._pending_lock:
@@ -370,8 +582,71 @@ class EVOrchestrator:
             logger.warning("Routing succeeded but produced 0 tasks")
             return None
 
+        use_queue = queue if queue is not None else self.enable_queue
+        if use_queue:
+            self.start_queue_worker()
+            try:
+                queued_cmd = self.task_queue.enqueue(
+                    command_text=cleaned_text,
+                    tasks=routing_result.tasks,
+                    priority=priority,
+                    source="USER_COMMAND",
+                )
+            except QueueFullError as qfe:
+                logger.warning("Queue overflow: %s", qfe)
+                self.event_bus.publish(
+                    event_type=EVEventType.STATUS,
+                    source="orchestrator",
+                    message=f"Command queue full: {qfe}",
+                    data={"event": "QUEUE_FULL", "command": cleaned_text},
+                )
+                self.context_store.add_turn(
+                    user_message=cleaned_text,
+                    assistant_message="Command rejected: task queue is at capacity (50 items).",
+                )
+                return None
+
+            self.event_bus.publish(
+                event_type=EVEventType.STATUS,
+                source="orchestrator",
+                message=f"Command queued: {cleaned_text[:50]}",
+                data={
+                    "event": "TASK_QUEUED",
+                    "command_id": queued_cmd.command_id,
+                    "queue_size": self.task_queue.size(),
+                    "priority": queued_cmd.priority.name,
+                },
+            )
+            self.context_store.add_turn(
+                user_message=cleaned_text,
+                assistant_message=f"Queued {len(routing_result.tasks)} task(s) [priority={queued_cmd.priority.name}]",
+            )
+            return TaskExecutionThread(queued_cmd)
+
         self.context_store.add_turn(user_message=cleaned_text, assistant_message=f"Dispatched {len(routing_result.tasks)} task(s)")
         return self._dispatch_tasks(routing_result.tasks)
+
+    def queue_command(
+        self,
+        raw_text: str,
+        priority: TaskPriority = TaskPriority.USER_INTERACTIVE,
+    ) -> Optional[threading.Thread]:
+        """
+        Submit a command specifically through the task queue runtime.
+        Returns a TaskExecutionThread handle for synchronization.
+        """
+        return self.submit_command(raw_text, queue=True, priority=priority)
+
+    def cancel_queued_command(
+        self,
+        command_id: str,
+        reason: str = "Queued command cancelled",
+        source: Union[CancellationSource, str] = CancellationSource.USER_COMMAND,
+    ) -> bool:
+        """
+        Cancel a specific waiting command in the queue by command_id.
+        """
+        return self.task_queue.cancel(command_id, reason=reason, source=source)
 
     def _dispatch_tasks(self, tasks: List[AgentTask]) -> Optional[threading.Thread]:
         """
@@ -501,7 +776,17 @@ class EVOrchestrator:
 
         pending_task = approval_data.get("task")
         tx = approval_data.get("transaction")
+        queued_cmd = approval_data.get("queued_command")
         task_id = pending_task.task_id if pending_task else "unknown"
+
+        if queued_cmd is not None:
+            queued_cmd.status = QueueItemStatus.CANCELLED
+            queued_cmd.status_reason = reason
+            queued_cmd.cancellation_token.cancel(reason=reason, source=source)
+            queued_cmd.completion_event.set()
+
+        with self.task_queue.condition:
+            self.task_queue.condition.notify_all()
 
         if tx:
             tx.rollback(
@@ -540,11 +825,23 @@ class EVOrchestrator:
         source: Union[CancellationSource, str] = CancellationSource.USER_COMMAND,
     ) -> bool:
         """
-        Cancel both pending approval and any active background execution.
+        Cancel pending approval, active background execution, and all queued tasks.
         """
         cancelled_pending = self.cancel_pending_approval(reason=reason, source=source)
         cancelled_active = self.cancel_active_task(reason=reason, source=source)
-        return cancelled_pending or cancelled_active
+        cancelled_queued = self.task_queue.cancel_all(reason=reason, source=source) > 0
+        return cancelled_pending or cancelled_active or cancelled_queued
+
+    def shutdown(self, timeout: float = 5.0) -> None:
+        """
+        Clean deterministic shutdown of orchestrator, active tasks, and queue worker.
+        """
+        self._shutdown_event.set()
+        self.cancel_all(reason="System shutdown", source=CancellationSource.SYSTEM_SHUTDOWN)
+        self.task_queue.shutdown(reason="System shutdown", source=CancellationSource.SYSTEM_SHUTDOWN)
+        if self._worker_thread and self._worker_thread.is_alive():
+            self._worker_thread.join(timeout=timeout)
+        self.event_bus.set_state(EVState.STOPPED)
 
     def resolve_approval(self, task_id: str, approved: bool) -> bool:
         """
@@ -571,15 +868,25 @@ class EVOrchestrator:
                 )
                 return False
 
-            # Atomically consume the pending approval state
+            # Retrieve the pending approval state
             approval_data = self._pending_approval
-            self._pending_approval = None
             remaining_tasks = approval_data.get("remaining_tasks") or []
             tx = approval_data.get("transaction")
+            queued_cmd = approval_data.get("queued_command")
 
         if not approved:
+            with self._pending_lock:
+                self._pending_approval = None
             # User Denial
             logger.info("Task %s denied by user", task_id)
+            if queued_cmd is not None:
+                queued_cmd.status = QueueItemStatus.FAILED
+                queued_cmd.error = "Execution denied by user"
+                queued_cmd.completion_event.set()
+
+            with self.task_queue.condition:
+                self.task_queue.condition.notify_all()
+
             if tx:
                 tx.rollback(
                     backup_manager=self.agent.backup_manager,
@@ -617,11 +924,21 @@ class EVOrchestrator:
             logger.debug("Failed to attach second risk assessment to history: %s", exc)
 
         if second_assessment.decision != PermissionDecision.ALLOW:
+            with self._pending_lock:
+                self._pending_approval = None
             logger.warning(
                 "Task %s was approved by user but failed secondary risk evaluation: %s",
                 task_id,
                 second_assessment.reason,
             )
+            if queued_cmd is not None:
+                queued_cmd.status = QueueItemStatus.FAILED
+                queued_cmd.error = f"Secondary risk denial: {second_assessment.reason}"
+                queued_cmd.completion_event.set()
+
+            with self.task_queue.condition:
+                self.task_queue.condition.notify_all()
+
             if tx:
                 tx.rollback(
                     backup_manager=self.agent.backup_manager,
@@ -642,10 +959,34 @@ class EVOrchestrator:
         # Authorized: Execute approved task (and any remaining batch tasks)
         all_tasks = [pending_task] + remaining_tasks
         try:
-            self.execute_tasks(all_tasks, transaction=tx)
+            thread = self.execute_tasks(all_tasks, transaction=tx)
+            with self._pending_lock:
+                self._pending_approval = None
+            if queued_cmd is not None:
+                def _wait_and_complete():
+                    thread.join()
+                    if queued_cmd.cancellation_token.is_cancelled():
+                        queued_cmd.status = QueueItemStatus.CANCELLED
+                    elif tx and tx.status == TransactionStatus.COMMITTED:
+                        queued_cmd.status = QueueItemStatus.COMPLETED
+                    else:
+                        queued_cmd.status = QueueItemStatus.FAILED
+                    queued_cmd.completion_event.set()
+                    with self.task_queue.condition:
+                        self.task_queue.condition.notify_all()
+                threading.Thread(target=_wait_and_complete, daemon=True).start()
+            else:
+                with self.task_queue.condition:
+                    self.task_queue.condition.notify_all()
             return True
         except Exception as exc:
             logger.exception("Failed to execute approved task %s: %s", task_id, exc)
+            if queued_cmd is not None:
+                queued_cmd.status = QueueItemStatus.FAILED
+                queued_cmd.error = str(exc)
+                queued_cmd.completion_event.set()
+            with self.task_queue.condition:
+                self.task_queue.condition.notify_all()
             if tx:
                 tx.rollback(
                     backup_manager=self.agent.backup_manager,
@@ -821,6 +1162,8 @@ class EVOrchestrator:
                     except Exception as final_e:
                         logger.error(f"Failed to set IDLE state in finally block: {final_e}")
                 self._execution_lock.release()
+                with self.task_queue.condition:
+                    self.task_queue.condition.notify_all()
 
         thread = threading.Thread(
             target=_run_wrapper,
