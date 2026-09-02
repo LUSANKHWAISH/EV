@@ -56,6 +56,12 @@ def get_action_category(action: AgentAction, parameters: Optional[dict] = None) 
         return ActionCategory.FILE_MODIFY
     if action == AgentAction.DELETE_FILE:
         return ActionCategory.FILE_DELETE
+    if action == AgentAction.STOP_PROCESS:
+        return ActionCategory.PROCESS_STOP
+    if action == AgentAction.RESTART_SERVICE:
+        return ActionCategory.SERVICE_CONFIGURATION
+    if action == AgentAction.FLUSH_DNS:
+        return ActionCategory.NETWORK_CONFIGURATION
     return ActionCategory.UNKNOWN
 
 

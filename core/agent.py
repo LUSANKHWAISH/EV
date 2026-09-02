@@ -21,9 +21,9 @@ from .verifier import EVVerifier
 from .history import EVTaskHistoryStore
 from .events import EVEventBus
 from .backup import EVBackupManager
-from tools.processes import find_processes
-from tools.network import find_tcp_port
-from tools.services import find_services
+from tools.processes import find_processes, stop_process
+from tools.network import find_tcp_port, flush_dns
+from tools.services import find_services, restart_service
 from tools.filesystem import (
     get_file_info,
     list_directory,
@@ -63,6 +63,12 @@ class EVAgent:
             return write_file
         if action == AgentAction.DELETE_FILE:
             return delete_file
+        if action == AgentAction.STOP_PROCESS:
+            return stop_process
+        if action == AgentAction.RESTART_SERVICE:
+            return restart_service
+        if action == AgentAction.FLUSH_DNS:
+            return flush_dns
         raise ValueError(f"Unsupported action: {action}")
 
     def _format_result_summary(self, action: AgentAction, result: Any) -> str:
@@ -235,12 +241,19 @@ class EVAgent:
             return result
 
         # Execute the approved action
-        is_mutation = task.action in (AgentAction.WRITE_FILE, AgentAction.DELETE_FILE)
+        is_file_mutation = task.action in (AgentAction.WRITE_FILE, AgentAction.DELETE_FILE)
+        is_mutation = task.action in (
+            AgentAction.WRITE_FILE,
+            AgentAction.DELETE_FILE,
+            AgentAction.STOP_PROCESS,
+            AgentAction.RESTART_SERVICE,
+            AgentAction.FLUSH_DNS,
+        )
         backup_record_res = None
         target_path_obj = None
         target_existed_before = False
 
-        if is_mutation:
+        if is_file_mutation:
             raw_path = task.parameters.get("path")
             try:
                 target_path_obj = validate_sandbox_path(raw_path, allowed_roots=self._allowed_roots)
@@ -325,13 +338,13 @@ class EVAgent:
 
         try:
             tool_params = self._get_tool_params(task.parameters)
-            if is_mutation and self._allowed_roots is not None and "allowed_roots" not in tool_params:
+            if is_file_mutation and self._allowed_roots is not None and "allowed_roots" not in tool_params:
                 tool_params["allowed_roots"] = self._allowed_roots
             evidence = handler(**tool_params)
 
             # Check if mutating tool itself reported failure
             if is_mutation and hasattr(evidence, "success") and not evidence.success:
-                error_msg = getattr(evidence, "error", "File action failed")
+                error_msg = getattr(evidence, "error", "Action failed")
                 restore_res = self._rollback_if_needed(
                     task=task,
                     target_path_obj=target_path_obj,
@@ -387,6 +400,7 @@ class EVAgent:
                     evidence=evidence,
                     started_at=started_at,
                     is_mutation=is_mutation,
+                    is_file_mutation=is_file_mutation,
                     target_path_obj=target_path_obj,
                     target_existed_before=target_existed_before,
                     backup_record_res=backup_record_res,
@@ -416,19 +430,30 @@ class EVAgent:
                 ),
             )
             if is_mutation:
-                b_path = backup_record_res.backup_path if backup_record_res else None
-                b_sha = (
-                    backup_record_res.backup_record.sha256
-                    if (backup_record_res and backup_record_res.backup_record)
-                    else None
-                )
-                self._task_mutations[task.task_id] = {
-                    "target_path": str(target_path_obj) if target_path_obj else task.parameters.get("path"),
-                    "target_existed_before": target_existed_before,
-                    "backup_path": b_path,
-                    "original_sha256": b_sha,
-                    "action": task.action,
-                }
+                if is_file_mutation:
+                    b_path = backup_record_res.backup_path if backup_record_res else None
+                    b_sha = (
+                        backup_record_res.backup_record.sha256
+                        if (backup_record_res and backup_record_res.backup_record)
+                        else None
+                    )
+                    self._task_mutations[task.task_id] = {
+                        "target_path": str(target_path_obj) if target_path_obj else task.parameters.get("path"),
+                        "target_existed_before": target_existed_before,
+                        "backup_path": b_path,
+                        "original_sha256": b_sha,
+                        "action": task.action,
+                        "is_compensable": True,
+                    }
+                else:
+                    self._task_mutations[task.task_id] = {
+                        "target_path": None,
+                        "target_existed_before": False,
+                        "backup_path": None,
+                        "original_sha256": None,
+                        "action": task.action,
+                        "is_compensable": False,
+                    }
             self._publish_event(
                 event_type=EVEventType.STATUS,
                 correlation_id=task.task_id,
@@ -549,6 +574,7 @@ class EVAgent:
         evidence: Any,
         started_at: datetime,
         is_mutation: bool = False,
+        is_file_mutation: bool = False,
         target_path_obj: Optional[Any] = None,
         target_existed_before: bool = False,
         backup_record_res: Optional[Any] = None,
@@ -558,7 +584,12 @@ class EVAgent:
 
         try:
             v_evidence = evidence
-            if is_mutation and target_path_obj is not None:
+            if hasattr(evidence, "model_dump"):
+                v_evidence = evidence.model_dump()
+            elif hasattr(evidence, "dict"):
+                v_evidence = evidence.dict()
+
+            if is_file_mutation and target_path_obj is not None:
                 if task.verification_type in (
                     VerificationType.FILE_EXISTS,
                     VerificationType.FILE_NOT_EXISTS,
@@ -570,6 +601,17 @@ class EVAgent:
                     VerificationType.TEXT_NOT_CONTAINS,
                 ):
                     v_evidence = read_text_file(str(target_path_obj))
+            elif task.action == AgentAction.STOP_PROCESS:
+                if task.verification_type == VerificationType.PROCESS_NOT_EXISTS:
+                    proc_name = task.parameters.get("process_name") or task.parameters.get("name")
+                    if proc_name:
+                        v_evidence = find_processes(proc_name)
+                    else:
+                        all_procs = list_processes()
+                        pid_val = task.parameters.get("pid")
+                        v_evidence = [p for p in all_procs if p.pid == pid_val]
+                elif task.verification_type == VerificationType.TCP_PORT_NOT_EXISTS and "port" in task.parameters:
+                    v_evidence = find_tcp_port(int(task.parameters["port"]))
 
             expected_text = (
                 task.parameters.get("expected_text")
@@ -691,19 +733,30 @@ class EVAgent:
             ),
         )
         if is_success and is_mutation:
-            b_path = backup_record_res.backup_path if backup_record_res else None
-            b_sha = (
-                backup_record_res.backup_record.sha256
-                if (backup_record_res and backup_record_res.backup_record)
-                else None
-            )
-            self._task_mutations[task.task_id] = {
-                "target_path": str(target_path_obj) if target_path_obj else task.parameters.get("path"),
-                "target_existed_before": target_existed_before,
-                "backup_path": b_path,
-                "original_sha256": b_sha,
-                "action": task.action,
-            }
+            if is_file_mutation:
+                b_path = backup_record_res.backup_path if backup_record_res else None
+                b_sha = (
+                    backup_record_res.backup_record.sha256
+                    if (backup_record_res and backup_record_res.backup_record)
+                    else None
+                )
+                self._task_mutations[task.task_id] = {
+                    "target_path": str(target_path_obj) if target_path_obj else task.parameters.get("path"),
+                    "target_existed_before": target_existed_before,
+                    "backup_path": b_path,
+                    "original_sha256": b_sha,
+                    "action": task.action,
+                    "is_compensable": True,
+                }
+            else:
+                self._task_mutations[task.task_id] = {
+                    "target_path": None,
+                    "target_existed_before": False,
+                    "backup_path": None,
+                    "original_sha256": None,
+                    "action": task.action,
+                    "is_compensable": False,
+                }
 
         # Publish VERIFICATION_RESULT event
         self._publish_event(
@@ -833,6 +886,21 @@ class EVAgent:
             missing_ok = params.get("missing_ok")
             if missing_ok is not None and not isinstance(missing_ok, bool):
                 return "DELETE_FILE 'missing_ok' must be boolean if provided"
+        elif action == AgentAction.STOP_PROCESS:
+            pid = params.get("pid")
+            if pid is None or not isinstance(pid, int) or pid <= 0:
+                return "STOP_PROCESS requires positive integer 'pid'"
+            process_name = params.get("process_name") or params.get("name")
+            if process_name is not None and not isinstance(process_name, str):
+                return "STOP_PROCESS 'process_name' must be string if provided"
+        elif action == AgentAction.RESTART_SERVICE:
+            name = params.get("name")
+            if not name or not isinstance(name, str) or not name.strip():
+                return "RESTART_SERVICE requires non-empty string 'name'"
+        elif action == AgentAction.FLUSH_DNS:
+            hostname = params.get("hostname")
+            if hostname is not None and (not isinstance(hostname, str) or not hostname.strip()):
+                return "FLUSH_DNS 'hostname' must be non-empty string if provided"
         return None
 
     def __init__(

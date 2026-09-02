@@ -196,8 +196,48 @@ class CommandResolver:
                 raise ValueError("delete file requires a path")
             return self._build_task(AgentAction.DELETE_FILE, {"path": path})
 
+        # STOP_PROCESS
+        if lower_command.startswith("stop process ") or lower_command == "stop process":
+            raw_pid = command[len("stop process"):].strip()
+            if not raw_pid:
+                raise ValueError("stop process requires a PID")
+            try:
+                pid = int(raw_pid)
+            except ValueError:
+                raise ValueError(f"stop process requires an integer PID, got '{raw_pid}'")
+            if pid <= 0:
+                raise ValueError("stop process requires a positive integer PID")
+            return self._build_task(
+                AgentAction.STOP_PROCESS,
+                {"pid": pid},
+                verification_type=VerificationType.PROCESS_NOT_EXISTS,
+            )
+
+        # RESTART_SERVICE
+        if lower_command.startswith("restart service ") or lower_command == "restart service":
+            name = command[len("restart service"):].strip().strip('"').strip("'")
+            if not name:
+                raise ValueError("restart service requires a service name")
+            return self._build_task(
+                AgentAction.RESTART_SERVICE,
+                {"name": name},
+                verification_type=VerificationType.RESULT_NOT_EMPTY,
+            )
+
+        # FLUSH_DNS
+        if lower_command.startswith("flush dns") or lower_command == "flush-dns":
+            hostname = command[len("flush dns"):].strip().strip('"').strip("'")
+            params = {}
+            if hostname:
+                params["hostname"] = hostname
+            return self._build_task(
+                AgentAction.FLUSH_DNS,
+                params,
+                verification_type=VerificationType.RESULT_NOT_EMPTY,
+            )
+
         # Unrecognized intent
-        raise ValueError(f"Could not resolve command intent: '{command}'. Try prefixes like 'find process', 'verify process', 'list dir', etc.")
+        raise ValueError(f"Could not resolve command intent: '{command}'. Try prefixes like 'find process', 'stop process', 'restart service', 'flush dns', 'list dir', etc.")
         
     def _build_task(
         self,

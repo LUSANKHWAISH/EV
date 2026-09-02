@@ -76,3 +76,62 @@ def find_tcp_port(port: int) -> List[TcpConnectionInfo]:
     matches = [c for c in all_connections if c.local_port == port]
     logger.info("Found %d TCP connections on local port %d", len(matches), port)
     return matches
+
+
+def flush_dns(hostname: Optional[str] = None) -> "DnsFlushResult":
+    """
+    Flush the local Windows DNS client cache.
+    Optionally verifies resolution of target hostname if provided.
+    """
+    from core.models import DnsFlushResult
+
+    # Execute bounded Clear-DnsClientCache command
+    ps_cmd = "Clear-DnsClientCache"
+    result = run_powershell(ps_cmd)
+
+    if not result.success:
+        # Fallback to ipconfig /flushdns
+        fallback_res = run_powershell("ipconfig /flushdns")
+        if not fallback_res.success:
+            err_msg = fallback_res.stderr or result.stderr or "Failed to flush DNS cache"
+            return DnsFlushResult(
+                success=False,
+                flushed=False,
+                target_hostname=hostname,
+                error=err_msg,
+            )
+
+    logger.info("Successfully flushed DNS cache")
+
+    # If hostname provided, verify DNS resolution post-flush
+    if hostname and isinstance(hostname, str) and hostname.strip():
+        clean_host = hostname.strip()
+        verify_cmd = f"[System.Net.Dns]::GetHostAddresses('{clean_host}') | Select-Object -ExpandProperty IPAddressToString"
+        v_res = run_powershell(verify_cmd)
+        if v_res.success and v_res.stdout and v_res.stdout.strip():
+            logger.info("DNS verification passed: '%s' resolves to %s", clean_host, v_res.stdout.strip().replace('\n', ', '))
+            return DnsFlushResult(
+                success=True,
+                flushed=True,
+                target_hostname=clean_host,
+                resolved=True,
+                verification_status="RESOLVED",
+            )
+        else:
+            logger.warning("DNS cache flushed, but hostname '%s' still does not resolve", clean_host)
+            return DnsFlushResult(
+                success=True,
+                flushed=True,
+                target_hostname=clean_host,
+                resolved=False,
+                verification_status="NOT_RESOLVED",
+                error=f"DNS cache flushed, but '{clean_host}' failed to resolve: {v_res.stderr or 'Host not found'}",
+            )
+
+    return DnsFlushResult(
+        success=True,
+        flushed=True,
+        target_hostname=None,
+        resolved=None,
+        verification_status="VERIFICATION_UNAVAILABLE (no hostname provided)",
+    )

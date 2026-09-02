@@ -96,6 +96,41 @@ class FileDeleteResult(BaseModel):
     error: Optional[str] = None
 
 
+class ProcessStopResult(BaseModel):
+    """
+    Structured result of stopping a process.
+    """
+    pid: int
+    name: Optional[str] = None
+    success: bool
+    terminated: bool = False
+    error: Optional[str] = None
+
+
+class ServiceRestartResult(BaseModel):
+    """
+    Structured result of restarting a Windows service.
+    """
+    name: str
+    prior_status: Optional[str] = None
+    current_status: Optional[str] = None
+    success: bool
+    admin_required: bool = False
+    error: Optional[str] = None
+
+
+class DnsFlushResult(BaseModel):
+    """
+    Structured result of flushing DNS cache.
+    """
+    success: bool
+    flushed: bool = False
+    target_hostname: Optional[str] = None
+    resolved: Optional[bool] = None
+    verification_status: Optional[str] = None
+    error: Optional[str] = None
+
+
 # Verifier models
 class VerificationStatus(str, Enum):
     VERIFIED = "VERIFIED"
@@ -151,6 +186,9 @@ class AgentAction(str, Enum):
     FIND_SERVICE = "FIND_SERVICE"
     WRITE_FILE = "WRITE_FILE"
     DELETE_FILE = "DELETE_FILE"
+    STOP_PROCESS = "STOP_PROCESS"
+    RESTART_SERVICE = "RESTART_SERVICE"
+    FLUSH_DNS = "FLUSH_DNS"
 
 class AgentTask(BaseModel):
     task_id: str

@@ -51,3 +51,106 @@ def find_processes(name: str) -> List[ProcessInfo]:
     matches = [p for p in all_processes if p.name.lower() == name_lower]
     logger.info("Found %d processes matching name '%s'", len(matches), name)
     return matches
+
+
+SYSTEM_CRITICAL_PROCESSES = {
+    "system",
+    "idle",
+    "smss",
+    "smss.exe",
+    "csrss",
+    "csrss.exe",
+    "wininit",
+    "wininit.exe",
+    "services",
+    "services.exe",
+    "lsass",
+    "lsass.exe",
+    "svchost",
+    "svchost.exe",
+    "explorer",
+    "explorer.exe",
+    "winlogon",
+    "winlogon.exe",
+    "dwm",
+    "dwm.exe",
+    "fontdrvhost",
+    "fontdrvhost.exe",
+}
+
+
+def stop_process(pid: int, process_name: Optional[str] = None) -> "ProcessStopResult":
+    """
+    Safely terminate a known user-level process by PID.
+    Validates process existence and prevents termination of system-critical targets.
+    """
+    from core.models import ProcessStopResult
+
+    if not isinstance(pid, int) or pid <= 4:
+        return ProcessStopResult(
+            pid=pid if isinstance(pid, int) else -1,
+            name=process_name,
+            success=False,
+            terminated=False,
+            error=f"Invalid or system-protected PID: {pid}",
+        )
+
+    # Inspect current processes to verify target exists and check its name
+    all_procs = list_processes()
+    target = next((p for p in all_procs if p.pid == pid), None)
+    if target is None:
+        return ProcessStopResult(
+            pid=pid,
+            name=process_name,
+            success=False,
+            terminated=False,
+            error=f"Process with PID {pid} does not exist",
+        )
+
+    proc_name = target.name or process_name or "unknown"
+    proc_name_lower = proc_name.lower().strip()
+
+    # Block system-critical processes
+    if proc_name_lower in SYSTEM_CRITICAL_PROCESSES or proc_name_lower.replace(".exe", "") in SYSTEM_CRITICAL_PROCESSES:
+        return ProcessStopResult(
+            pid=pid,
+            name=proc_name,
+            success=False,
+            terminated=False,
+            error=f"Termination blocked: '{proc_name}' (PID {pid}) is a protected system-critical process",
+        )
+
+    # Validate name mismatch if process_name was provided
+    if process_name and process_name.strip():
+        expected_lower = process_name.strip().lower()
+        if expected_lower != proc_name_lower and expected_lower.replace(".exe", "") != proc_name_lower.replace(".exe", ""):
+            return ProcessStopResult(
+                pid=pid,
+                name=proc_name,
+                success=False,
+                terminated=False,
+                error=f"Process identity mismatch: PID {pid} is '{proc_name}', expected '{process_name}'",
+            )
+
+    # Execute termination via bounded PowerShell Stop-Process
+    ps_cmd = f"Stop-Process -Id {pid} -Force"
+    result = run_powershell(ps_cmd)
+    if not result.success:
+        err_msg = result.stderr or f"Failed to stop process {pid}"
+        if "Access is denied" in err_msg or "UnauthorizedAccessException" in err_msg or "PermissionDenied" in err_msg:
+            err_msg = f"ADMIN_REQUIRED: Access denied terminating PID {pid} ({proc_name})"
+        return ProcessStopResult(
+            pid=pid,
+            name=proc_name,
+            success=False,
+            terminated=False,
+            error=err_msg,
+        )
+
+    logger.info("Successfully stopped process %s (PID %d)", proc_name, pid)
+    return ProcessStopResult(
+        pid=pid,
+        name=proc_name,
+        success=True,
+        terminated=True,
+    )
