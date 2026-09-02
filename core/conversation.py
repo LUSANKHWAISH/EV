@@ -19,7 +19,10 @@ import time
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .memory import EVConversationMemoryStore
 
 logger = logging.getLogger("ev.conversation")
 
@@ -27,16 +30,15 @@ logger = logging.getLogger("ev.conversation")
 MAX_TURNS: int = 10
 PENDING_CONTEXT_TTL: float = 300.0  # 5 minutes
 MAX_TEXT_LENGTH: int = 1000
-MAX_AGGREGATE_CHARS: int = 5000
-CANCELLATION_KEYWORDS = {"cancel", "stop", "abort", "nevermind"}
+CANCELLATION_KEYWORDS = frozenset({"cancel", "stop", "abort", "nevermind", "exit", "quit"})
 
 
 @dataclass
 class ConversationTurn:
     """Represents a single conversational turn in the multi-turn session."""
-    turn_id: str = field(default_factory=lambda: str(uuid.uuid4())[:8])
-    user_message: str = ""
+    user_message: str
     assistant_message: Optional[str] = None
+    turn_id: str = field(default_factory=lambda: str(uuid.uuid4())[:8])
     timestamp: datetime = field(default_factory=datetime.now)
     metadata: Dict[str, Any] = field(default_factory=dict)
 
@@ -60,7 +62,7 @@ class PendingClarificationContext:
 class EVConversationContextStore:
     """
     Thread-safe, bounded in-memory store for multi-turn conversational history
-    and active pending clarification contexts.
+    and active pending clarification contexts. Optionally backed by EVConversationMemoryStore.
     """
 
     def __init__(
@@ -68,6 +70,8 @@ class EVConversationContextStore:
         max_turns: int = MAX_TURNS,
         pending_ttl: float = PENDING_CONTEXT_TTL,
         max_text_length: int = MAX_TEXT_LENGTH,
+        memory_store: Optional[EVConversationMemoryStore] = None,
+        session_id: Optional[str] = None,
     ) -> None:
         self._max_turns = max(1, max_turns)
         self._pending_ttl = max(1.0, pending_ttl)
@@ -75,6 +79,58 @@ class EVConversationContextStore:
         self._lock = threading.RLock()
         self._turns: List[ConversationTurn] = []
         self._pending_clarification: Optional[PendingClarificationContext] = None
+        self._memory_store: Optional[EVConversationMemoryStore] = memory_store
+        self._session_id: Optional[str] = None
+
+        if self._memory_store is not None:
+            try:
+                if session_id:
+                    self._session_id = session_id
+                else:
+                    self._session_id = self._memory_store.get_or_create_active_session()
+                persisted_turns = self._memory_store.get_recent_turns(
+                    self._session_id, limit=self._max_turns
+                )
+                for pt in persisted_turns:
+                    dt = None
+                    if "timestamp" in pt and pt["timestamp"]:
+                        try:
+                            dt = datetime.fromisoformat(pt["timestamp"])
+                        except Exception:
+                            dt = None
+                    turn = ConversationTurn(
+                        turn_id=pt.get("turn_id") or str(uuid.uuid4())[:8],
+                        user_message=pt.get("user_message", ""),
+                        assistant_message=pt.get("assistant_message"),
+                        timestamp=dt or datetime.now(),
+                        metadata=pt.get("metadata") or {},
+                    )
+                    self._turns.append(turn)
+            except Exception as exc:
+                logger.warning("Failed to initialize conversation context with memory store: %s", exc)
+
+    @property
+    def session_id(self) -> Optional[str]:
+        """Return the active persistent session ID, if any."""
+        return self._session_id
+
+    @property
+    def memory_store(self) -> Optional[EVConversationMemoryStore]:
+        """Return the backing persistent memory store, if any."""
+        return self._memory_store
+
+    def start_new_session(self, title: Optional[str] = None) -> Optional[str]:
+        """Start a new session in persistent storage and reset active in-memory turns."""
+        with self._lock:
+            self._turns.clear()
+            self._pending_clarification = None
+            if self._memory_store is not None:
+                try:
+                    self._session_id = self._memory_store.create_session(title=title)
+                    return self._session_id
+                except Exception as exc:
+                    logger.warning("Failed to create new session in memory store: %s", exc)
+            return None
 
     def add_turn(
         self,
@@ -98,6 +154,20 @@ class EVConversationContextStore:
             self._turns.append(turn)
             if len(self._turns) > self._max_turns:
                 self._turns = self._turns[-self._max_turns:]
+
+            if self._memory_store is not None and self._session_id is not None:
+                try:
+                    self._memory_store.record_turn(
+                        session_id=self._session_id,
+                        user_message=turn.user_message,
+                        assistant_message=turn.assistant_message,
+                        turn_id=turn.turn_id,
+                        timestamp=turn.timestamp,
+                        metadata=turn.metadata,
+                    )
+                except Exception as exc:
+                    logger.warning("Failed to persist turn to memory store: %s", exc)
+
             return turn
 
     def get_recent_turns(self, limit: Optional[int] = None) -> List[ConversationTurn]:

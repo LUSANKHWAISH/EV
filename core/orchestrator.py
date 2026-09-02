@@ -14,6 +14,7 @@ from core.cancellation import (
 from core.conversation import EVConversationContextStore, PendingClarificationContext
 from core.events import EVEventBus, EVEvent
 from core.history import EVTaskHistoryStore
+from core.memory import EVConversationMemoryStore
 from core.models import (
     ActionCategory,
     AgentAction,
@@ -83,10 +84,21 @@ class EVOrchestrator:
         router: Optional[BrainRouter] = None,
         risk_engine: Optional[EVRiskEngine] = None,
         context_store: Optional[EVConversationContextStore] = None,
+        memory_store: Optional[EVConversationMemoryStore] = None,
     ):
         self.event_bus = event_bus
         self.history_store = EVTaskHistoryStore()
-        self.context_store = context_store or EVConversationContextStore()
+        try:
+            self.memory_store = memory_store or EVConversationMemoryStore()
+        except Exception as exc:
+            logger.warning("Failed to initialize persistent memory store; falling back to ephemeral: %s", exc)
+            self.memory_store = None
+
+        if context_store is not None:
+            self.context_store = context_store
+        else:
+            self.context_store = EVConversationContextStore(memory_store=self.memory_store)
+
         self.agent = EVAgent(
             history_store=self.history_store,
             event_bus=self.event_bus,
