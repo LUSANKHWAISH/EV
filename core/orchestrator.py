@@ -1,11 +1,16 @@
 import logging
 import threading
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Union
 
 from core.agent import EVAgent
 from core.brain_models import BrainDecisionType
 from core.brain_router import BrainRouter, RouteType
+from core.cancellation import (
+    CancellationSource,
+    CancellationToken,
+    OperationCancelledError,
+)
 from core.conversation import EVConversationContextStore, PendingClarificationContext
 from core.events import EVEventBus, EVEvent
 from core.history import EVTaskHistoryStore
@@ -92,6 +97,8 @@ class EVOrchestrator:
         self._pending_lock = threading.RLock()
         self._pending_approval: Optional[dict] = None
         self._resolver = CommandResolver()
+        self._active_cancellation_token: Optional[CancellationToken] = None
+        self._token_lock = threading.Lock()
 
     def _assess_task_risk(self, task: AgentTask, user_approved: bool = False) -> RiskAssessmentResult:
         """
@@ -177,11 +184,72 @@ class EVOrchestrator:
         """
         Routes a raw text string through BrainRouter, evaluates risk gate, and submits task(s).
         Integrates with EVConversationContextStore for multi-turn clarification.
+        Deterministically intercepts STOP/CANCEL/ABORT control commands without Brain/LLM routing.
         """
         if not raw_text or not isinstance(raw_text, str) or not raw_text.strip():
             return None
 
         cleaned_text = raw_text.strip()
+        lower_text = cleaned_text.lower()
+
+        # Step 0: Deterministically intercept STOP / CANCEL / ABORT control commands
+        if lower_text in ("stop", "cancel", "abort"):
+            logger.info("Control command '%s' intercepted", lower_text)
+
+            # 1. Cancel pending approval if present
+            with self._pending_lock:
+                has_pending = self._pending_approval is not None
+            if has_pending:
+                self.cancel_pending_approval(
+                    reason=f"Pending approval cancelled via '{lower_text}' command",
+                    source=CancellationSource.USER_COMMAND,
+                )
+                self.context_store.add_turn(
+                    user_message=cleaned_text,
+                    assistant_message="Pending approval cancelled.",
+                )
+                return None
+
+            # 2. Cancel active background task if running
+            with self._token_lock:
+                active_token = self._active_cancellation_token
+            if active_token is not None and not active_token.is_cancelled():
+                self.cancel_active_task(
+                    reason=f"Active execution cancelled via '{lower_text}' command",
+                    source=CancellationSource.USER_COMMAND,
+                )
+                self.context_store.add_turn(
+                    user_message=cleaned_text,
+                    assistant_message="Execution cancellation requested.",
+                )
+                return None
+
+            # 3. Cancel active pending clarification if present
+            if self.context_store.has_pending_clarification():
+                self.context_store.clear_pending_clarification()
+                self.event_bus.publish(
+                    event_type=EVEventType.STATUS,
+                    source="orchestrator",
+                    message="Clarification request cancelled.",
+                )
+                self.context_store.add_turn(
+                    user_message=cleaned_text,
+                    assistant_message="Clarification request cancelled.",
+                )
+                return None
+
+            # 4. Harmless deterministic feedback when nothing active
+            msg = "No active execution or pending approval to cancel."
+            self.event_bus.publish(
+                event_type=EVEventType.STATUS,
+                source="orchestrator",
+                message=msg,
+            )
+            self.context_store.add_turn(
+                user_message=cleaned_text,
+                assistant_message=msg,
+            )
+            return None
 
         # Check for active pending clarification
         pending_clarification = self.context_store.get_pending_clarification()
@@ -378,6 +446,94 @@ class EVOrchestrator:
             )
             return None
 
+    def cancel_active_task(
+        self,
+        reason: str = "Execution cancelled by user",
+        source: Union[CancellationSource, str] = CancellationSource.USER_COMMAND,
+    ) -> bool:
+        """
+        Request cooperative cancellation of the currently active background task or transaction.
+        Does not forcefully kill threads; signals the CancellationToken for safe cooperative exit.
+        """
+        with self._token_lock:
+            token = self._active_cancellation_token
+
+        if token is None or token.is_cancelled():
+            logger.debug("cancel_active_task called but no active cancellable token found")
+            return False
+
+        cancelled = token.cancel(reason=reason, source=source)
+        if cancelled:
+            self.event_bus.publish(
+                event_type=EVEventType.STATUS,
+                source="orchestrator",
+                message=f"Cancellation requested: {reason}",
+                data={"reason": reason, "source": str(source)},
+            )
+        return cancelled
+
+    def cancel_pending_approval(
+        self,
+        reason: str = "Approval cancelled by user",
+        source: Union[CancellationSource, str] = CancellationSource.USER_COMMAND,
+    ) -> bool:
+        """
+        Atomically cancel any pending approval request and return orchestrator to IDLE state.
+        Invalidates the pending task and prevents stale approvals from being accepted later.
+        """
+        with self._pending_lock:
+            if self._pending_approval is None:
+                return False
+            approval_data = self._pending_approval
+            self._pending_approval = None
+
+        pending_task = approval_data.get("task")
+        tx = approval_data.get("transaction")
+        task_id = pending_task.task_id if pending_task else "unknown"
+
+        if tx:
+            tx.rollback(
+                backup_manager=self.agent.backup_manager,
+                failed_step_index=0,
+                failure_reason=reason,
+            )
+
+        if pending_task:
+            try:
+                self.history_store.record_task(pending_task)
+                self.history_store.record_run(
+                    pending_task,
+                    AgentRunResult(
+                        task_id=task_id,
+                        status=AgentStatus.FAILED,
+                        error=reason,
+                    ),
+                )
+            except Exception as exc:
+                logger.debug("Failed to record cancellation in history: %s", exc)
+
+        self.event_bus.publish(
+            event_type=EVEventType.STATUS,
+            source="orchestrator",
+            correlation_id=task_id,
+            message=f"Task {task_id} approval cancelled: {reason}",
+            data={"task_id": task_id, "approved": False, "reason": reason, "source": str(source)},
+        )
+        self.event_bus.set_state(EVState.IDLE)
+        return True
+
+    def cancel_all(
+        self,
+        reason: str = "Operation cancelled by user",
+        source: Union[CancellationSource, str] = CancellationSource.USER_COMMAND,
+    ) -> bool:
+        """
+        Cancel both pending approval and any active background execution.
+        """
+        cancelled_pending = self.cancel_pending_approval(reason=reason, source=source)
+        cancelled_active = self.cancel_active_task(reason=reason, source=source)
+        return cancelled_pending or cancelled_active
+
     def resolve_approval(self, task_id: str, approved: bool) -> bool:
         """
         Resolve a pending approval request for a task.
@@ -492,20 +648,23 @@ class EVOrchestrator:
         self,
         task: AgentTask,
         transaction: Optional[CompoundTransaction] = None,
+        cancellation_token: Optional[CancellationToken] = None,
     ) -> threading.Thread:
         """
         Submit a single task for background execution.
         Returns the daemon thread handle.
         """
-        return self.execute_tasks([task], transaction=transaction)
+        return self.execute_tasks([task], transaction=transaction, cancellation_token=cancellation_token)
 
     def execute_tasks(
         self,
         tasks: List[AgentTask],
         transaction: Optional[CompoundTransaction] = None,
+        cancellation_token: Optional[CancellationToken] = None,
     ) -> threading.Thread:
         """
         Submit a list of tasks for sequential background execution within a CompoundTransaction.
+        Supports cooperative cancellation via CancellationToken.
         Returns the daemon thread handle.
         """
         if not tasks:
@@ -513,6 +672,10 @@ class EVOrchestrator:
 
         if not self._execution_lock.acquire(blocking=False):
             raise RuntimeError("Agent already executing a task")
+
+        token = cancellation_token or CancellationToken()
+        with self._token_lock:
+            self._active_cancellation_token = token
 
         tx = transaction or CompoundTransaction(tasks=tasks)
         if tx.status == TransactionStatus.PENDING:
@@ -524,6 +687,28 @@ class EVOrchestrator:
                     self.event_bus.set_state(EVState.EXECUTING)
                     all_completed = True
                     for idx, task in enumerate(tasks):
+                        # 1. Check for cooperative cancellation before beginning step
+                        if token.is_cancelled():
+                            logger.info(
+                                "Batch execution aborted before step %d due to cancellation: %s",
+                                idx,
+                                token.state.reason,
+                            )
+                            all_completed = False
+                            tx.rollback(
+                                backup_manager=self.agent.backup_manager,
+                                failed_step_index=idx,
+                                failure_reason=f"Execution cancelled: {token.state.reason}",
+                            )
+                            self.event_bus.publish(
+                                event_type=EVEventType.STATUS,
+                                source="orchestrator",
+                                correlation_id=task.task_id,
+                                message=f"Execution cancelled: {token.state.reason}",
+                                data={"task_id": task.task_id, "step_index": idx, "reason": token.state.reason},
+                            )
+                            break
+
                         # Gating check for subsequent tasks in batch
                         if idx > 0:
                             risk_result = self._assess_task_risk(task, user_approved=False)
@@ -541,11 +726,15 @@ class EVOrchestrator:
                                         "risk_assessment": risk_result,
                                         "transaction": tx,
                                     }
+                                with self._token_lock:
+                                    if self._active_cancellation_token is token:
+                                        self._active_cancellation_token = None
                                 logger.info("Batch paused at task %s for user approval", task.task_id)
                                 self.event_bus.set_state(
                                     EVState.AWAITING_APPROVAL,
                                     reason=f"Approval required: {risk_result.reason}",
                                     correlation_id=task.task_id,
+                                    data={"transaction_id": tx.transaction_id, "task_id": task.task_id},
                                 )
                                 self.event_bus.publish(
                                     event_type=EVEventType.APPROVAL_REQUIRED,
@@ -611,6 +800,9 @@ class EVOrchestrator:
                     except Exception as nested_e:
                         logger.error(f"Failed to set FAILED state during exception handling: {nested_e}")
             finally:
+                with self._token_lock:
+                    if self._active_cancellation_token is token:
+                        self._active_cancellation_token = None
                 if self.event_bus.current_state != EVState.AWAITING_APPROVAL:
                     try:
                         self.event_bus.set_state(EVState.IDLE)
