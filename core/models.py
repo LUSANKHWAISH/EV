@@ -64,42 +64,37 @@ class TextReadResult(BaseModel):
     size_bytes: Optional[int] = None
     error: Optional[str] = None
 
-# Agent orchestration models
-class AgentStatus(str, Enum):
-    PENDING = "PENDING"
-    RUNNING = "RUNNING"
-    COMPLETED = "COMPLETED"
-    FAILED = "FAILED"
+class ServiceInfo(BaseModel):
+    """
+    Structured information about a Windows service.
+    """
+    name: str
+    display_name: Optional[str] = None
+    status: Optional[str] = None
+    start_type: Optional[str] = None
 
-class AgentAction(str, Enum):
-    FIND_PROCESS = "FIND_PROCESS"
-    FIND_TCP_PORT = "FIND_TCP_PORT"
-    GET_FILE_INFO = "GET_FILE_INFO"
-    LIST_DIRECTORY = "LIST_DIRECTORY"
-    READ_TEXT_FILE = "READ_TEXT_FILE"
-    FIND_FILES = "FIND_FILES"
-    SEARCH_TEXT = "SEARCH_TEXT"
 
-class AgentTask(BaseModel):
-    task_id: str
-    action: AgentAction
-    parameters: dict
-    created_at: datetime = Field(default_factory=datetime.now)
-
-class AgentStepResult(BaseModel):
-    action: AgentAction
+class FileWriteResult(BaseModel):
+    """
+    Structured result of writing a file.
+    """
+    path: str
     success: bool
-    started_at: datetime
-    finished_at: datetime
-    duration_seconds: float
-    result: Optional[Any] = None
+    bytes_written: int = 0
+    created: bool = False
+    sha256: Optional[str] = None
     error: Optional[str] = None
 
-class AgentRunResult(BaseModel):
-    task_id: str
-    status: AgentStatus
-    step: Optional[AgentStepResult] = None
+
+class FileDeleteResult(BaseModel):
+    """
+    Structured result of deleting a file.
+    """
+    path: str
+    success: bool
+    deleted: bool = False
     error: Optional[str] = None
+
 
 # Verifier models
 class VerificationStatus(str, Enum):
@@ -120,6 +115,8 @@ class VerificationType(str, Enum):
     TEXT_NOT_CONTAINS = "TEXT_NOT_CONTAINS"
     RESULT_NOT_EMPTY = "RESULT_NOT_EMPTY"
     RESULT_EMPTY = "RESULT_EMPTY"
+    SERVICE_RUNNING = "SERVICE_RUNNING"
+    SERVICE_STOPPED = "SERVICE_STOPPED"
 
 class VerificationRequest(BaseModel):
     verification_type: VerificationType
@@ -134,6 +131,47 @@ class VerificationResult(BaseModel):
     message: str
     evidence_summary: Any
     timestamp: datetime = Field(default_factory=datetime.now)
+    error: Optional[str] = None
+
+# Agent orchestration models
+class AgentStatus(str, Enum):
+    PENDING = "PENDING"
+    RUNNING = "RUNNING"
+    COMPLETED = "COMPLETED"
+    FAILED = "FAILED"
+
+class AgentAction(str, Enum):
+    FIND_PROCESS = "FIND_PROCESS"
+    FIND_TCP_PORT = "FIND_TCP_PORT"
+    GET_FILE_INFO = "GET_FILE_INFO"
+    LIST_DIRECTORY = "LIST_DIRECTORY"
+    READ_TEXT_FILE = "READ_TEXT_FILE"
+    FIND_FILES = "FIND_FILES"
+    SEARCH_TEXT = "SEARCH_TEXT"
+    FIND_SERVICE = "FIND_SERVICE"
+    WRITE_FILE = "WRITE_FILE"
+    DELETE_FILE = "DELETE_FILE"
+
+class AgentTask(BaseModel):
+    task_id: str
+    action: AgentAction
+    parameters: dict
+    verification_type: Optional[VerificationType] = None
+    created_at: datetime = Field(default_factory=datetime.now)
+
+class AgentStepResult(BaseModel):
+    action: AgentAction
+    success: bool
+    started_at: datetime
+    finished_at: datetime
+    duration_seconds: float
+    result: Optional[Any] = None
+    error: Optional[str] = None
+
+class AgentRunResult(BaseModel):
+    task_id: str
+    status: AgentStatus
+    step: Optional[AgentStepResult] = None
     error: Optional[str] = None
 
 # Backup models

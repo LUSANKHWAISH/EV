@@ -1,5 +1,6 @@
 import logging
 import threading
+from pathlib import Path
 from typing import List, Optional
 
 from core.agent import EVAgent
@@ -40,6 +41,17 @@ def get_action_category(action: AgentAction, parameters: Optional[dict] = None) 
         AgentAction.FIND_SERVICE,
     ):
         return ActionCategory.READ_ONLY_OBSERVATION
+    if action == AgentAction.WRITE_FILE:
+        if parameters and "path" in parameters and isinstance(parameters["path"], str):
+            try:
+                if Path(parameters["path"]).exists():
+                    return ActionCategory.FILE_MODIFY
+            except Exception:
+                pass
+            return ActionCategory.FILE_CREATE
+        return ActionCategory.FILE_MODIFY
+    if action == AgentAction.DELETE_FILE:
+        return ActionCategory.FILE_DELETE
     return ActionCategory.UNKNOWN
 
 
@@ -80,11 +92,24 @@ class EVOrchestrator:
                 or task.parameters.get("port")
                 or ""
             )
+
+        # File actions in the EV runtime are backed up and reversible
+        is_file_mutation = category in (
+            ActionCategory.FILE_CREATE,
+            ActionCategory.FILE_MODIFY,
+            ActionCategory.FILE_DELETE,
+            ActionCategory.FILE_RESTORE,
+        )
+        has_backup = is_file_mutation
+        reversible = is_file_mutation
+
         req = RiskAssessmentRequest(
             action_category=category,
             target=target or None,
             description=f"Action {task.action.value}",
             user_approved=user_approved,
+            has_backup=has_backup,
+            reversible=reversible,
         )
         return self.risk_engine.assess(req)
 

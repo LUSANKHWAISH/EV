@@ -1,13 +1,261 @@
+import hashlib
 import os
-import sys
+import shutil
 import stat
-from pathlib import Path
-from typing import List, Optional, Iterator, Set
-from core.models import FileInfo, TextReadResult
-from core.logging_config import setup_logging
+import sys
+import tempfile
 from datetime import datetime
+from pathlib import Path
+from typing import Iterator, List, Optional, Set, Union
+
+from core.logging_config import setup_logging
+from core.models import FileDeleteResult, FileInfo, FileWriteResult, TextReadResult
 
 logger = setup_logging("ev.filesystem")
+
+DEFAULT_ALLOWED_ROOTS = [
+    Path(r"D:\EV\workspace"),
+    Path(r"D:\EV\sandbox"),
+    Path(r"D:\EV\backups"),
+]
+
+# DOS reserved device names
+DOS_DEVICE_NAMES = {
+    "CON", "PRN", "AUX", "NUL",
+    "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9",
+    "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9",
+}
+
+
+def validate_sandbox_path(
+    path: Union[str, Path],
+    allowed_roots: Optional[List[Union[str, Path]]] = None,
+) -> Path:
+    """
+    Validate and return the canonical Path within an allowed sandbox root.
+    Raises ValueError or PermissionError if invalid or outside sandbox.
+    """
+    if path is None or not isinstance(path, (str, Path)):
+        raise ValueError("Path must be a non-empty string or Path object")
+
+    raw_path_str = str(path).strip().strip('"').strip("'")
+    if not raw_path_str:
+        raise ValueError("Path cannot be empty")
+
+    if "\x00" in raw_path_str:
+        raise ValueError("Path contains invalid null byte")
+
+    # Reject UNC network paths
+    if raw_path_str.startswith(r"\\") or raw_path_str.startswith("//"):
+        raise PermissionError("UNC network paths are not allowed in sandbox")
+
+    p = Path(raw_path_str)
+
+    # Check for reserved DOS device names
+    stem_upper = p.stem.upper()
+    if stem_upper in DOS_DEVICE_NAMES:
+        raise PermissionError(f"Reserved DOS device name '{stem_upper}' is not allowed")
+
+    # Check for alternate data streams (colons beyond drive specifier)
+    parts_str = str(p)
+    if len(parts_str) >= 2 and parts_str[1] == ":":
+        rest = parts_str[2:]
+        if ":" in rest:
+            raise PermissionError("Alternate Data Streams are not allowed")
+    elif ":" in parts_str:
+        raise PermissionError("Alternate Data Streams are not allowed")
+
+    try:
+        resolved = p.resolve()
+    except Exception as exc:
+        raise PermissionError(f"Unable to resolve path: {exc}")
+
+    roots = [Path(r).resolve() for r in (allowed_roots or DEFAULT_ALLOWED_ROOTS)]
+
+    # Check if resolved path is within any allowed root
+    is_allowed = False
+    for root in roots:
+        try:
+            if resolved.is_relative_to(root) or resolved == root:
+                is_allowed = True
+                break
+        except AttributeError:
+            try:
+                resolved.relative_to(root)
+                is_allowed = True
+                break
+            except ValueError:
+                pass
+
+    if not is_allowed:
+        raise PermissionError(
+            f"Path '{resolved}' is outside allowed sandbox roots: {[str(r) for r in roots]}"
+        )
+
+    return resolved
+
+
+def write_file(
+    path: str,
+    content: str,
+    encoding: str = "utf-8",
+    overwrite: bool = True,
+    allowed_roots: Optional[List[Union[str, Path]]] = None,
+) -> FileWriteResult:
+    """
+    Write content to a file in the sandbox.
+    Returns FileWriteResult.
+    """
+    try:
+        validated_path = validate_sandbox_path(path, allowed_roots=allowed_roots)
+    except Exception as exc:
+        return FileWriteResult(
+            path=str(path),
+            success=False,
+            bytes_written=0,
+            created=False,
+            error=f"SandboxValidationError: {exc}",
+        )
+
+    if not isinstance(content, str):
+        return FileWriteResult(
+            path=str(validated_path),
+            success=False,
+            bytes_written=0,
+            created=False,
+            error="TypeError: Content must be a string",
+        )
+
+    # Max 1 MB content limit
+    if len(content) > 1024 * 1024:
+        return FileWriteResult(
+            path=str(validated_path),
+            success=False,
+            bytes_written=0,
+            created=False,
+            error="ValueError: Content exceeds maximum limit of 1 MB",
+        )
+
+    try:
+        encoded_bytes = content.encode(encoding)
+    except Exception as exc:
+        return FileWriteResult(
+            path=str(validated_path),
+            success=False,
+            bytes_written=0,
+            created=False,
+            error=f"EncodingError: Failed to encode content using {encoding}: {exc}",
+        )
+
+    file_existed = validated_path.exists()
+    if file_existed and not overwrite:
+        return FileWriteResult(
+            path=str(validated_path),
+            success=False,
+            bytes_written=0,
+            created=False,
+            error="FileExistsError: Target file already exists and overwrite is False",
+        )
+
+    try:
+        validated_path.parent.mkdir(parents=True, exist_ok=True)
+        # Atomic write via temporary file in the same directory
+        parent_dir = validated_path.parent
+        fd, temp_file_path = tempfile.mkstemp(
+            suffix=validated_path.suffix, dir=parent_dir, prefix=".ev_tmp_"
+        )
+        try:
+            with os.fdopen(fd, "wb") as f:
+                f.write(encoded_bytes)
+            # Atomic rename / replace
+            os.replace(temp_file_path, validated_path)
+        finally:
+            if os.path.exists(temp_file_path):
+                try:
+                    os.unlink(temp_file_path)
+                except OSError:
+                    pass
+
+        # Calculate sha256 of written file
+        h = hashlib.sha256(encoded_bytes).hexdigest()
+        return FileWriteResult(
+            path=str(validated_path),
+            success=True,
+            bytes_written=len(encoded_bytes),
+            created=not file_existed,
+            sha256=h,
+            error=None,
+        )
+    except Exception as exc:
+        logger.exception("Error writing file %s: %s", validated_path, exc)
+        return FileWriteResult(
+            path=str(validated_path),
+            success=False,
+            bytes_written=0,
+            created=False,
+            error=f"{type(exc).__name__}: {exc}",
+        )
+
+
+def delete_file(
+    path: str,
+    missing_ok: bool = False,
+    allowed_roots: Optional[List[Union[str, Path]]] = None,
+) -> FileDeleteResult:
+    """
+    Delete a file in the sandbox.
+    Returns FileDeleteResult.
+    """
+    try:
+        validated_path = validate_sandbox_path(path, allowed_roots=allowed_roots)
+    except Exception as exc:
+        return FileDeleteResult(
+            path=str(path),
+            success=False,
+            deleted=False,
+            error=f"SandboxValidationError: {exc}",
+        )
+
+    if not validated_path.exists():
+        if missing_ok:
+            return FileDeleteResult(
+                path=str(validated_path),
+                success=True,
+                deleted=False,
+                error=None,
+            )
+        return FileDeleteResult(
+            path=str(validated_path),
+            success=False,
+            deleted=False,
+            error="FileNotFoundError: File does not exist",
+        )
+
+    if validated_path.is_dir():
+        return FileDeleteResult(
+            path=str(validated_path),
+            success=False,
+            deleted=False,
+            error="IsADirectoryError: Target is a directory, not a regular file",
+        )
+
+    try:
+        validated_path.unlink()
+        return FileDeleteResult(
+            path=str(validated_path),
+            success=True,
+            deleted=True,
+            error=None,
+        )
+    except Exception as exc:
+        logger.exception("Error deleting file %s: %s", validated_path, exc)
+        return FileDeleteResult(
+            path=str(validated_path),
+            success=False,
+            deleted=False,
+            error=f"{type(exc).__name__}: {exc}",
+        )
+
 
 def get_file_info(path: str) -> FileInfo:
     """
