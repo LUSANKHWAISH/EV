@@ -35,3 +35,6 @@ Desktop.ini
 /data/*-wal
 /data/*-shm
 
+# EV local model cache
+/models/
+
