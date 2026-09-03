@@ -275,3 +275,115 @@ class TestValidationToolSuite:
             assert res_50["TN"] == 3
             assert res_50["TPR"] == 0.5
             assert res_50["FPR"] == 0.25
+
+
+# ============================================================================
+# 7. Hard-Negative Mining & Human-Speech Pipeline Tests (Task 014F-5)
+# ============================================================================
+class TestHardenedPipelineSuite:
+    def test_hard_negative_phrase_coverage(self):
+        from tools.wakeword_dataset import HARD_NEGATIVE_PHRASES
+
+        required_phrases = [
+            "Hey Everyone",
+            "Hey Evan",
+            "Hey Evie",
+            "Hey Ever",
+            "Hey Everest",
+            "Hey Event",
+            "Hey Events",
+            "Hey Evidence",
+            "Hey Even",
+            "Hey Evening",
+            "Hey Eventually",
+            "Hey Stevie",
+            "Hey Steve",
+            "Heavy",
+            "Every",
+            "Hey",
+            "EV",
+        ]
+        for req in required_phrases:
+            assert req in HARD_NEGATIVE_PHRASES, f"Missing hard-negative phrase: {req}"
+
+    def test_human_speech_ingestion_pathway(self, tmp_path):
+        from tools.wakeword_dataset import CLIP_TOTAL_SAMPLES, WakeWordDatasetPipeline, save_pcm16_wav
+
+        pipeline = WakeWordDatasetPipeline(data_dir=str(tmp_path))
+        pipeline.prepare_directories()
+
+        # 1. Empty scan should safely return empty lists without crashing
+        meta, clips, labels = pipeline.scan_and_ingest_human_speech()
+        assert len(meta) == 0
+        assert len(clips) == 0
+        assert len(labels) == 0
+
+        # 2. Add sample human recording
+        dummy_audio = np.random.randint(-1000, 1000, size=CLIP_TOTAL_SAMPLES, dtype=np.int16)
+        save_pcm16_wav(str(pipeline.human_pos_dir / "alice_hey_ev_01.wav"), dummy_audio)
+        save_pcm16_wav(str(pipeline.human_neg_dir / "alice_hey_evan_01.wav"), dummy_audio)
+
+        meta, clips, labels = pipeline.scan_and_ingest_human_speech()
+        assert len(meta) == 2
+        assert len(clips) == 2
+        assert labels.count(1) == 1
+        assert labels.count(0) == 1
+        assert meta[0].is_human is True
+        assert meta[0].speaker_id == "alice"
+
+    def test_acoustic_distance_and_reverberation_augmentations(self):
+        from tools.wakeword_dataset import (
+            CLIP_TOTAL_SAMPLES,
+            apply_distance_attenuation,
+            apply_room_reverberation,
+            augment_audio,
+        )
+
+        audio = np.random.randint(-5000, 5000, size=16000, dtype=np.int16)
+
+        # Distance attenuation filter
+        filtered = apply_distance_attenuation(audio)
+        assert len(filtered) == len(audio)
+
+        # Room reverberation
+        reverb = apply_room_reverberation(audio)
+        assert len(reverb) == len(audio)
+
+        # Full augment with distance and reverb
+        augmented = augment_audio(
+            audio,
+            gain=0.45,
+            noise_type="fan",
+            noise_snr_db=14.0,
+            reverberation=True,
+            distance_filter=True,
+        )
+        assert len(augmented) == CLIP_TOTAL_SAMPLES
+        assert augmented.dtype == np.int16
+
+    def test_holdout_evaluation_breakdown_math(self):
+        from tools.train_wakeword import OpenWakeWordNet, evaluate_model_on_holdout
+        from tools.wakeword_dataset import SampleMetadata
+
+        model = OpenWakeWordNet(input_shape=(16, 96), layer_dim=64, n_blocks=1)
+        X_mock = np.random.randn(8, 16, 96).astype(np.float32)
+        y_mock = np.array([1, 1, 0, 0, 0, 0, 0, 0], dtype=np.float32)
+
+        meta_mock = [
+            SampleMetadata("s1", 1, "Hey EV", False, False, "David", 0, 100, "none", "holdout", 32000),
+            SampleMetadata("s2", 1, "Hey EV", False, False, "Zira", 0, 100, "none", "holdout", 32000),
+            SampleMetadata("s3", 0, "Hey Everyone", True, False, "David", 0, 100, "none", "holdout", 32000),
+            SampleMetadata("s4", 0, "Hey Evan", True, False, "David", 0, 100, "none", "holdout", 32000),
+            SampleMetadata("s5", 0, "Hey Stevie", True, False, "David", 0, 100, "none", "holdout", 32000),
+            SampleMetadata("s6", 0, "Heavy", True, False, "David", 0, 100, "none", "holdout", 32000),
+            SampleMetadata("s7", 0, "Every", True, False, "David", 0, 100, "none", "holdout", 32000),
+            SampleMetadata("s8", 0, "Open browser", False, False, "David", 0, 100, "none", "holdout", 32000),
+        ]
+
+        eval_res = evaluate_model_on_holdout(model, X_mock, y_mock, meta_mock, threshold=0.50)
+        assert "accuracy" in eval_res
+        assert "f1" in eval_res
+        assert "phrase_breakdown" in eval_res
+        assert "Hey EV" in eval_res["phrase_breakdown"]
+        assert "Hey Everyone" in eval_res["phrase_breakdown"]
+        assert "Hey Evan" in eval_res["phrase_breakdown"]

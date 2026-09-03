@@ -1,16 +1,12 @@
 """
-Reproducible Synthetic Data Generation & Feature Extraction Pipeline for E.V. (Task 014F-3).
+Reproducible Hard-Negative Mining & Dataset Hardening Pipeline for E.V. (Task 014F-5).
 
-Generates a robust, balanced dataset of positive "Hey EV" utterances and confusable/background
-negative utterances using Windows local SAPI synthesis and acoustic signal augmentations.
-Converts audio into canonical 16 kHz mono 16-bit PCM WAV format and computes openWakeWord
-(16, 96) feature embeddings via AudioFeatures.
-
-Security & Invariants:
-  1. 100% Local & Offline: Zero cloud TTS calls, zero network egress.
-  2. Strict Audio Contract: 16,000 Hz, mono, signed 16-bit PCM.
-  3. No Leakage: Genuinely disjoint train/validation splits by voice and augmentation family.
-  4. Exact Phrase Verification: Positive samples generated exclusively from "Hey EV" variants.
+Expands the custom "Hey EV" wake-word dataset with:
+  1. Systematic prefix hard-negative mining ("Hey Everyone", "Hey Evan", "Hey Evie", "Hey Stevie", etc.).
+  2. Low-SNR & distance acoustic modeling (attenuation, mild reverberation, fan hum, keyboard clicks).
+  3. First-class human speech ingestion pathway with strict format validation.
+  4. Disjoint 3-way partitioning: Train (70%), Validation (15%), Final Holdout (15%).
+  5. Canonical audio contract: 16 kHz mono signed 16-bit PCM.
 """
 from __future__ import annotations
 
@@ -40,24 +36,53 @@ POSITIVE_PHRASES: List[str] = [
     "Hey E.V.",
     "Hey E V",
     "hey ev",
+    "Hey Ev",
 ]
 
-CONFUSABLE_NEGATIVE_PHRASES: List[str] = [
+# Systematic hard-negative prefix phrases targeting the demonstrated failure boundary
+HARD_NEGATIVE_PHRASES: List[str] = [
+    # Prefix "Hey Ev..." confusables
+    "Hey Everyone",
+    "Hey Evan",
+    "Hey Evie",
+    "Hey Ever",
+    "Hey Everest",
+    "Hey Event",
+    "Hey Events",
+    "Hey Evidence",
+    "Hey Even",
+    "Hey Evening",
+    "Hey Eventually",
+    "Hey Everyday",
+    "Hey Everybody",
+    "Hey Evelyn",
+    # Phonetic & rhyming confusables
     "Hey Stevie",
+    "Hey Steve",
+    "Hey Steven",
+    "Hey Eddie",
     "Heavy",
     "Every",
-    "Hey Everyone",
-    "Heavy duty",
-    "Hey Evan",
-    "Hey Steve",
-    "Evidence",
-    "EV",
+    "Everywhere",
+    # Boundary / partial trigger
     "Hey",
-    "Open browser",
-    "Turn on lights",
+    "EV",
+]
+
+# Standard command negatives
+GENERAL_NEGATIVE_PHRASES: List[str] = [
+    "Open the browser",
+    "Turn on the lights",
     "What time is it",
-    "Cancel that",
-    "System check",
+    "Cancel that command",
+    "System status report",
+    "Show active tasks",
+    "Search the web",
+    "Close the window",
+    "Increase the volume",
+    "Mute the speakers",
+    "Run diagnostics",
+    "Open files",
 ]
 
 
@@ -66,11 +91,13 @@ class SampleMetadata:
     sample_id: str
     label: int  # 1 for positive, 0 for negative
     phrase: str
-    voice: str
+    is_hard_negative: bool
+    is_human: bool
+    speaker_id: str
     rate: int
     volume: int
     augmentation: str
-    split: str  # "train" or "val"
+    split: str  # "train", "val", or "holdout"
     duration_samples: int
 
 
@@ -173,23 +200,51 @@ def pad_or_trim_to_length(audio: np.ndarray, target_length: int = CLIP_TOTAL_SAM
     return np.pad(audio, (left_pad, right_pad), mode="constant", constant_values=0)
 
 
+def apply_room_reverberation(audio: np.ndarray, delay1: int = 320, delay2: int = 720) -> np.ndarray:
+    """Simulate realistic early room reflections."""
+    out = audio.astype(np.float32).copy()
+    if len(out) > delay1:
+        out[delay1:] += 0.22 * out[:-delay1]
+    if len(out) > delay2:
+        out[delay2:] += 0.12 * out[:-delay2]
+    return out
+
+
+def apply_distance_attenuation(audio: np.ndarray) -> np.ndarray:
+    """Simulate distance attenuation via high-frequency rolloff (air absorption)."""
+    # Simple smoothing filter for high frequency damping
+    kernel = np.array([0.15, 0.70, 0.15], dtype=np.float32)
+    filtered = np.convolve(audio.astype(np.float32), kernel, mode="same")
+    return filtered
+
+
 def augment_audio(
     audio: np.ndarray,
     gain: float = 1.0,
     noise_type: str = "none",
     noise_snr_db: float = 20.0,
     time_offset_fraction: float = 0.5,
+    reverberation: bool = False,
+    distance_filter: bool = False,
 ) -> np.ndarray:
-    """Apply acoustic signal augmentations (gain, noise mixing, time alignment)."""
-    # 1. Gain
-    augmented = audio.astype(np.float32) * gain
+    """Apply acoustic signal augmentations (gain, noise mixing, room modeling, time alignment)."""
+    # 1. Gain & Distance attenuation
+    signal = audio.astype(np.float32)
+    if distance_filter:
+        signal = apply_distance_attenuation(signal)
 
-    # 2. Time-shift inside 2s frame
-    pad_total = max(0, CLIP_TOTAL_SAMPLES - len(augmented))
+    signal = signal * gain
+
+    # 2. Reverberation
+    if reverberation:
+        signal = apply_room_reverberation(signal)
+
+    # 3. Time-shift inside 2s frame
+    pad_total = max(0, CLIP_TOTAL_SAMPLES - len(signal))
     left_offset = int(pad_total * np.clip(time_offset_fraction, 0.0, 1.0))
-    framed = pad_or_trim_to_length(augmented, CLIP_TOTAL_SAMPLES, offset=left_offset)
+    framed = pad_or_trim_to_length(signal, CLIP_TOTAL_SAMPLES, offset=left_offset)
 
-    # 3. Additive noise
+    # 4. Additive noise
     if noise_type != "none":
         signal_power = np.mean(framed**2) + 1e-12
         noise_power = signal_power / (10 ** (noise_snr_db / 10.0))
@@ -197,17 +252,28 @@ def augment_audio(
         if noise_type == "white":
             noise = np.random.normal(0, np.sqrt(noise_power), len(framed))
         elif noise_type == "pink":
-            # 1/f noise approximation via cumulative filtering
             white = np.random.normal(0, 1.0, len(framed))
             noise = np.convolve(white, np.ones(8) / 8.0, mode="same")
             actual_power = np.mean(noise**2) + 1e-12
             noise = noise * np.sqrt(noise_power / actual_power)
-        elif noise_type == "hum":
-            # 60 Hz hum + harmonics
+        elif noise_type == "fan":
+            # Realistic fan hum: 60Hz + 120Hz + broadband hiss
             t = np.linspace(0, CLIP_DURATION_SECONDS, len(framed), endpoint=False)
-            hum = np.sin(2 * np.pi * 60 * t) + 0.3 * np.sin(2 * np.pi * 120 * t)
-            actual_power = np.mean(hum**2) + 1e-12
-            noise = hum * np.sqrt(noise_power / actual_power)
+            hum = np.sin(2 * np.pi * 60 * t) + 0.4 * np.sin(2 * np.pi * 120 * t)
+            hiss = np.random.normal(0, 0.3, len(framed))
+            composite = hum + hiss
+            actual_power = np.mean(composite**2) + 1e-12
+            noise = composite * np.sqrt(noise_power / actual_power)
+        elif noise_type == "keyboard":
+            # Keyboard clicks: sparse high-amplitude impulses
+            noise = np.random.normal(0, 0.1, len(framed))
+            click_locs = np.random.choice(len(framed), size=4, replace=False)
+            for loc in click_locs:
+                click_len = min(160, len(framed) - loc)
+                decay = np.exp(-np.linspace(0, 5, click_len))
+                noise[loc : loc + click_len] += decay * 4.0
+            actual_power = np.mean(noise**2) + 1e-12
+            noise = noise * np.sqrt(noise_power / actual_power)
         else:
             noise = np.zeros_like(framed)
 
@@ -219,13 +285,15 @@ def augment_audio(
 class WakeWordDatasetPipeline:
     """
     Orchestrates generation of positive & negative audio samples, feature extraction,
-    and train/validation splitting.
+    human speech ingestion, and disjoint 3-way dataset splitting.
     """
 
     def __init__(self, data_dir: str = r"D:\EV\models\wakeword\dataset", random_seed: int = 42) -> None:
         self.data_dir = Path(data_dir)
         self.raw_dir = self.data_dir / "raw"
         self.features_dir = self.data_dir / "features"
+        self.human_pos_dir = self.data_dir / "human" / "positive"
+        self.human_neg_dir = self.data_dir / "human" / "negative"
         self.random_seed = random_seed
         np.random.seed(self.random_seed)
 
@@ -233,15 +301,79 @@ class WakeWordDatasetPipeline:
         """Create dataset storage structure."""
         self.raw_dir.mkdir(parents=True, exist_ok=True)
         self.features_dir.mkdir(parents=True, exist_ok=True)
+        self.human_pos_dir.mkdir(parents=True, exist_ok=True)
+        self.human_neg_dir.mkdir(parents=True, exist_ok=True)
 
-    def generate_raw_audio_dataset(
+    def scan_and_ingest_human_speech(self) -> Tuple[List[SampleMetadata], List[np.ndarray], List[int]]:
+        """
+        Scan human audio directories for local recordings and ingest canonical clips.
+        """
+        self.prepare_directories()
+        human_meta: List[SampleMetadata] = []
+        human_clips: List[np.ndarray] = []
+        human_labels: List[int] = []
+
+        # Scan positives
+        for wav_file in sorted(self.human_pos_dir.glob("*.wav")):
+            try:
+                audio = load_pcm16_wav(str(wav_file))
+                clip = pad_or_trim_to_length(audio, CLIP_TOTAL_SAMPLES)
+                speaker = wav_file.stem.split("_")[0] if "_" in wav_file.stem else "human_unknown"
+                meta = SampleMetadata(
+                    sample_id=f"human_pos_{wav_file.stem}",
+                    label=1,
+                    phrase="Hey EV",
+                    is_hard_negative=False,
+                    is_human=True,
+                    speaker_id=speaker,
+                    rate=0,
+                    volume=100,
+                    augmentation="raw_human",
+                    split="train",  # Partitioned later
+                    duration_samples=len(clip),
+                )
+                human_meta.append(meta)
+                human_clips.append(clip)
+                human_labels.append(1)
+            except Exception as exc:
+                logger.warning("Skipping invalid human recording %s: %s", wav_file, exc)
+
+        # Scan negatives
+        for wav_file in sorted(self.human_neg_dir.glob("*.wav")):
+            try:
+                audio = load_pcm16_wav(str(wav_file))
+                clip = pad_or_trim_to_length(audio, CLIP_TOTAL_SAMPLES)
+                speaker = wav_file.stem.split("_")[0] if "_" in wav_file.stem else "human_unknown"
+                meta = SampleMetadata(
+                    sample_id=f"human_neg_{wav_file.stem}",
+                    label=0,
+                    phrase=wav_file.stem,
+                    is_hard_negative=True,
+                    is_human=True,
+                    speaker_id=speaker,
+                    rate=0,
+                    volume=100,
+                    augmentation="raw_human",
+                    split="train",
+                    duration_samples=len(clip),
+                )
+                human_meta.append(meta)
+                human_clips.append(clip)
+                human_labels.append(0)
+            except Exception as exc:
+                logger.warning("Skipping invalid human recording %s: %s", wav_file, exc)
+
+        logger.info("Human speech ingestion scanned: %d positive clips, %d negative clips", human_labels.count(1), human_labels.count(0))
+        return human_meta, human_clips, human_labels
+
+    def generate_hardened_audio_dataset(
         self,
-        num_positive_base: int = 24,
-        num_negative_base: int = 36,
-        augmentations_per_sample: int = 6,
+        num_positive_base: int = 48,
+        augmentations_per_positive: int = 8,
+        augmentations_per_negative: int = 6,
     ) -> Tuple[List[SampleMetadata], List[np.ndarray], List[int]]:
         """
-        Generate synthetic positive and negative audio samples and augmentations.
+        Generate hardened dataset with hard-negative prefix phrases and low-SNR modeling.
         """
         self.prepare_directories()
         voices = get_available_sapi_voices()
@@ -249,14 +381,18 @@ class WakeWordDatasetPipeline:
         audio_clips: List[np.ndarray] = []
         labels: List[int] = []
 
-        logger.info("Generating dataset using SAPI voices: %s", voices)
+        # Ingest human speech first (if any exists locally)
+        h_meta, h_clips, h_labels = self.scan_and_ingest_human_speech()
+        samples_metadata.extend(h_meta)
+        audio_clips.extend(h_clips)
+        labels.extend(h_labels)
 
         # --------------------------------------------------------------------
-        # 1. POSITIVE SAMPLES ("Hey EV")
+        # 1. POSITIVE SAMPLES ("Hey EV") with Low-SNR & Distance Variations
         # --------------------------------------------------------------------
-        pos_id = 0
         rate_options = [-2, -1, 0, 1, 2]
-        vol_options = [70, 85, 100]
+        vol_options = [50, 70, 85, 100]
+        pos_id = 0
 
         for p_idx in range(num_positive_base):
             phrase = POSITIVE_PHRASES[p_idx % len(POSITIVE_PHRASES)]
@@ -264,11 +400,16 @@ class WakeWordDatasetPipeline:
             rate = rate_options[p_idx % len(rate_options)]
             vol = vol_options[p_idx % len(vol_options)]
 
-            # Disjoint validation split: reserve specific voice/rate combos
-            is_val = (p_idx % 5 == 0)
-            split = "val" if is_val else "train"
+            # Disjoint 3-way split: 70% train, 15% val, 15% holdout
+            split_mod = p_idx % 7
+            if split_mod == 5:
+                split = "val"
+            elif split_mod == 6:
+                split = "holdout"
+            else:
+                split = "train"
 
-            base_filename = f"pos_base_{pos_id}.wav"
+            base_filename = f"pos_base_h_{pos_id}.wav"
             base_path = self.raw_dir / base_filename
             success = synthesize_sapi_speech(phrase, str(base_path), voice=voice, rate=rate, volume=vol)
             if not success:
@@ -276,29 +417,59 @@ class WakeWordDatasetPipeline:
 
             base_audio = load_pcm16_wav(str(base_path))
 
-            # Apply variations
-            for aug_i in range(augmentations_per_sample):
-                gain = float(np.random.uniform(0.7, 1.25))
-                noise_type = np.random.choice(["none", "white", "pink", "hum"], p=[0.4, 0.25, 0.2, 0.15])
-                snr = float(np.random.uniform(14.0, 28.0))
-                time_offset = float(np.random.uniform(0.15, 0.85))
+            for aug_i in range(augmentations_per_positive):
+                # Augmentation strategy: varied acoustic distances and SNR levels
+                if aug_i == 0:
+                    # Clean near
+                    gain = 1.0
+                    noise = "none"
+                    snr = 30.0
+                    reverb = False
+                    dist = False
+                elif aug_i in (1, 2):
+                    # Quiet / distant speech (low SNR)
+                    gain = float(np.random.uniform(0.35, 0.65))
+                    noise = np.random.choice(["fan", "pink"])
+                    snr = float(np.random.uniform(10.0, 18.0))
+                    reverb = True
+                    dist = True
+                elif aug_i in (3, 4):
+                    # Mid-distance room
+                    gain = float(np.random.uniform(0.70, 1.10))
+                    noise = np.random.choice(["fan", "white", "keyboard"])
+                    snr = float(np.random.uniform(15.0, 24.0))
+                    reverb = bool(np.random.rand() > 0.5)
+                    dist = False
+                else:
+                    # Near / loud
+                    gain = float(np.random.uniform(1.10, 1.40))
+                    noise = np.random.choice(["none", "pink", "fan"])
+                    snr = float(np.random.uniform(18.0, 28.0))
+                    reverb = False
+                    dist = False
+
+                time_offset = float(np.random.uniform(0.10, 0.90))
 
                 aug_clip = augment_audio(
                     base_audio,
                     gain=gain,
-                    noise_type=str(noise_type),
+                    noise_type=str(noise),
                     noise_snr_db=snr,
                     time_offset_fraction=time_offset,
+                    reverberation=reverb,
+                    distance_filter=dist,
                 )
 
                 meta = SampleMetadata(
-                    sample_id=f"pos_{pos_id}_{aug_i}",
+                    sample_id=f"pos_h_{pos_id}_{aug_i}",
                     label=1,
                     phrase=phrase,
-                    voice=voice,
+                    is_hard_negative=False,
+                    is_human=False,
+                    speaker_id=voice.split()[1],
                     rate=rate,
                     volume=vol,
-                    augmentation=f"gain={gain:.2f},noise={noise_type},snr={snr:.1f}dB,pos={time_offset:.2f}",
+                    augmentation=f"gain={gain:.2f},noise={noise},snr={snr:.1f}dB,rev={reverb},dist={dist}",
                     split=split,
                     duration_samples=len(aug_clip),
                 )
@@ -309,83 +480,149 @@ class WakeWordDatasetPipeline:
             pos_id += 1
 
         # --------------------------------------------------------------------
-        # 2. NEGATIVE SAMPLES (Confusables, ordinary phrases, noises)
+        # 2. HARD NEGATIVES (Prefix Confusables: "Hey Everyone", "Hey Evan", etc.)
         # --------------------------------------------------------------------
-        neg_id = 0
-        for n_idx in range(num_negative_base):
-            phrase = CONFUSABLE_NEGATIVE_PHRASES[n_idx % len(CONFUSABLE_NEGATIVE_PHRASES)]
-            voice = voices[n_idx % len(voices)]
-            rate = rate_options[n_idx % len(rate_options)]
-            vol = vol_options[n_idx % len(vol_options)]
+        hn_id = 0
+        for phrase in HARD_NEGATIVE_PHRASES:
+            for voice in voices:
+                for rate in [-1, 0, 1]:
+                    split_mod = (hn_id) % 7
+                    if split_mod == 5:
+                        split = "val"
+                    elif split_mod == 6:
+                        split = "holdout"
+                    else:
+                        split = "train"
 
-            is_val = (n_idx % 5 == 0)
-            split = "val" if is_val else "train"
+                    base_filename = f"neg_hn_{hn_id}.wav"
+                    base_path = self.raw_dir / base_filename
+                    success = synthesize_sapi_speech(phrase, str(base_path), voice=voice, rate=rate, volume=85)
+                    if not success:
+                        continue
 
-            base_filename = f"neg_base_{neg_id}.wav"
-            base_path = self.raw_dir / base_filename
-            success = synthesize_sapi_speech(phrase, str(base_path), voice=voice, rate=rate, volume=vol)
-            if not success:
-                continue
+                    base_audio = load_pcm16_wav(str(base_path))
 
-            base_audio = load_pcm16_wav(str(base_path))
+                    for aug_i in range(augmentations_per_negative):
+                        gain = float(np.random.uniform(0.60, 1.25))
+                        noise = np.random.choice(["none", "fan", "pink", "keyboard"])
+                        snr = float(np.random.uniform(12.0, 26.0))
+                        time_offset = float(np.random.uniform(0.10, 0.85))
 
-            for aug_i in range(augmentations_per_sample):
-                gain = float(np.random.uniform(0.7, 1.25))
-                noise_type = np.random.choice(["none", "white", "pink", "hum"], p=[0.4, 0.25, 0.2, 0.15])
-                snr = float(np.random.uniform(14.0, 28.0))
-                time_offset = float(np.random.uniform(0.15, 0.85))
+                        aug_clip = augment_audio(
+                            base_audio,
+                            gain=gain,
+                            noise_type=str(noise),
+                            noise_snr_db=snr,
+                            time_offset_fraction=time_offset,
+                            reverberation=(aug_i % 2 == 0),
+                        )
 
-                aug_clip = augment_audio(
-                    base_audio,
-                    gain=gain,
-                    noise_type=str(noise_type),
-                    noise_snr_db=snr,
-                    time_offset_fraction=time_offset,
-                )
+                        meta = SampleMetadata(
+                            sample_id=f"neg_hn_{hn_id}_{aug_i}",
+                            label=0,
+                            phrase=phrase,
+                            is_hard_negative=True,
+                            is_human=False,
+                            speaker_id=voice.split()[1],
+                            rate=rate,
+                            volume=85,
+                            augmentation=f"gain={gain:.2f},noise={noise},snr={snr:.1f}dB",
+                            split=split,
+                            duration_samples=len(aug_clip),
+                        )
+                        samples_metadata.append(meta)
+                        audio_clips.append(aug_clip)
+                        labels.append(0)
 
-                meta = SampleMetadata(
-                    sample_id=f"neg_{neg_id}_{aug_i}",
-                    label=0,
-                    phrase=phrase,
-                    voice=voice,
-                    rate=rate,
-                    volume=vol,
-                    augmentation=f"gain={gain:.2f},noise={noise_type},snr={snr:.1f}dB,pos={time_offset:.2f}",
-                    split=split,
-                    duration_samples=len(aug_clip),
-                )
-                samples_metadata.append(meta)
-                audio_clips.append(aug_clip)
-                labels.append(0)
-
-            neg_id += 1
+                    hn_id += 1
 
         # --------------------------------------------------------------------
-        # 3. NON-SPEECH NEGATIVES (Silence, Gaussian noise, Pink noise)
+        # 3. GENERAL COMMAND NEGATIVES
         # --------------------------------------------------------------------
-        for ns_idx in range(30):
-            noise_type = ["white", "pink", "hum", "silence"][ns_idx % 4]
-            split = "val" if (ns_idx % 5 == 0) else "train"
+        cmd_id = 0
+        for phrase in GENERAL_NEGATIVE_PHRASES:
+            for voice in voices:
+                split_mod = cmd_id % 7
+                split = "val" if split_mod == 5 else ("holdout" if split_mod == 6 else "train")
+
+                base_filename = f"neg_cmd_{cmd_id}.wav"
+                base_path = self.raw_dir / base_filename
+                success = synthesize_sapi_speech(phrase, str(base_path), voice=voice, rate=0, volume=85)
+                if not success:
+                    continue
+
+                base_audio = load_pcm16_wav(str(base_path))
+
+                for aug_i in range(3):
+                    gain = float(np.random.uniform(0.70, 1.20))
+                    noise = np.random.choice(["none", "fan", "pink"])
+                    snr = float(np.random.uniform(14.0, 26.0))
+                    time_offset = float(np.random.uniform(0.15, 0.85))
+
+                    aug_clip = augment_audio(
+                        base_audio,
+                        gain=gain,
+                        noise_type=str(noise),
+                        noise_snr_db=snr,
+                        time_offset_fraction=time_offset,
+                    )
+
+                    meta = SampleMetadata(
+                        sample_id=f"neg_cmd_{cmd_id}_{aug_i}",
+                        label=0,
+                        phrase=phrase,
+                        is_hard_negative=False,
+                        is_human=False,
+                        speaker_id=voice.split()[1],
+                        rate=0,
+                        volume=85,
+                        augmentation=f"gain={gain:.2f},noise={noise}",
+                        split=split,
+                        duration_samples=len(aug_clip),
+                    )
+                    samples_metadata.append(meta)
+                    audio_clips.append(aug_clip)
+                    labels.append(0)
+
+                cmd_id += 1
+
+        # --------------------------------------------------------------------
+        # 4. AMBIENT NON-SPEECH (Silence, Fan, Keyboard, Pink, White)
+        # --------------------------------------------------------------------
+        for amb_i in range(50):
+            noise_type = ["fan", "keyboard", "pink", "white", "silence"][amb_i % 5]
+            split_mod = amb_i % 7
+            split = "val" if split_mod == 5 else ("holdout" if split_mod == 6 else "train")
 
             if noise_type == "silence":
                 clip = np.zeros(CLIP_TOTAL_SAMPLES, dtype=np.int16)
-            elif noise_type == "white":
-                clip = np.random.normal(0, 1000.0, CLIP_TOTAL_SAMPLES).astype(np.int16)
+            elif noise_type == "fan":
+                t = np.linspace(0, CLIP_DURATION_SECONDS, CLIP_TOTAL_SAMPLES, endpoint=False)
+                hum = (1200.0 * np.sin(2 * np.pi * 60 * t) + 400.0 * np.sin(2 * np.pi * 120 * t)).astype(np.int16)
+                hiss = np.random.normal(0, 400.0, CLIP_TOTAL_SAMPLES).astype(np.int16)
+                clip = hum + hiss
+            elif noise_type == "keyboard":
+                clip = np.random.normal(0, 200.0, CLIP_TOTAL_SAMPLES).astype(np.int16)
+                clicks = np.random.choice(CLIP_TOTAL_SAMPLES, size=6, replace=False)
+                for loc in clicks:
+                    clen = min(160, CLIP_TOTAL_SAMPLES - loc)
+                    clip[loc : loc + clen] += (np.exp(-np.linspace(0, 5, clen)) * 4000.0).astype(np.int16)
             elif noise_type == "pink":
-                white = np.random.normal(0, 1500.0, CLIP_TOTAL_SAMPLES)
+                white = np.random.normal(0, 1000.0, CLIP_TOTAL_SAMPLES)
                 clip = np.convolve(white, np.ones(8) / 8.0, mode="same").astype(np.int16)
             else:
-                t = np.linspace(0, CLIP_DURATION_SECONDS, CLIP_TOTAL_SAMPLES, endpoint=False)
-                clip = (2000.0 * np.sin(2 * np.pi * 60 * t)).astype(np.int16)
+                clip = np.random.normal(0, 800.0, CLIP_TOTAL_SAMPLES).astype(np.int16)
 
             meta = SampleMetadata(
-                sample_id=f"neg_ambient_{ns_idx}",
+                sample_id=f"neg_ambient_{amb_i}",
                 label=0,
                 phrase=f"ambient_{noise_type}",
-                voice="none",
+                is_hard_negative=False,
+                is_human=False,
+                speaker_id="none",
                 rate=0,
                 volume=0,
-                augmentation=f"ambient_noise={noise_type}",
+                augmentation=f"ambient_{noise_type}",
                 split=split,
                 duration_samples=len(clip),
             )
@@ -393,16 +630,18 @@ class WakeWordDatasetPipeline:
             audio_clips.append(clip)
             labels.append(0)
 
-        # Save metadata
+        # Save metadata JSON
         metadata_path = self.data_dir / "dataset_metadata.json"
         with open(metadata_path, "w", encoding="utf-8") as mf:
             json.dump([asdict(m) for m in samples_metadata], mf, indent=2)
 
+        hn_count = sum(1 for m in samples_metadata if m.is_hard_negative)
         logger.info(
-            "Raw audio generation complete. Total samples: %d (Positives: %d, Negatives: %d)",
+            "Hardened dataset generation complete: Total clips=%d (Positives: %d, Negatives: %d, Hard Negatives: %d)",
             len(audio_clips),
             labels.count(1),
             labels.count(0),
+            hn_count,
         )
 
         return samples_metadata, audio_clips, labels
@@ -412,48 +651,48 @@ class WakeWordDatasetPipeline:
         audio_clips: List[np.ndarray],
         labels: List[int],
         metadata: List[SampleMetadata],
-    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         """
-        Extract openWakeWord (16, 96) feature embeddings using AudioFeatures.
-        Splits features into (X_train, y_train, X_val, y_val).
+        Extract openWakeWord (16, 96) feature embeddings via AudioFeatures.
+        Splits into Train, Validation, and Final Holdout arrays.
         """
         from openwakeword.utils import AudioFeatures
 
-        logger.info("Initializing AudioFeatures for offline embedding extraction...")
+        logger.info("Extracting embeddings for %d clips...", len(audio_clips))
         F = AudioFeatures(inference_framework="onnx", device="cpu", ncpu=4)
 
-        # Stack clips into array (N, 32000)
         clips_array = np.vstack(audio_clips).astype(np.int16)
-        logger.info("Computing embeddings for %d clips (shape=%s)...", len(clips_array), clips_array.shape)
+        features = F.embed_clips(clips_array, batch_size=32)
 
-        features = F.embed_clips(clips_array, batch_size=16)
-        logger.info("Feature extraction complete. Output shape: %s", features.shape)
-
-        # Split into train and val based on metadata
-        train_indices = [i for i, m in enumerate(metadata) if m.split == "train"]
-        val_indices = [i for i, m in enumerate(metadata) if m.split == "val"]
+        train_idx = [i for i, m in enumerate(metadata) if m.split == "train"]
+        val_idx = [i for i, m in enumerate(metadata) if m.split == "val"]
+        holdout_idx = [i for i, m in enumerate(metadata) if m.split == "holdout"]
 
         labels_arr = np.array(labels, dtype=np.float32)
 
-        X_train = features[train_indices]
-        y_train = labels_arr[train_indices]
-        X_val = features[val_indices]
-        y_val = labels_arr[val_indices]
+        X_train, y_train = features[train_idx], labels_arr[train_idx]
+        X_val, y_val = features[val_idx], labels_arr[val_idx]
+        X_holdout, y_holdout = features[holdout_idx], labels_arr[holdout_idx]
 
-        # Save feature arrays for fast inspection / reuse
+        # Save partitioned features
         np.save(self.features_dir / "X_train.npy", X_train)
         np.save(self.features_dir / "y_train.npy", y_train)
         np.save(self.features_dir / "X_val.npy", X_val)
         np.save(self.features_dir / "y_val.npy", y_val)
+        np.save(self.features_dir / "X_holdout.npy", X_holdout)
+        np.save(self.features_dir / "y_holdout.npy", y_holdout)
 
         logger.info(
-            "Feature dataset prepared: Train=%s (pos=%.0f, neg=%.0f), Val=%s (pos=%.0f, neg=%.0f)",
+            "Partition complete: Train=%s (pos=%.0f, neg=%.0f), Val=%s (pos=%.0f, neg=%.0f), Holdout=%s (pos=%.0f, neg=%.0f)",
             X_train.shape,
             np.sum(y_train == 1),
             np.sum(y_train == 0),
             X_val.shape,
             np.sum(y_val == 1),
             np.sum(y_val == 0),
+            X_holdout.shape,
+            np.sum(y_holdout == 1),
+            np.sum(y_holdout == 0),
         )
 
-        return X_train, y_train, X_val, y_val
+        return X_train, y_train, X_val, y_val, X_holdout, y_holdout

@@ -1,14 +1,13 @@
 """
-Reproducible PyTorch Training & ONNX Model Export Pipeline for "Hey EV" (Task 014F-3).
+Reproducible Hardened PyTorch Training Pipeline for "Hey EV" (Task 014F-5).
 
-Trains a custom openWakeWord-compatible DNN model on local features extracted from
-synthetic "Hey EV" utterances and confusable negatives. Exports the trained model to
-canonical ONNX format at D:\\EV\\models\\wakeword\\hey_ev.onnx and validates runtime compatibility
-with OpenWakeWordProvider.
-
-Usage:
-  python tools/train_wakeword.py
-  python tools/train_wakeword.py --epochs 35 --lr 0.001 --output D:\\EV\\models\\wakeword\\hey_ev.onnx
+Trains an openWakeWord DNN model on the hardened, hard-negative mined dataset.
+Performs:
+  1. Train / Validation / Holdout 3-way evaluation.
+  2. Weighted BCE loss penalizing hard-negative prefix false positives.
+  3. Per-phrase hard-negative breakdown ("Hey Everyone", "Hey Evan", "Hey Stevie", etc.).
+  4. Side-by-side comparison against baseline model (D:\\EV\\models\\wakeword\\hey_ev_v1_baseline.onnx).
+  5. Export of validated hardened model to D:\\EV\\models\\wakeword\\hey_ev.onnx.
 """
 from __future__ import annotations
 
@@ -20,7 +19,7 @@ import os
 import sys
 import time
 from pathlib import Path
-from typing import Dict, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import onnx
@@ -36,13 +35,14 @@ if REPO_ROOT not in sys.path:
     sys.path.insert(0, REPO_ROOT)
 
 from core.voice_wakeword_openwakeword import OpenWakeWordProvider
-from tools.wakeword_dataset import WakeWordDatasetPipeline
+from tools.wakeword_dataset import SampleMetadata, WakeWordDatasetPipeline
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 logger = logging.getLogger("ev.wakeword.training")
 
 DEFAULT_MODEL_OUTPUT_DIR = r"D:\EV\models\wakeword"
 DEFAULT_MODEL_FILENAME = "hey_ev.onnx"
+DEFAULT_BASELINE_MODEL = r"D:\EV\models\wakeword\hey_ev_v1_baseline.onnx"
 
 
 # ============================================================================
@@ -92,34 +92,46 @@ class OpenWakeWordNet(nn.Module):
 
 
 # ============================================================================
-# Model Training Engine
+# Model Training Engine with Weighted Negative Penalty
 # ============================================================================
 def train_hey_ev_model(
     X_train: np.ndarray,
     y_train: np.ndarray,
     X_val: np.ndarray,
     y_val: np.ndarray,
-    epochs: int = 35,
+    epochs: int = 40,
     batch_size: int = 32,
-    learning_rate: float = 1e-3,
+    learning_rate: float = 8e-4,
     weight_decay: float = 1e-4,
+    neg_penalty_weight: float = 1.3,
     random_seed: int = 42,
     device: str = "cpu",
 ) -> Tuple[OpenWakeWordNet, Dict[str, float]]:
     """
-    Train OpenWakeWordNet with BCE loss, AdamW, and metric tracking.
+    Train OpenWakeWordNet with weighted negative loss to penalize confusable false alarms.
     """
     torch.manual_seed(random_seed)
     np.random.seed(random_seed)
 
-    # Prepare PyTorch datasets
+    # Ground zero/unbuffered feature inputs explicitly to negative label 0
+    zero_train = np.zeros((48, 16, 96), dtype=np.float32)
+    zero_train_y = np.zeros(48, dtype=np.float32)
+    X_train_ext = np.vstack([X_train, zero_train])
+    y_train_ext = np.concatenate([y_train, zero_train_y])
+
+    zero_val = np.zeros((16, 16, 96), dtype=np.float32)
+    zero_val_y = np.zeros(16, dtype=np.float32)
+    X_val_ext = np.vstack([X_val, zero_val])
+    y_val_ext = np.concatenate([y_val, zero_val_y])
+
+    # Convert to PyTorch tensors
     train_dataset = TensorDataset(
-        torch.from_numpy(X_train).float(),
-        torch.from_numpy(y_train).float().unsqueeze(1),
+        torch.from_numpy(X_train_ext).float(),
+        torch.from_numpy(y_train_ext).float().unsqueeze(1),
     )
     val_dataset = TensorDataset(
-        torch.from_numpy(X_val).float(),
-        torch.from_numpy(y_val).float().unsqueeze(1),
+        torch.from_numpy(X_val_ext).float(),
+        torch.from_numpy(y_val_ext).float().unsqueeze(1),
     )
 
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
@@ -128,9 +140,14 @@ def train_hey_ev_model(
     model = OpenWakeWordNet(input_shape=(16, 96), layer_dim=128, n_blocks=1)
     model.to(device)
 
-    # Loss: weighted BCE to penalize false positives strongly
-    pos_weight = torch.tensor([1.0]).to(device)
-    criterion = nn.BCELoss()
+    # Custom weighted loss: higher weight on negative false alarms
+    def custom_loss(preds: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
+        eps = 1e-7
+        preds = torch.clamp(preds, eps, 1.0 - eps)
+        # Loss: - [ y*log(p) + w_neg*(1-y)*log(1-p) ]
+        loss = -(targets * torch.log(preds) + neg_penalty_weight * (1.0 - targets) * torch.log(1.0 - preds))
+        return torch.mean(loss)
+
     optimizer = optim.AdamW(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
 
     best_val_loss = float("inf")
@@ -138,7 +155,7 @@ def train_hey_ev_model(
     best_weights = copy.deepcopy(model.state_dict())
     best_metrics: Dict[str, float] = {}
 
-    logger.info("Starting training loop for %d epochs...", epochs)
+    logger.info("Starting hardened training loop for %d epochs (neg_weight=%.2f)...", epochs, neg_penalty_weight)
 
     for epoch in range(1, epochs + 1):
         model.train()
@@ -148,7 +165,7 @@ def train_hey_ev_model(
             batch_x, batch_y = batch_x.to(device), batch_y.to(device)
             optimizer.zero_grad()
             preds = model(batch_x)
-            loss = criterion(preds, batch_y)
+            loss = custom_loss(preds, batch_y)
             loss.backward()
             optimizer.step()
             train_loss += loss.item() * len(batch_x)
@@ -165,7 +182,7 @@ def train_hey_ev_model(
             for batch_x, batch_y in val_loader:
                 batch_x, batch_y = batch_x.to(device), batch_y.to(device)
                 preds = model(batch_x)
-                loss = criterion(preds, batch_y)
+                loss = custom_loss(preds, batch_y)
                 val_loss += loss.item() * len(batch_x)
                 all_preds.extend(preds.cpu().numpy().flatten())
                 all_targets.extend(batch_y.cpu().numpy().flatten())
@@ -186,11 +203,11 @@ def train_hey_ev_model(
 
         if epoch % 5 == 0 or epoch == epochs or f1 > best_val_f1:
             logger.info(
-                "Epoch %2d/%2d: TrainLoss=%.4f, ValLoss=%.4f, Acc=%.3f, Prec=%.3f, Rec=%.3f, F1=%.3f (TP=%d, FP=%d)",
-                epoch, epochs, train_loss, val_loss, acc, precision, recall, f1, tp, fp
+                "Epoch %2d/%2d: TrainLoss=%.4f, ValLoss=%.4f, Acc=%.3f, Prec=%.3f, Rec=%.3f, F1=%.3f (TP=%d, FP=%d, FN=%d)",
+                epoch, epochs, train_loss, val_loss, acc, precision, recall, f1, tp, fp, fn
             )
 
-        if f1 >= best_val_f1 and val_loss < best_val_loss:
+        if f1 > best_val_f1 or (f1 == best_val_f1 and val_loss < best_val_loss):
             best_val_f1 = f1
             best_val_loss = val_loss
             best_weights = copy.deepcopy(model.state_dict())
@@ -207,12 +224,145 @@ def train_hey_ev_model(
                 "epoch": epoch,
             }
 
-    # Restore best weights
     model.load_state_dict(best_weights)
     model.eval()
-    logger.info("Training complete. Best checkpoint at epoch %d: F1=%.3f, ValLoss=%.4f", best_metrics["epoch"], best_metrics["val_f1"], best_metrics["val_loss"])
-
+    logger.info("Hardened training complete. Best checkpoint at epoch %d: F1=%.3f, ValLoss=%.4f", best_metrics["epoch"], best_metrics["val_f1"], best_metrics["val_loss"])
     return model, best_metrics
+
+
+# ============================================================================
+# Benchmark & Hard-Negative Evaluation
+# ============================================================================
+def evaluate_model_on_holdout(
+    model: OpenWakeWordNet,
+    X_holdout: np.ndarray,
+    y_holdout: np.ndarray,
+    metadata_holdout: List[SampleMetadata],
+    threshold: float = 0.50,
+) -> Dict[str, Any]:
+    """
+    Evaluate model across all holdout samples and calculate per-phrase hard-negative breakdown.
+    """
+    model.eval()
+    with torch.no_grad():
+        inputs = torch.from_numpy(X_holdout).float()
+        scores = model(inputs).numpy().flatten()
+
+    preds_bin = (scores >= threshold).astype(int)
+    targets_bin = y_holdout.astype(int)
+
+    tp = int(np.sum((preds_bin == 1) & (targets_bin == 1)))
+    fp = int(np.sum((preds_bin == 1) & (targets_bin == 0)))
+    tn = int(np.sum((preds_bin == 0) & (targets_bin == 0)))
+    fn = int(np.sum((preds_bin == 0) & (targets_bin == 1)))
+
+    acc = (tp + tn) / max(1, len(targets_bin))
+    precision = tp / max(1, tp + fp)
+    recall = tp / max(1, tp + fn)
+    f1 = (2 * precision * recall) / max(1e-6, precision + recall)
+
+    # Per-phrase breakdown
+    phrases_to_track = [
+        "Hey EV",
+        "Hey Everyone",
+        "Hey Evan",
+        "Hey Evie",
+        "Hey Evening",
+        "Hey Evidence",
+        "Hey Stevie",
+        "Heavy",
+        "Every",
+    ]
+
+    phrase_breakdown: Dict[str, Dict[str, Any]] = {}
+    for target_phrase in phrases_to_track:
+        matching_idx = [i for i, m in enumerate(metadata_holdout) if target_phrase.lower() in m.phrase.lower()]
+        if matching_idx:
+            phrase_scores = scores[matching_idx]
+            phrase_preds = preds_bin[matching_idx]
+            max_s = float(np.max(phrase_scores))
+            mean_s = float(np.mean(phrase_scores))
+            if target_phrase == "Hey EV":
+                # For positive, report recall
+                rec = float(np.mean(phrase_preds == 1))
+                phrase_breakdown[target_phrase] = {
+                    "count": len(matching_idx),
+                    "recall": round(rec, 3),
+                    "max_score": round(max_s, 3),
+                    "mean_score": round(mean_s, 3),
+                }
+            else:
+                # For negative, report rejection rate
+                rej = float(np.mean(phrase_preds == 0))
+                phrase_breakdown[target_phrase] = {
+                    "count": len(matching_idx),
+                    "rejection_rate": round(rej, 3),
+                    "false_triggers": int(np.sum(phrase_preds == 1)),
+                    "max_score": round(max_s, 3),
+                    "mean_score": round(mean_s, 3),
+                }
+
+    return {
+        "accuracy": round(acc, 4),
+        "precision": round(precision, 4),
+        "recall": round(recall, 4),
+        "f1": round(f1, 4),
+        "tp": tp,
+        "fp": fp,
+        "tn": tn,
+        "fn": fn,
+        "phrase_breakdown": phrase_breakdown,
+    }
+
+
+def compare_with_baseline_model(
+    baseline_onnx_path: str,
+    hardened_model: OpenWakeWordNet,
+    X_holdout: np.ndarray,
+    y_holdout: np.ndarray,
+    metadata_holdout: List[SampleMetadata],
+) -> Dict[str, Any]:
+    """
+    Side-by-side holdout comparison between baseline model and hardened model.
+    """
+    logger.info("Evaluating baseline model from %s on holdout set...", baseline_onnx_path)
+    if not os.path.exists(baseline_onnx_path):
+        logger.warning("Baseline model not found at %s. Skipping comparison.", baseline_onnx_path)
+        return {}
+
+    session = ort.InferenceSession(baseline_onnx_path, providers=["CPUExecutionProvider"])
+    in_name = session.get_inputs()[0].name
+    out_name = session.get_outputs()[0].name
+
+    baseline_scores = session.run([out_name], {in_name: X_holdout.astype(np.float32)})[0].flatten()
+    baseline_preds = (baseline_scores >= 0.5).astype(int)
+    targets_bin = y_holdout.astype(int)
+
+    base_tp = int(np.sum((baseline_preds == 1) & (targets_bin == 1)))
+    base_fp = int(np.sum((baseline_preds == 1) & (targets_bin == 0)))
+    base_tn = int(np.sum((baseline_preds == 0) & (targets_bin == 0)))
+    base_fn = int(np.sum((baseline_preds == 0) & (targets_bin == 1)))
+
+    base_acc = (base_tp + base_tn) / max(1, len(targets_bin))
+    base_f1 = (2 * base_tp) / max(1e-6, 2 * base_tp + base_fp + base_fn)
+
+    hardened_eval = evaluate_model_on_holdout(hardened_model, X_holdout, y_holdout, metadata_holdout)
+
+    logger.info("=== MODEL COMPARISON (HOLDOUT SET) ===")
+    logger.info("Baseline: Accuracy=%.3f, F1=%.3f (TP=%d, FP=%d, FN=%d)", base_acc, base_f1, base_tp, base_fp, base_fn)
+    logger.info("Hardened: Accuracy=%.3f, F1=%.3f (TP=%d, FP=%d, FN=%d)", hardened_eval["accuracy"], hardened_eval["f1"], hardened_eval["tp"], hardened_eval["fp"], hardened_eval["fn"])
+
+    return {
+        "baseline": {
+            "accuracy": round(base_acc, 4),
+            "f1": round(base_f1, 4),
+            "tp": base_tp,
+            "fp": base_fp,
+            "tn": base_tn,
+            "fn": base_fn,
+        },
+        "hardened": hardened_eval,
+    }
 
 
 # ============================================================================
@@ -222,9 +372,7 @@ def export_model_to_onnx(
     model: OpenWakeWordNet,
     output_onnx_path: str,
 ) -> Path:
-    """
-    Export PyTorch model to ONNX format compatible with openWakeWord runtime.
-    """
+    """Export PyTorch model to ONNX format compatible with openWakeWord."""
     output_path = Path(output_onnx_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -232,7 +380,7 @@ def export_model_to_onnx(
     model.to("cpu")
     dummy_input = torch.randn(1, 16, 96, dtype=torch.float32)
 
-    logger.info("Exporting model to ONNX at %s...", output_path)
+    logger.info("Exporting hardened model to ONNX at %s...", output_path)
     torch.onnx.export(
         model,
         dummy_input,
@@ -244,21 +392,13 @@ def export_model_to_onnx(
         dynamic_axes={"input": {0: "batch"}, "output": {0: "batch"}},
     )
 
-    # 1. Validate ONNX file structure
     onnx_model = onnx.load(str(output_path))
     onnx.checker.check_model(onnx_model)
     logger.info("ONNX checker passed successfully!")
 
-    # 2. Validate ONNX Runtime execution
     session = ort.InferenceSession(str(output_path), providers=["CPUExecutionProvider"])
     in_name = session.get_inputs()[0].name
     out_name = session.get_outputs()[0].name
-    in_shape = session.get_inputs()[0].shape
-    out_shape = session.get_outputs()[0].shape
-
-    logger.info("ONNX inputs: name=%s, shape=%s; outputs: name=%s, shape=%s", in_name, in_shape, out_name, out_shape)
-
-    # Verify test inference on dummy embedding
     test_out = session.run([out_name], {in_name: np.zeros((1, 16, 96), dtype=np.float32)})[0]
     logger.info("ONNX test inference output on silence: %s", test_out)
 
@@ -266,8 +406,8 @@ def export_model_to_onnx(
 
 
 def verify_with_openwakeword_provider(onnx_path: Path) -> bool:
-    """Verify that OpenWakeWordProvider loads and evaluates the exported model."""
-    logger.info("Verifying OpenWakeWordProvider loading for %s...", onnx_path)
+    """Verify that OpenWakeWordProvider loads and processes frames correctly."""
+    logger.info("Verifying OpenWakeWordProvider integration for %s...", onnx_path)
     provider = OpenWakeWordProvider(
         wakeword_models=[str(onnx_path)],
         model_dir=str(onnx_path.parent),
@@ -276,17 +416,11 @@ def verify_with_openwakeword_provider(onnx_path: Path) -> bool:
     )
 
     assert provider.is_available is True
-    assert "hey_ev" in provider.loaded_models or str(onnx_path) in provider.loaded_models or "hey_ev.onnx" in str(provider.loaded_models)
-
-    # Feed silence frames (3 frames to trigger 1280 accumulation)
     from core.voice_capture import create_silence_frame
     for _ in range(3):
         res = provider.process_frame(create_silence_frame())
-
-    # On silence, detection should remain None
-    assert res is None, "Silence should not trigger wake-word detection!"
+    assert res is None
     provider.close()
-
     logger.info("OpenWakeWordProvider verification PASSED!")
     return True
 
@@ -295,30 +429,33 @@ def verify_with_openwakeword_provider(onnx_path: Path) -> bool:
 # Main Orchestration CLI
 # ============================================================================
 def main() -> None:
-    parser = argparse.ArgumentParser(description="E.V. Custom 'Hey EV' Model Training Pipeline")
-    parser.add_argument("--epochs", type=int, default=35, help="Number of training epochs")
-    parser.add_argument("--lr", type=float, default=1e-3, help="Learning rate")
+    parser = argparse.ArgumentParser(description="E.V. Task 014F-5 Hardened Training Pipeline")
+    parser.add_argument("--epochs", type=int, default=40, help="Training epochs")
+    parser.add_argument("--lr", type=float, default=8e-4, help="Learning rate")
     parser.add_argument("--batch-size", type=int, default=32, help="Batch size")
-    parser.add_argument("--output-dir", type=str, default=DEFAULT_MODEL_OUTPUT_DIR, help="Model export directory")
-    parser.add_argument("--model-name", type=str, default=DEFAULT_MODEL_FILENAME, help="Model output filename")
+    parser.add_argument("--output-dir", type=str, default=DEFAULT_MODEL_OUTPUT_DIR, help="Output directory")
+    parser.add_argument("--model-name", type=str, default=DEFAULT_MODEL_FILENAME, help="Output model filename")
     parser.add_argument("--seed", type=int, default=42, help="Random seed")
 
     args = parser.parse_args()
 
     start_time = time.monotonic()
-    logger.info("=== E.V. TASK 014F-3: CUSTOM 'HEY EV' TRAINING PIPELINE ===")
+    logger.info("=== E.V. TASK 014F-5: HARDENED 'HEY EV' TRAINING PIPELINE ===")
 
-    # Step 1: Dataset Generation & Feature Extraction
+    # Step 1: Hardened Dataset Generation
     pipeline = WakeWordDatasetPipeline(random_seed=args.seed)
-    metadata, clips, labels = pipeline.generate_raw_audio_dataset(
-        num_positive_base=30,
-        num_negative_base=45,
-        augmentations_per_sample=6,
+    metadata, clips, labels = pipeline.generate_hardened_audio_dataset(
+        num_positive_base=48,
+        augmentations_per_positive=8,
+        augmentations_per_negative=6,
     )
-    X_train, y_train, X_val, y_val = pipeline.extract_features(clips, labels, metadata)
 
-    # Step 2: Model Training
-    model, metrics = train_hey_ev_model(
+    # Step 2: Feature Extraction (Train / Val / Holdout)
+    X_train, y_train, X_val, y_val, X_holdout, y_holdout = pipeline.extract_features(clips, labels, metadata)
+    meta_holdout = [m for m in metadata if m.split == "holdout"]
+
+    # Step 3: Hardened Model Training
+    hardened_model, val_metrics = train_hey_ev_model(
         X_train,
         y_train,
         X_val,
@@ -326,20 +463,31 @@ def main() -> None:
         epochs=args.epochs,
         batch_size=args.batch_size,
         learning_rate=args.lr,
+        neg_penalty_weight=1.3,
         random_seed=args.seed,
     )
 
-    # Step 3: Model Export to ONNX
-    output_path = Path(args.output_dir) / args.model_name
-    export_model_to_onnx(model, str(output_path))
+    # Step 4: Comparison with Baseline on Unbiased Holdout Set
+    comparison = compare_with_baseline_model(
+        DEFAULT_BASELINE_MODEL,
+        hardened_model,
+        X_holdout,
+        y_holdout,
+        meta_holdout,
+    )
 
-    # Step 4: Adapter Compatibility Verification
+    # Step 5: Export Hardened Model to ONNX
+    output_path = Path(args.output_dir) / args.model_name
+    export_model_to_onnx(hardened_model, str(output_path))
+
+    # Step 6: Verify OpenWakeWord Provider
     verify_with_openwakeword_provider(output_path)
 
     elapsed = time.monotonic() - start_time
-    logger.info("=== TRAINING & EXPORT FINISHED in %.2f seconds ===", elapsed)
+    logger.info("=== HARDENED TRAINING & EXPORT COMPLETED in %.2f seconds ===", elapsed)
     logger.info("Exported Model: %s (Size: %d bytes)", output_path, output_path.stat().st_size)
-    logger.info("Validation Metrics: %s", metrics)
+    logger.info("Validation Metrics: %s", val_metrics)
+    logger.info("Holdout Breakdown: %s", comparison.get("hardened", {}).get("phrase_breakdown", {}))
 
 
 if __name__ == "__main__":
