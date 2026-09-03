@@ -211,3 +211,67 @@ class TestONNXExportAndRuntime:
 
         assert preds.shape == (1, 1)
         assert 0.0 <= preds[0, 0] <= 1.0
+
+
+# ============================================================================
+# 6. Physical Validator Structure & Calibration Tests (Offline Mock)
+# ============================================================================
+class TestValidationToolSuite:
+    def test_utterance_trial_result_dataclass(self):
+        from tools.validate_wakeword import UtteranceTrialResult
+
+        trial = UtteranceTrialResult(
+            trial_id="test_01",
+            target_type="positive",
+            spoken_text="Hey EV",
+            voice="David",
+            rate=0,
+            volume=85,
+            max_score=0.942,
+            detected_at_50=True,
+            latency_ms=250.0,
+            total_frames=100,
+            rms_level=500.0,
+        )
+        assert trial.trial_id == "test_01"
+        assert trial.detected_at_50 is True
+        assert trial.max_score == 0.942
+
+    def test_threshold_calibration_sweep_math(self):
+        from tools.validate_wakeword import PhysicalWakeWordValidator, UtteranceTrialResult
+
+        with patch("sounddevice.query_devices") as mock_query, \
+             patch("core.tts.WindowsSAPIProvider"):
+            mock_query.return_value = {
+                "name": "Mock Mic",
+                "hostapi": 0,
+                "max_input_channels": 1,
+                "default_samplerate": 44100.0,
+            }
+
+            validator = PhysicalWakeWordValidator(device_index=0, model_path="nonexistent.onnx")
+
+            tp_trials = [
+                UtteranceTrialResult("tp1", "positive", "Hey EV", "David", 0, 85, 0.95, True, 100.0, 50, 400.0),
+                UtteranceTrialResult("tp2", "positive", "Hey EV", "David", 0, 85, 0.65, True, 120.0, 50, 400.0),
+                UtteranceTrialResult("tp3", "positive", "Hey EV", "David", 0, 85, 0.45, False, None, 50, 400.0),
+                UtteranceTrialResult("tp4", "positive", "Hey EV", "David", 0, 85, 0.25, False, None, 50, 400.0),
+            ]
+
+            neg_trials = [
+                UtteranceTrialResult("neg1", "negative", "Heavy", "David", 0, 85, 0.15, False, None, 50, 200.0),
+                UtteranceTrialResult("neg2", "negative", "Every", "David", 0, 85, 0.35, False, None, 50, 200.0),
+                UtteranceTrialResult("neg3", "negative", "Hey Stevie", "David", 0, 85, 0.55, True, None, 50, 200.0),
+                UtteranceTrialResult("neg4", "negative", "Open", "David", 0, 85, 0.05, False, None, 50, 200.0),
+            ]
+
+            sweep = validator.run_threshold_sweep(tp_trials, neg_trials)
+
+            # At 0.50: TP should be 2 (0.95, 0.65), FP should be 1 (0.55), FN should be 2, TN should be 3
+            res_50 = sweep[0.50]
+            assert res_50["TP"] == 2
+            assert res_50["FP"] == 1
+            assert res_50["FN"] == 2
+            assert res_50["TN"] == 3
+            assert res_50["TPR"] == 0.5
+            assert res_50["FPR"] == 0.25
