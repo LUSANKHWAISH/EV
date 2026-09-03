@@ -387,3 +387,79 @@ class TestHardenedPipelineSuite:
         assert "Hey EV" in eval_res["phrase_breakdown"]
         assert "Hey Everyone" in eval_res["phrase_breakdown"]
         assert "Hey Evan" in eval_res["phrase_breakdown"]
+
+
+# ============================================================================
+# 8. Human Data Collector & Acoustic Quality Validation Tests (Task 014F-6)
+# ============================================================================
+class TestHumanCollectorSuite:
+    def test_audio_quality_analyzer_silence(self):
+        from tools.collect_human_wakeword import analyze_audio_quality
+
+        silent_audio = np.zeros(32000, dtype=np.int16)
+        quality = analyze_audio_quality(silent_audio, min_rms=30.0)
+        assert quality.is_silent is True
+        assert quality.is_valid is False
+        assert quality.rms == 0.0
+        assert "Audio level too low" in str(quality.rejection_reason)
+
+    def test_audio_quality_analyzer_clipping(self):
+        from tools.collect_human_wakeword import analyze_audio_quality
+
+        clipped_audio = np.random.randint(-1000, 1000, size=32000, dtype=np.int16)
+        # Inject 1000 clipped samples (> 3%)
+        clipped_audio[:1000] = 32767
+        quality = analyze_audio_quality(clipped_audio, max_clipping_percent=1.0)
+        assert quality.clipping_percent > 1.0
+        assert quality.is_valid is False
+        assert "clipping detected" in str(quality.rejection_reason)
+
+    def test_audio_quality_analyzer_valid_speech(self):
+        from tools.collect_human_wakeword import analyze_audio_quality
+
+        # Simulated speech signal with normal dynamic range and low noise floor
+        t = np.linspace(0, 2.0, 32000, endpoint=False)
+        speech_synth = (2000.0 * np.sin(2 * np.pi * 300 * t) + np.random.normal(0, 50, 32000)).astype(np.int16)
+        quality = analyze_audio_quality(speech_synth, min_rms=30.0)
+        assert quality.is_silent is False
+        assert quality.is_valid is True
+        assert quality.rms > 500.0
+        assert quality.clipping_percent == 0.0
+        assert quality.rejection_reason is None
+
+    def test_human_collector_manifest_persistence(self, tmp_path):
+        from tools.collect_human_wakeword import AudioQualityMetrics, HumanAudioCollector, HumanRecordingManifestItem
+
+        collector = HumanAudioCollector(device_index=0, speaker_id="test_speaker_alpha", output_base_dir=tmp_path)
+        dummy_quality = AudioQualityMetrics(
+            sample_rate=16000,
+            channels=1,
+            duration_sec=2.0,
+            total_samples=32000,
+            rms=450.0,
+            peak=1200,
+            clipping_percent=0.0,
+            snr_db=18.5,
+            is_silent=False,
+            is_valid=True,
+        )
+        item = HumanRecordingManifestItem(
+            filename="test_speaker_alpha_hey_ev_01.wav",
+            relative_path="positive/test_speaker_alpha_hey_ev_01.wav",
+            category="POSITIVE",
+            target_label=1,
+            phrase="Hey EV",
+            condition="normal speaking",
+            speaker_id="test_speaker_alpha",
+            device_name="Test Mic",
+            timestamp=1788500000.0,
+            quality=dummy_quality,
+        )
+
+        collector._append_to_manifest(item)
+        loaded = collector.load_manifest()
+        assert len(loaded) == 1
+        assert loaded[0].filename == "test_speaker_alpha_hey_ev_01.wav"
+        assert loaded[0].speaker_id == "test_speaker_alpha"
+        assert loaded[0].target_label == 1
+        assert loaded[0].quality.rms == 450.0
