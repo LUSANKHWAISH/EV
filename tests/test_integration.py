@@ -143,14 +143,15 @@ def test_lock_released_after_task():
     # Since A is "list dir", it might finish extremely fast. We can mock it to block.
     
     lock_held_during_a = threading.Event()
+    release_a = threading.Event()
     
     original_run = orchestrator.agent.run
     def blocking_run(*args, **kwargs):
         # We are inside Task A now. 
         # Inform the main thread that we are holding the lock.
         lock_held_during_a.set()
-        # Block for a moment to ensure Task B is rejected
-        time.sleep(0.1)
+        # Block until Task B has been submitted and verified rejected
+        release_a.wait(timeout=5.0)
         return original_run(*args, **kwargs)
         
     orchestrator.agent.run = blocking_run
@@ -165,7 +166,8 @@ def test_lock_released_after_task():
     thread_b = orchestrator.submit_command("list dir C:\\")
     assert thread_b is None
     
-    # Wait for Task A to finish
+    # Allow Task A to proceed and wait for it to finish
+    release_a.set()
     thread_a.join(timeout=10.0)
     
     # Unmock agent.run

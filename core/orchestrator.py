@@ -39,6 +39,14 @@ from core.task_queue import (
     TaskExecutionThread,
     TaskPriority,
 )
+try:
+    from core.tts import AudioPriority as _AudioPriority
+    from core.tts import EVTTSManager as _EVTTSManager
+    _TTS_MODULE_AVAILABLE = True
+except ImportError:  # pragma: no cover
+    _TTS_MODULE_AVAILABLE = False
+    _AudioPriority = None  # type: ignore[assignment,misc]
+    _EVTTSManager = None  # type: ignore[assignment,misc]
 
 logger = logging.getLogger(__name__)
 
@@ -94,6 +102,7 @@ class EVOrchestrator:
         memory_store: Optional[EVConversationMemoryStore] = None,
         task_queue: Optional[EVTaskQueue] = None,
         enable_queue: bool = False,
+        tts_manager=None,
     ):
         self.event_bus = event_bus
         self.history_store = EVTaskHistoryStore()
@@ -129,6 +138,11 @@ class EVOrchestrator:
         if self.enable_queue:
             self.start_queue_worker()
 
+        # Task 013: Optional TTS / Audio Feedback subsystem
+        # Default is None — E.V. operates in text-only mode when not provided.
+        # TTS is output presentation only; it cannot authorize actions or alter state.
+        self._tts_manager = tts_manager
+
     def start_queue_worker(self) -> None:
         """Start the dedicated queue worker daemon thread if not already active."""
         with self.task_queue._lock:
@@ -141,6 +155,26 @@ class EVOrchestrator:
                 )
                 self._worker_thread.start()
                 logger.info("EVOrchestrator queue worker thread started")
+
+    def _speak_if_enabled(self, text: str, priority_name: str = "INTERACTIVE") -> None:
+        """
+        Speak text via the TTS subsystem if one is configured.
+        Failures are isolated and never propagate to the caller.
+        Does NOT set EVState — state transitions remain EVOrchestrator's domain.
+        TTS is strictly output presentation; this method has no execution authority.
+        """
+        if self._tts_manager is None:
+            return
+        if not text or not text.strip():
+            return
+        try:
+            if _TTS_MODULE_AVAILABLE and _AudioPriority is not None:
+                priority = getattr(_AudioPriority, priority_name, _AudioPriority.INTERACTIVE)
+            else:
+                return
+            self._tts_manager.speak(text=text, priority=priority)
+        except Exception as exc:
+            logger.debug("EVOrchestrator._speak_if_enabled: TTS speak failed: %s", exc)
 
     def stop_queue_worker(self, timeout: float = 5.0) -> None:
         """Stop the dedicated queue worker daemon thread."""
@@ -414,6 +448,10 @@ class EVOrchestrator:
         if lower_text in ("stop", "cancel", "abort"):
             logger.info("Control command '%s' intercepted", lower_text)
 
+            # Task 013: Cancel any active/pending TTS speech first (presentation layer)
+            if self._tts_manager is not None:
+                self._tts_manager.cancel_all(reason=f"STOP command: '{lower_text}'")
+
             # 0. Cancel queued commands
             self.task_queue.cancel_all(
                 reason=f"Queued commands cancelled via '{lower_text}' command",
@@ -567,6 +605,8 @@ class EVOrchestrator:
                     },
                 )
                 self.context_store.add_turn(user_message=cleaned_text, assistant_message=clarification_msg)
+                # Task 013: Speak clarification prompt so user can respond hands-free
+                self._speak_if_enabled(clarification_msg, priority_name="INTERACTIVE")
                 return None
 
             logger.info("Brain returned informational response: %s", msg)
@@ -576,6 +616,8 @@ class EVOrchestrator:
                 message=msg,
             )
             self.context_store.add_turn(user_message=cleaned_text, assistant_message=msg)
+            # Task 013: Speak the informational response
+            self._speak_if_enabled(msg, priority_name="INTERACTIVE")
             return None
 
         if not routing_result.tasks:
@@ -834,13 +876,19 @@ class EVOrchestrator:
 
     def shutdown(self, timeout: float = 5.0) -> None:
         """
-        Clean deterministic shutdown of orchestrator, active tasks, and queue worker.
+        Clean deterministic shutdown of orchestrator, active tasks, queue worker, and TTS.
         """
         self._shutdown_event.set()
         self.cancel_all(reason="System shutdown", source=CancellationSource.SYSTEM_SHUTDOWN)
         self.task_queue.shutdown(reason="System shutdown", source=CancellationSource.SYSTEM_SHUTDOWN)
         if self._worker_thread and self._worker_thread.is_alive():
             self._worker_thread.join(timeout=timeout)
+        # Task 013: Shut down TTS subsystem cleanly (after task queue is drained)
+        if self._tts_manager is not None:
+            try:
+                self._tts_manager.shutdown(timeout=2.0)
+            except Exception as exc:
+                logger.warning("TTS manager shutdown raised: %s", exc)
         self.event_bus.set_state(EVState.STOPPED)
 
     def resolve_approval(self, task_id: str, approved: bool) -> bool:

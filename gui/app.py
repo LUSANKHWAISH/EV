@@ -100,7 +100,30 @@ def main() -> None:
 
     # Discover providers and instantiate production backend orchestrator
     router = build_production_router()
-    orchestrator = EVOrchestrator(event_bus=event_bus, router=router)
+
+    # Task 013: Optional TTS subsystem — opt-in via EV_TTS_ENABLED=true
+    # Default is disabled; E.V. starts normally in text-only mode if TTS is
+    # not enabled or if initialization fails for any reason.
+    tts_manager = None
+    if os.getenv("EV_TTS_ENABLED", "false").strip().lower() == "true":
+        try:
+            from core.tts import EVTTSManager, WindowsSAPIProvider
+            _sapi = WindowsSAPIProvider()
+            if _sapi.is_available():
+                tts_manager = EVTTSManager(providers=[_sapi], event_bus=event_bus)
+                logger.info("TTS subsystem initialized with WindowsSAPIProvider")
+            else:
+                logger.info("TTS: WindowsSAPIProvider not available; running in text-only mode")
+        except Exception as _tts_exc:
+            logger.warning(
+                "TTS initialization failed; E.V. will run in text-only mode: %s",
+                _tts_exc,
+            )
+
+    if tts_manager is not None:
+        orchestrator = EVOrchestrator(event_bus=event_bus, router=router, tts_manager=tts_manager)
+    else:
+        orchestrator = EVOrchestrator(event_bus=event_bus, router=router)
 
     def handle_task_submission(command: str) -> None:
         if not command.strip():
