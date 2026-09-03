@@ -138,12 +138,14 @@ def run_wake_word_diagnostic(
 
 
 def main() -> None:
+    default_model = r"D:\EV\models\wakeword\hey_ev.onnx" if os.path.exists(r"D:\EV\models\wakeword\hey_ev.onnx") else "alexa"
+    default_framework = "onnx" if default_model.endswith(".onnx") else DEFAULT_INFERENCE_FRAMEWORK
     parser = argparse.ArgumentParser(description="E.V. Wake-Word Hardware Diagnostic Tool")
-    parser.add_argument("--model", type=str, default="alexa", help="Model name or file path (default: alexa)")
+    parser.add_argument("--model", type=str, default=default_model, help=f"Model name or file path (default: {default_model})")
     parser.add_argument("--threshold", type=float, default=DEFAULT_DETECTION_THRESHOLD, help="Detection threshold (0.0 - 1.0)")
     parser.add_argument("--duration", type=float, default=30.0, help="Listening duration in seconds (0 = indefinite)")
     parser.add_argument("--device", type=int, default=None, help="Input device index")
-    parser.add_argument("--framework", type=str, default=DEFAULT_INFERENCE_FRAMEWORK, choices=["tflite", "onnx"], help="Inference framework")
+    parser.add_argument("--framework", type=str, default=default_framework, choices=["tflite", "onnx"], help="Inference framework")
     parser.add_argument("--list-devices", action="store_true", help="List audio input devices and exit")
 
     args = parser.parse_args()
