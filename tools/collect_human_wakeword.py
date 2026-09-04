@@ -1,17 +1,20 @@
 """
-Interactive & Batch Human "Hey EV" Audio Collection Tool for E.V. (Task 014F-6).
+Interactive & Batch Human "Hey EV" Audio Collection Tool for E.V. (Task 014F-6 & Task 014F-7 Hardening).
 
 Provides:
   1. Controlled local recording through SoundDevice (canonical 16 kHz mono PCM16).
   2. Guided collection prompts for POSITIVE, HARD_NEGATIVE, and GENERAL_NEGATIVE phrases.
   3. Quality verification: RMS, peak amplitude, clipping detection, SNR estimate, and silence checks.
-  4. Non-PII metadata logging and saving to models/wakeword/dataset/human/positive and negative.
-  5. Offline/batch validation and import mode for externally recorded human WAV files.
+  4. Mandatory human confirmation gate: explicit [Y/N/R/S/Q] verification before committing takes.
+  5. Collision-free deterministic unique session naming ({speaker_id}_{session_id}_{slug}_{take_idx:02d}.wav).
+  6. Automatic routing of rejected/non-target takes to models/wakeword/dataset/human/quarantine/.
+  7. Non-PII metadata logging and saving to human_collection_manifest.json with deduplication.
 
 Security & Invariants:
   - 100% Local: Zero audio files uploaded to any network or cloud service.
   - Zero Authority: Audio recording only; no connection to EVOrchestrator or command execution.
-  - Strict Quality Contract: Rejects clipped, silent, or corrupted audio takes.
+  - Strict Quality Contract: Rejects clipped, silent, or unconfirmed audio takes.
+  - Overwrite Protection: Existing recording files are never silently overwritten.
 """
 from __future__ import annotations
 
@@ -25,7 +28,7 @@ import time
 import wave
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import sounddevice as sd
@@ -51,6 +54,7 @@ TARGET_TOTAL_SAMPLES: int = int(CANONICAL_SAMPLE_RATE * TARGET_DURATION_SEC)  # 
 HUMAN_DATASET_DIR = Path(r"D:\EV\models\wakeword\dataset\human")
 HUMAN_POS_DIR = HUMAN_DATASET_DIR / "positive"
 HUMAN_NEG_DIR = HUMAN_DATASET_DIR / "negative"
+HUMAN_QUARANTINE_DIR = HUMAN_DATASET_DIR / "quarantine"
 MANIFEST_PATH = HUMAN_DATASET_DIR / "human_collection_manifest.json"
 
 # Target Phrase Catalog for Human Collection
@@ -113,13 +117,17 @@ class HumanRecordingManifestItem:
     filename: str
     relative_path: str
     category: str
-    target_label: int  # 1 for positive, 0 for negative
+    target_label: int  # 1 for positive, 0 for negative, -1 for quarantine
     phrase: str
     condition: str
     speaker_id: str
     device_name: str
     timestamp: float
     quality: AudioQualityMetrics
+    session_id: str = "session_default"
+    confirmed_by_user: bool = True
+    status: str = "ACCEPTED"
+    quarantine_reason: Optional[str] = None
 
 
 def analyze_audio_quality(
@@ -189,15 +197,31 @@ def analyze_audio_quality(
     )
 
 
-def save_canonical_pcm16_wav(output_path: Path, audio: np.ndarray) -> None:
-    """Save 1D int16 array to canonical 16 kHz mono WAV file."""
+def save_canonical_pcm16_wav(output_path: Path, audio: np.ndarray, allow_overwrite: bool = False) -> Path:
+    """
+    Save 1D int16 array to canonical 16 kHz mono WAV file.
+    Guarantees that existing files are never overwritten unless explicitly permitted.
+    """
     output_path.parent.mkdir(parents=True, exist_ok=True)
+    
+    target_path = output_path
+    if target_path.exists() and not allow_overwrite:
+        # Collision-safe suffixing
+        stem = output_path.stem
+        suffix = output_path.suffix
+        counter = 1
+        while target_path.exists():
+            target_path = output_path.parent / f"{stem}_{counter:02d}{suffix}"
+            counter += 1
+            
     audio_int16 = np.clip(audio, -32768, 32767).astype(np.int16)
-    with wave.open(str(output_path), "wb") as wf:
+    with wave.open(str(target_path), "wb") as wf:
         wf.setnchannels(CANONICAL_CHANNELS)
         wf.setsampwidth(CANONICAL_SAMPLE_WIDTH)
         wf.setframerate(CANONICAL_SAMPLE_RATE)
         wf.writeframes(audio_int16.tobytes())
+        
+    return target_path
 
 
 def pad_or_trim_canonical(audio: np.ndarray, target_length: int = TARGET_TOTAL_SAMPLES) -> np.ndarray:
@@ -212,24 +236,29 @@ def pad_or_trim_canonical(audio: np.ndarray, target_length: int = TARGET_TOTAL_S
 
 class HumanAudioCollector:
     """
-    Interactive and scripted recorder for human wake-word training data.
+    Interactive and scripted recorder for human wake-word training data with
+    hardened validation, explicit confirmation gates, and collision prevention.
     """
 
     def __init__(
         self,
         device_index: int = 1,
-        speaker_id: str = "human_speaker_1",
+        speaker_id: str = "user_speaker_1",
+        session_id: Optional[str] = None,
         output_base_dir: Path = HUMAN_DATASET_DIR,
     ) -> None:
         self.device_index = device_index
         self.speaker_id = speaker_id
+        self.session_id = session_id or time.strftime("%Y%m%d_%H%M%S")
         self.output_base_dir = Path(output_base_dir)
         self.pos_dir = self.output_base_dir / "positive"
         self.neg_dir = self.output_base_dir / "negative"
+        self.quarantine_dir = self.output_base_dir / "quarantine"
         self.manifest_file = self.output_base_dir / "human_collection_manifest.json"
 
         self.pos_dir.mkdir(parents=True, exist_ok=True)
         self.neg_dir.mkdir(parents=True, exist_ok=True)
+        self.quarantine_dir.mkdir(parents=True, exist_ok=True)
 
     def get_device_info(self) -> Dict[str, Any]:
         """Query SoundDevice for active recording device info."""
@@ -274,41 +303,71 @@ class HumanAudioCollector:
         condition: str,
         target: str,
         index: int,
+        user_confirmed: bool = True,
+        quarantine_reason: Optional[str] = None,
+        session_id: Optional[str] = None,
+        raw_audio_override: Optional[np.ndarray] = None,
     ) -> Tuple[bool, Optional[HumanRecordingManifestItem]]:
         """
         Record an utterance, validate its acoustics, and persist to dataset if valid.
+        If user_confirmed is False, routes safely to quarantine directory.
         """
+        sess = session_id or self.session_id
         slug = phrase.lower().replace(" ", "_").replace(".", "")
-        filename = f"{self.speaker_id}_{slug}_{index:02d}.wav"
-        target_dir = self.pos_dir if target == "pos" else self.neg_dir
-        out_path = target_dir / filename
+        filename = f"{self.speaker_id}_{sess}_{slug}_{index:02d}.wav"
 
-        raw_audio = self.record_clip(duration_sec=RECORDING_DURATION_SEC)
+        if raw_audio_override is not None:
+            raw_audio = raw_audio_override
+        else:
+            raw_audio = self.record_clip(duration_sec=RECORDING_DURATION_SEC)
+            
         canonical_audio = pad_or_trim_canonical(raw_audio, TARGET_TOTAL_SAMPLES)
-
         quality = analyze_audio_quality(canonical_audio)
+        
         if not quality.is_valid:
-            logger.warning("Take rejected for '%s' (%s): %s", phrase, condition, quality.rejection_reason)
+            logger.warning("Take rejected acoustically for '%s' (%s): %s", phrase, condition, quality.rejection_reason)
             return False, None
 
-        save_canonical_pcm16_wav(out_path, canonical_audio)
+        if user_confirmed:
+            target_dir = self.pos_dir if target == "pos" else self.neg_dir
+            target_label = 1 if target == "pos" else 0
+            item_category = category
+            status = "ACCEPTED"
+            q_reason = None
+        else:
+            target_dir = self.quarantine_dir
+            target_label = -1
+            item_category = "QUARANTINE"
+            status = "QUARANTINED_USER_REJECTED"
+            q_reason = quarantine_reason or "User rejected take during interactive confirmation"
+
+        candidate_path = target_dir / filename
+        final_path = save_canonical_pcm16_wav(candidate_path, canonical_audio, allow_overwrite=False)
 
         dev_info = self.get_device_info()
         item = HumanRecordingManifestItem(
-            filename=filename,
-            relative_path=str(out_path.relative_to(self.output_base_dir)),
-            category=category,
-            target_label=1 if target == "pos" else 0,
+            filename=final_path.name,
+            relative_path=str(final_path.relative_to(self.output_base_dir)),
+            category=item_category,
+            target_label=target_label,
             phrase=phrase,
             condition=condition,
             speaker_id=self.speaker_id,
+            session_id=sess,
             device_name=dev_info.get("name", "Unknown"),
             timestamp=time.time(),
+            confirmed_by_user=user_confirmed,
+            status=status,
             quality=quality,
+            quarantine_reason=q_reason,
         )
 
         self._append_to_manifest(item)
-        logger.info("Successfully recorded take '%s' [RMS=%.1f, Peak=%d, SNR=%.1fdB]", filename, quality.rms, quality.peak, quality.snr_db)
+        if user_confirmed:
+            logger.info("Successfully recorded take '%s' [RMS=%.1f, Peak=%d, SNR=%.1fdB]", final_path.name, quality.rms, quality.peak, quality.snr_db)
+        else:
+            logger.warning("Take routed to quarantine '%s' [Reason: %s]", final_path.name, q_reason)
+            
         return True, item
 
     def _append_to_manifest(self, item: HumanRecordingManifestItem) -> None:
@@ -332,42 +391,50 @@ class HumanAudioCollector:
         try:
             with open(self.manifest_file, "r", encoding="utf-8") as f:
                 data = json.load(f)
-                return [
-                    HumanRecordingManifestItem(
-                        filename=d["filename"],
-                        relative_path=d["relative_path"],
-                        category=d["category"],
-                        target_label=d["target_label"],
-                        phrase=d["phrase"],
-                        condition=d["condition"],
-                        speaker_id=d["speaker_id"],
-                        device_name=d["device_name"],
-                        timestamp=d["timestamp"],
-                        quality=AudioQualityMetrics(**d["quality"]),
+                items = []
+                for d in data:
+                    q_data = d.get("quality", {})
+                    items.append(
+                        HumanRecordingManifestItem(
+                            filename=d["filename"],
+                            relative_path=d["relative_path"],
+                            category=d["category"],
+                            target_label=d["target_label"],
+                            phrase=d["phrase"],
+                            condition=d["condition"],
+                            speaker_id=d["speaker_id"],
+                            device_name=d.get("device_name", "Unknown"),
+                            timestamp=d["timestamp"],
+                            quality=AudioQualityMetrics(**q_data),
+                            session_id=d.get("session_id", "session_legacy"),
+                            confirmed_by_user=d.get("confirmed_by_user", True),
+                            status=d.get("status", "ACCEPTED"),
+                            quarantine_reason=d.get("quarantine_reason"),
+                        )
                     )
-                    for d in data
-                ]
+                return items
         except Exception as exc:
             logger.error("Failed to read manifest: %s", exc)
             return []
 
 
 # ============================================================================
-# Interactive CLI Runner
+# Interactive CLI Runner with Explicit User Confirmation Gate
 # ============================================================================
-def run_interactive_collector(device_index: int = 1, speaker_id: str = "human_speaker_1") -> None:
-    """Run interactive CLI prompt session for live human speaker."""
+def run_interactive_collector(device_index: int = 1, speaker_id: str = "user_speaker_1") -> None:
+    """Run interactive CLI prompt session for live human speaker with explicit confirmation gates."""
     collector = HumanAudioCollector(device_index=device_index, speaker_id=speaker_id)
     dev_info = collector.get_device_info()
 
-    print("=" * 70)
-    print("E.V. HUMAN WAKE-WORD AUDIO COLLECTION SYSTEM")
+    print("=" * 75)
+    print("E.V. HUMAN WAKE-WORD AUDIO COLLECTION SYSTEM (HARDENED)")
     print(f"Recording Device: {dev_info.get('name')} (Index: {device_index})")
     print(f"Speaker Non-PII ID: {speaker_id}")
+    print(f"Session Identifier: {collector.session_id}")
     print(f"Storage Directory: {HUMAN_DATASET_DIR}")
-    print("=" * 70)
-    print("Instructions: Press ENTER when prompted, speak the phrase naturally into")
-    print("the microphone, and wait for acoustic validation.")
+    print("=" * 75)
+    print("Workflow: Press ENTER to record -> speak clearly -> review acoustics ->")
+    print("CONFIRM with [Y] to accept as positive, [N] to quarantine, or [R] to re-record.")
     print("Type 'q' to quit at any time.\n")
 
     pos_idx = 0
@@ -379,48 +446,103 @@ def run_interactive_collector(device_index: int = 1, speaker_id: str = "human_sp
         condition = prompt_info["condition"]
         target = prompt_info["target"]
 
-        idx = pos_idx if target == "pos" else neg_idx
+        while True:
+            idx = pos_idx if target == "pos" else neg_idx
 
-        print("-" * 70)
-        print(f"Category:  [{category}]")
-        print(f"Prompt:    \"{phrase}\"")
-        print(f"Condition: {condition}")
-        print("-" * 70)
+            print("-" * 75)
+            print(f"Category:  [{category}]")
+            print(f"Prompt:    \"{phrase}\"")
+            print(f"Condition: {condition}")
+            print("-" * 75)
 
-        user_in = input("Press ENTER to record (or 's' to skip, 'q' to quit): ").strip().lower()
-        if user_in == "q":
-            print("Exiting collector session.")
-            break
-        if user_in == "s":
-            print("Skipping prompt.\n")
-            continue
+            user_in = input("Press ENTER to record (or 's' to skip, 'q' to quit): ").strip().lower()
+            if user_in == "q":
+                print("Exiting collector session.")
+                return
+            if user_in == "s":
+                print("Skipping prompt.\n")
+                break
 
-        print("--> RECORDING NOW... (Speak clearly) ...")
-        success, item = collector.record_and_store_prompt(
-            category=category,
-            phrase=phrase,
-            condition=condition,
-            target=target,
-            index=idx,
-        )
+            print("--> RECORDING NOW... (Speak clearly into microphone) ...")
+            raw_audio = collector.record_clip(duration_sec=RECORDING_DURATION_SEC)
+            canonical = pad_or_trim_canonical(raw_audio, TARGET_TOTAL_SAMPLES)
+            quality = analyze_audio_quality(canonical)
 
-        if success and item:
-            print(f"--> TAKE ACCEPTED! Saved to {item.filename}")
-            print(f"    Quality: RMS={item.quality.rms:.1f}, Peak={item.quality.peak}, SNR={item.quality.snr_db:.1f}dB\n")
-            if target == "pos":
-                pos_idx += 1
-            else:
-                neg_idx += 1
-        else:
-            print("--> TAKE REJECTED. You can retry this prompt later.\n")
+            if not quality.is_valid:
+                print(f"\n[!] ACOUSTIC QUALITY REJECTED: {quality.rejection_reason}")
+                retry_in = input("Retry this take? [r=Re-record, s=Skip, q=Quit]: ").strip().lower()
+                if retry_in == "q":
+                    print("Exiting collector session.")
+                    return
+                elif retry_in == "s":
+                    print("Skipping prompt.\n")
+                    break
+                else:
+                    continue  # Loop back to re-record
+
+            # Acoustic Quality Passed: Display Metrics
+            print(f"\n[+] Acoustic Metrics: RMS={quality.rms:.1f} | Peak={quality.peak} | SNR={quality.snr_db:.1f}dB | Clipping={quality.clipping_percent:.2f}%")
+            
+            # MANDATORY HUMAN CONFIRMATION GATE
+            confirm = input(
+                f"--> Was that a correct take of \"{phrase}\"? [y/n/r/s/q]\n"
+                f"    (y=Accept & Save, n=Reject to Quarantine, r=Re-record, s=Skip, q=Quit): "
+            ).strip().lower()
+
+            if confirm == "y":
+                success, item = collector.record_and_store_prompt(
+                    category=category,
+                    phrase=phrase,
+                    condition=condition,
+                    target=target,
+                    index=idx,
+                    user_confirmed=True,
+                    raw_audio_override=raw_audio,
+                )
+                if success and item:
+                    print(f"--> [ACCEPTED] Take saved to {item.relative_path}\n")
+                    if target == "pos":
+                        pos_idx += 1
+                    else:
+                        neg_idx += 1
+                break
+
+            elif confirm == "n":
+                reason = input("Enter quarantine reason (or press ENTER for default): ").strip()
+                success, item = collector.record_and_store_prompt(
+                    category=category,
+                    phrase=phrase,
+                    condition=condition,
+                    target=target,
+                    index=idx,
+                    user_confirmed=False,
+                    quarantine_reason=reason or "User marked take as incorrect during confirmation",
+                    raw_audio_override=raw_audio,
+                )
+                if success and item:
+                    print(f"--> [QUARANTINED] Take safely routed to {item.relative_path} (Excluded from positive training)\n")
+                break
+
+            elif confirm == "r":
+                print("--> Re-recording prompt...\n")
+                continue
+
+            elif confirm == "s":
+                print("Skipping prompt.\n")
+                break
+
+            elif confirm == "q":
+                print("Exiting collector session.")
+                return
 
     manifest = collector.load_manifest()
     pos_count = sum(1 for m in manifest if m.target_label == 1)
     neg_count = sum(1 for m in manifest if m.target_label == 0)
-    print("=" * 70)
-    print(f"COLLECTION SUMMARY: {len(manifest)} total recordings stored.")
-    print(f"  Positives: {pos_count} | Negatives: {neg_count}")
-    print("=" * 70)
+    quar_count = sum(1 for m in manifest if m.target_label == -1)
+    print("=" * 75)
+    print(f"COLLECTION SUMMARY: {len(manifest)} total recordings indexed.")
+    print(f"  Positives: {pos_count} | Negatives: {neg_count} | Quarantined: {quar_count}")
+    print("=" * 75)
 
 
 def probe_live_microphone(device_index: int = 1) -> Tuple[bool, float, str]:
@@ -439,14 +561,15 @@ def probe_live_microphone(device_index: int = 1) -> Tuple[bool, float, str]:
         return False, 0.0, "SoundDevice returned empty buffer"
 
     rms = float(np.sqrt(np.mean(clip.astype(np.float64) ** 2)))
-    has_human_speech = rms >= 100.0  # Normal human conversational speech is typically >100 RMS
+    has_human_speech = rms >= 100.0
     return has_human_speech, rms, dev_info.get("name", "Unknown")
 
 
 def main():
-    parser = argparse.ArgumentParser(description="E.V. Human Wake-Word Collection Tool")
+    parser = argparse.ArgumentParser(description="E.V. Human Wake-Word Collection Tool (Hardened)")
     parser.add_argument("--device", type=int, default=1, help="SoundDevice microphone index")
-    parser.add_argument("--speaker", type=str, default="human_speaker_1", help="Non-PII speaker identifier")
+    parser.add_argument("--speaker", type=str, default="user_speaker_1", help="Non-PII speaker identifier")
+    parser.add_argument("--session", type=str, default=None, help="Optional custom session identifier")
     parser.add_argument("--probe", action="store_true", help="Probe microphone and check for live acoustic activity")
     args = parser.parse_args()
 

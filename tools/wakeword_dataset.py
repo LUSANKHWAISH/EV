@@ -303,26 +303,50 @@ class WakeWordDatasetPipeline:
         self.features_dir.mkdir(parents=True, exist_ok=True)
         self.human_pos_dir.mkdir(parents=True, exist_ok=True)
         self.human_neg_dir.mkdir(parents=True, exist_ok=True)
+        self.human_quarantine_dir = self.data_dir / "human" / "quarantine"
+        self.human_quarantine_dir.mkdir(parents=True, exist_ok=True)
+        self.manifest_path = self.data_dir / "human" / "human_collection_manifest.json"
 
     def scan_and_ingest_human_speech(self) -> Tuple[List[SampleMetadata], List[np.ndarray], List[int]]:
         """
         Scan human audio directories for local recordings and ingest canonical clips.
+        Strictly ignores quarantine/ and review/ subdirectories.
+        Cross-references human_collection_manifest.json to ensure only confirmed valid positive clips are ingested.
         """
         self.prepare_directories()
         human_meta: List[SampleMetadata] = []
         human_clips: List[np.ndarray] = []
         human_labels: List[int] = []
 
-        # Scan positives
+        # Load manifest metadata lookup if available
+        manifest_lookup: Dict[str, Dict[str, Any]] = {}
+        if self.manifest_path.exists():
+            try:
+                with open(self.manifest_path, "r", encoding="utf-8") as mf:
+                    m_data = json.load(mf)
+                    for item in m_data:
+                        manifest_lookup[item.get("filename", "")] = item
+            except Exception as exc:
+                logger.warning("Could not read human collection manifest: %s", exc)
+
+        # Scan positives (strictly *.wav files in human_pos_dir)
         for wav_file in sorted(self.human_pos_dir.glob("*.wav")):
             try:
+                # Check manifest for quarantine / rejection status
+                m_info = manifest_lookup.get(wav_file.name)
+                if m_info:
+                    if m_info.get("category") == "QUARANTINE" or m_info.get("target_label", 1) != 1:
+                        logger.warning("Skipping quarantined/rejected file found in positive dir: %s", wav_file.name)
+                        continue
+
                 audio = load_pcm16_wav(str(wav_file))
                 clip = pad_or_trim_to_length(audio, CLIP_TOTAL_SAMPLES)
                 speaker = wav_file.stem.split("_")[0] if "_" in wav_file.stem else "human_unknown"
+                phrase = m_info.get("phrase", "Hey EV") if m_info else "Hey EV"
                 meta = SampleMetadata(
                     sample_id=f"human_pos_{wav_file.stem}",
                     label=1,
-                    phrase="Hey EV",
+                    phrase=phrase,
                     is_hard_negative=False,
                     is_human=True,
                     speaker_id=speaker,
@@ -338,16 +362,22 @@ class WakeWordDatasetPipeline:
             except Exception as exc:
                 logger.warning("Skipping invalid human recording %s: %s", wav_file, exc)
 
-        # Scan negatives
+        # Scan negatives (strictly *.wav files in human_neg_dir)
         for wav_file in sorted(self.human_neg_dir.glob("*.wav")):
             try:
+                m_info = manifest_lookup.get(wav_file.name)
+                if m_info and (m_info.get("category") == "QUARANTINE" or m_info.get("target_label", 0) != 0):
+                    logger.warning("Skipping quarantined file in negative dir: %s", wav_file.name)
+                    continue
+
                 audio = load_pcm16_wav(str(wav_file))
                 clip = pad_or_trim_to_length(audio, CLIP_TOTAL_SAMPLES)
                 speaker = wav_file.stem.split("_")[0] if "_" in wav_file.stem else "human_unknown"
+                phrase = m_info.get("phrase", wav_file.stem) if m_info else wav_file.stem
                 meta = SampleMetadata(
                     sample_id=f"human_neg_{wav_file.stem}",
                     label=0,
-                    phrase=wav_file.stem,
+                    phrase=phrase,
                     is_hard_negative=True,
                     is_human=True,
                     speaker_id=speaker,
