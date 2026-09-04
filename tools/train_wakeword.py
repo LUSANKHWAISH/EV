@@ -1,25 +1,29 @@
 """
-Reproducible Hardened PyTorch Training Pipeline for "Hey EV" (Task 014F-5).
+Reproducible Hardened PyTorch Training Pipeline for "Hey EV" (Task 014F-10).
 
-Trains an openWakeWord DNN model on the hardened, hard-negative mined dataset.
+Controlled Human-Augmented Wake-Word Model Retraining + Locked Human Holdout Evaluation.
 Performs:
-  1. Train / Validation / Holdout 3-way evaluation.
-  2. Weighted BCE loss penalizing hard-negative prefix false positives.
-  3. Per-phrase hard-negative breakdown ("Hey Everyone", "Hey Evan", "Hey Stevie", etc.).
-  4. Side-by-side comparison against baseline model (D:\\EV\\models\\wakeword\\hey_ev_v1_baseline.onnx).
-  5. Export of validated hardened model to D:\\EV\\models\\wakeword\\hey_ev.onnx.
+  1. Active baseline model immutability verification (SHA256).
+  2. Ingestion of verified non-holdout human recordings (52 pos, 48 neg) + synthetic data.
+  3. Programmatic holdout leakage audit (overlap == 0).
+  4. Speaker-adapted OpenWakeWordNet training with weighted BCE loss.
+  5. Candidate model export to D:\\EV\\models\\wakeword\\candidates\\hey_ev_human_v2.onnx.
+  6. Final locked human holdout benchmark comparing active baseline vs candidate across 7 thresholds.
+  7. OpenWakeWordProvider runtime compatibility verification.
+  8. Post-experiment immutability re-verification.
 """
 from __future__ import annotations
 
 import argparse
 import copy
+import hashlib
 import json
 import logging
 import os
 import sys
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
 import onnx
@@ -35,14 +39,38 @@ if REPO_ROOT not in sys.path:
     sys.path.insert(0, REPO_ROOT)
 
 from core.voice_wakeword_openwakeword import OpenWakeWordProvider
-from tools.wakeword_dataset import SampleMetadata, WakeWordDatasetPipeline
+from tools.wakeword_dataset import (
+    SampleMetadata,
+    WakeWordDatasetPipeline,
+    audit_dataset_leakage,
+    compute_file_sha256,
+)
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 logger = logging.getLogger("ev.wakeword.training")
 
-DEFAULT_MODEL_OUTPUT_DIR = r"D:\EV\models\wakeword"
-DEFAULT_MODEL_FILENAME = "hey_ev.onnx"
+DEFAULT_ACTIVE_MODEL = r"D:\EV\models\wakeword\hey_ev.onnx"
 DEFAULT_BASELINE_MODEL = r"D:\EV\models\wakeword\hey_ev_v1_baseline.onnx"
+DEFAULT_CANDIDATE_OUTPUT_DIR = r"D:\EV\models\wakeword\candidates"
+DEFAULT_CANDIDATE_FILENAME = "hey_ev_human_v2.onnx"
+EXPECTED_ACTIVE_SHA = "9b11e3db5ca4118a19a35618f91db66aabc66c1ffe762cd69b215c9a1204f377"
+EXPECTED_HOLDOUT_SHA = "03a59c13fa35fa932065e364e0b4bde2c3d174efc8f774f9f03ba96dfefe18ba"
+
+
+def verify_active_model_hash() -> str:
+    """Verify that active model hey_ev.onnx has not been modified."""
+    active_p = Path(DEFAULT_ACTIVE_MODEL)
+    if not active_p.exists():
+        raise FileNotFoundError(f"Active model hey_ev.onnx missing at {DEFAULT_ACTIVE_MODEL}")
+
+    actual_sha = compute_file_sha256(active_p)
+    if actual_sha != EXPECTED_ACTIVE_SHA.lower():
+        raise RuntimeError(
+            f"CRITICAL IMMUTABILITY VIOLATION: Active model SHA256 mismatch!\n"
+            f"Expected: {EXPECTED_ACTIVE_SHA}\n"
+            f"Actual:   {actual_sha}"
+        )
+    return actual_sha
 
 
 # ============================================================================
@@ -99,16 +127,16 @@ def train_hey_ev_model(
     y_train: np.ndarray,
     X_val: np.ndarray,
     y_val: np.ndarray,
-    epochs: int = 40,
+    epochs: int = 45,
     batch_size: int = 32,
     learning_rate: float = 8e-4,
     weight_decay: float = 1e-4,
-    neg_penalty_weight: float = 1.3,
+    neg_penalty_weight: float = 1.4,
     random_seed: int = 42,
     device: str = "cpu",
 ) -> Tuple[OpenWakeWordNet, Dict[str, float]]:
     """
-    Train OpenWakeWordNet with weighted negative loss to penalize confusable false alarms.
+    Train OpenWakeWordNet with weighted loss to balance positive recall and hard negative rejection.
     """
     torch.manual_seed(random_seed)
     np.random.seed(random_seed)
@@ -144,7 +172,6 @@ def train_hey_ev_model(
     def custom_loss(preds: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
         eps = 1e-7
         preds = torch.clamp(preds, eps, 1.0 - eps)
-        # Loss: - [ y*log(p) + w_neg*(1-y)*log(1-p) ]
         loss = -(targets * torch.log(preds) + neg_penalty_weight * (1.0 - targets) * torch.log(1.0 - preds))
         return torch.mean(loss)
 
@@ -155,7 +182,7 @@ def train_hey_ev_model(
     best_weights = copy.deepcopy(model.state_dict())
     best_metrics: Dict[str, float] = {}
 
-    logger.info("Starting hardened training loop for %d epochs (neg_weight=%.2f)...", epochs, neg_penalty_weight)
+    logger.info("Starting speaker-adapted training loop for %d epochs (neg_weight=%.2f)...", epochs, neg_penalty_weight)
 
     for epoch in range(1, epochs + 1):
         model.train()
@@ -172,7 +199,7 @@ def train_hey_ev_model(
 
         train_loss /= len(train_dataset)
 
-        # Validation
+        # Validation on disjoint non-holdout dev set
         model.eval()
         val_loss = 0.0
         all_preds = []
@@ -226,12 +253,12 @@ def train_hey_ev_model(
 
     model.load_state_dict(best_weights)
     model.eval()
-    logger.info("Hardened training complete. Best checkpoint at epoch %d: F1=%.3f, ValLoss=%.4f", best_metrics["epoch"], best_metrics["val_f1"], best_metrics["val_loss"])
+    logger.info("Training complete. Best checkpoint at epoch %d: F1=%.3f, ValLoss=%.4f", best_metrics["epoch"], best_metrics["val_f1"], best_metrics["val_loss"])
     return model, best_metrics
 
 
 # ============================================================================
-# Benchmark & Hard-Negative Evaluation
+# Benchmark & Hard-Negative Evaluation (Backward-Compatible Helpers)
 # ============================================================================
 def evaluate_model_on_holdout(
     model: OpenWakeWordNet,
@@ -241,7 +268,7 @@ def evaluate_model_on_holdout(
     threshold: float = 0.50,
 ) -> Dict[str, Any]:
     """
-    Evaluate model across all holdout samples and calculate per-phrase hard-negative breakdown.
+    Evaluate model across holdout samples and calculate per-phrase breakdown.
     """
     model.eval()
     with torch.no_grad():
@@ -261,7 +288,6 @@ def evaluate_model_on_holdout(
     recall = tp / max(1, tp + fn)
     f1 = (2 * precision * recall) / max(1e-6, precision + recall)
 
-    # Per-phrase breakdown
     phrases_to_track = [
         "Hey EV",
         "Hey Everyone",
@@ -283,7 +309,6 @@ def evaluate_model_on_holdout(
             max_s = float(np.max(phrase_scores))
             mean_s = float(np.mean(phrase_scores))
             if target_phrase == "Hey EV":
-                # For positive, report recall
                 rec = float(np.mean(phrase_preds == 1))
                 phrase_breakdown[target_phrase] = {
                     "count": len(matching_idx),
@@ -292,7 +317,6 @@ def evaluate_model_on_holdout(
                     "mean_score": round(mean_s, 3),
                 }
             else:
-                # For negative, report rejection rate
                 rej = float(np.mean(phrase_preds == 0))
                 phrase_breakdown[target_phrase] = {
                     "count": len(matching_idx),
@@ -322,12 +346,8 @@ def compare_with_baseline_model(
     y_holdout: np.ndarray,
     metadata_holdout: List[SampleMetadata],
 ) -> Dict[str, Any]:
-    """
-    Side-by-side holdout comparison between baseline model and hardened model.
-    """
-    logger.info("Evaluating baseline model from %s on holdout set...", baseline_onnx_path)
-    if not os.path.exists(baseline_onnx_path):
-        logger.warning("Baseline model not found at %s. Skipping comparison.", baseline_onnx_path)
+    """Side-by-side holdout comparison between baseline model and hardened model."""
+    if not os.path.exists(baseline_onnx_path) or len(X_holdout) == 0:
         return {}
 
     session = ort.InferenceSession(baseline_onnx_path, providers=["CPUExecutionProvider"])
@@ -348,10 +368,6 @@ def compare_with_baseline_model(
 
     hardened_eval = evaluate_model_on_holdout(hardened_model, X_holdout, y_holdout, metadata_holdout)
 
-    logger.info("=== MODEL COMPARISON (HOLDOUT SET) ===")
-    logger.info("Baseline: Accuracy=%.3f, F1=%.3f (TP=%d, FP=%d, FN=%d)", base_acc, base_f1, base_tp, base_fp, base_fn)
-    logger.info("Hardened: Accuracy=%.3f, F1=%.3f (TP=%d, FP=%d, FN=%d)", hardened_eval["accuracy"], hardened_eval["f1"], hardened_eval["tp"], hardened_eval["fp"], hardened_eval["fn"])
-
     return {
         "baseline": {
             "accuracy": round(base_acc, 4),
@@ -366,6 +382,176 @@ def compare_with_baseline_model(
 
 
 # ============================================================================
+# Phase 8: Comprehensive Locked Holdout Evaluation
+# ============================================================================
+def evaluate_onnx_model_on_locked_holdout(
+    onnx_path: str,
+    X_holdout: np.ndarray,
+    y_holdout: np.ndarray,
+    holdout_samples: List[Dict[str, Any]],
+    thresholds: Sequence[float] = (0.30, 0.40, 0.50, 0.55, 0.60, 0.65, 0.70),
+    human_dir: Optional[Path] = None,
+) -> Dict[str, Any]:
+    """
+    Evaluate an ONNX model against the locked human holdout across all specified thresholds.
+    Uses openWakeWord streaming evaluation (predict_clip) if audio files are accessible.
+    Calculates TP, TN, FP, FN, accuracy, precision, recall, F1, FPR, FNR,
+    hard-negative FP count, general-negative FP count, and positive recall.
+    """
+    scores: np.ndarray
+    used_streaming = False
+
+    if human_dir is not None and Path(human_dir).exists():
+        try:
+            from openwakeword.model import Model
+            oww = Model(wakeword_models=[onnx_path], inference_framework="onnx")
+            computed_scores = []
+            for s in holdout_samples:
+                wav_p = str(Path(human_dir) / s["relative_path"])
+                if os.path.exists(wav_p):
+                    oww.reset()
+                    preds = oww.predict_clip(wav_p, padding=0)
+                    m = float(max([x[list(x.keys())[0]] for x in preds])) if preds else 0.0
+                    computed_scores.append(m)
+                else:
+                    raise FileNotFoundError(f"Missing holdout wav: {wav_p}")
+            scores = np.array(computed_scores)
+            used_streaming = True
+            logger.info("Executed streaming locked holdout evaluation for %s (%d clips)", onnx_path, len(scores))
+        except Exception as exc:
+            logger.warning("Streaming holdout evaluation unavailable (%s); using static embedding features.", exc)
+            session = ort.InferenceSession(onnx_path, providers=["CPUExecutionProvider"])
+            in_name = session.get_inputs()[0].name
+            out_name = session.get_outputs()[0].name
+            scores = session.run([out_name], {in_name: X_holdout.astype(np.float32)})[0].flatten()
+    else:
+        session = ort.InferenceSession(onnx_path, providers=["CPUExecutionProvider"])
+        in_name = session.get_inputs()[0].name
+        out_name = session.get_outputs()[0].name
+        scores = session.run([out_name], {in_name: X_holdout.astype(np.float32)})[0].flatten()
+
+    targets_bin = y_holdout.astype(int)
+
+    results_by_thresh: Dict[float, Dict[str, Any]] = {}
+
+    hard_neg_indices = [i for i, s in enumerate(holdout_samples) if s.get("category") == "HARD_NEGATIVE"]
+    gen_neg_indices = [i for i, s in enumerate(holdout_samples) if s.get("category") == "GENERAL_NEGATIVE"]
+    pos_indices = [i for i, s in enumerate(holdout_samples) if s.get("category") == "POSITIVE"]
+
+    for thresh in thresholds:
+        preds_bin = (scores >= thresh).astype(int)
+
+        tp = int(np.sum((preds_bin == 1) & (targets_bin == 1)))
+        fp = int(np.sum((preds_bin == 1) & (targets_bin == 0)))
+        tn = int(np.sum((preds_bin == 0) & (targets_bin == 0)))
+        fn = int(np.sum((preds_bin == 0) & (targets_bin == 1)))
+
+        total = max(1, len(targets_bin))
+        acc = (tp + tn) / total
+        precision = tp / max(1, tp + fp)
+        recall = tp / max(1, tp + fn)
+        f1 = (2 * precision * recall) / max(1e-6, precision + recall)
+        fpr = fp / max(1, fp + tn)
+        fnr = fn / max(1, fn + tp)
+
+        hn_fps = int(np.sum(preds_bin[hard_neg_indices] == 1))
+        gn_fps = int(np.sum(preds_bin[gen_neg_indices] == 1))
+        pos_detected = int(np.sum(preds_bin[pos_indices] == 1))
+
+        results_by_thresh[thresh] = {
+            "threshold": thresh,
+            "tp": tp,
+            "tn": tn,
+            "fp": fp,
+            "fn": fn,
+            "accuracy": round(float(acc), 4),
+            "precision": round(float(precision), 4),
+            "recall": round(float(recall), 4),
+            "f1": round(float(f1), 4),
+            "fpr": round(float(fpr), 4),
+            "fnr": round(float(fnr), 4),
+            "positive_recall_count": pos_detected,
+            "positive_total": len(pos_indices),
+            "hard_neg_fp_count": hn_fps,
+            "hard_neg_total": len(hard_neg_indices),
+            "gen_neg_fp_count": gn_fps,
+            "gen_neg_total": len(gen_neg_indices),
+        }
+
+    sample_details = []
+    for i, s in enumerate(holdout_samples):
+        sample_details.append({
+            "filename": s.get("filename"),
+            "phrase": s.get("phrase"),
+            "category": s.get("category"),
+            "condition": s.get("condition"),
+            "target_label": int(s.get("target_label", 0)),
+            "score": round(float(scores[i]), 4),
+        })
+
+    return {
+        "model_path": onnx_path,
+        "model_sha256": compute_file_sha256(onnx_path),
+        "evaluation_mode": "streaming" if used_streaming else "static_embeddings",
+        "thresholds": results_by_thresh,
+        "sample_details": sample_details,
+    }
+
+
+def compare_models_on_locked_holdout(
+    active_onnx_path: str,
+    candidate_onnx_path: str,
+    X_holdout: np.ndarray,
+    y_holdout: np.ndarray,
+    holdout_samples: List[Dict[str, Any]],
+    thresholds: Sequence[float] = (0.30, 0.40, 0.50, 0.55, 0.60, 0.65, 0.70),
+    human_dir: Optional[Path] = None,
+) -> Dict[str, Any]:
+    """Side-by-side locked holdout evaluation comparing active model vs candidate model."""
+    active_eval = evaluate_onnx_model_on_locked_holdout(
+        active_onnx_path, X_holdout, y_holdout, holdout_samples, thresholds, human_dir=human_dir
+    )
+    candidate_eval = evaluate_onnx_model_on_locked_holdout(
+        candidate_onnx_path, X_holdout, y_holdout, holdout_samples, thresholds, human_dir=human_dir
+    )
+
+    logger.info("==========================================================================================")
+    logger.info("                   LOCKED HUMAN HOLDOUT EVALUATION COMPARISON")
+    logger.info("==========================================================================================")
+    logger.info(
+        "%-6s | %-10s | %-16s | %-16s | %-10s | %-6s | %-6s",
+        "Thresh", "Model", "Recall (TP/17)", "HardNeg FP(/12)", "GenNeg FP", "Acc", "F1"
+    )
+    logger.info("-" * 90)
+
+    for t in thresholds:
+        a_m = active_eval["thresholds"][t]
+        c_m = candidate_eval["thresholds"][t]
+        logger.info(
+            "%-6.2f | %-10s | %2d/%-2d (%5.1f%%)   | %2d/%-2d (%5.1f%%)    | %2d/%-2d     | %5.3f  | %5.3f",
+            t, "Active",
+            a_m["positive_recall_count"], a_m["positive_total"], a_m["recall"] * 100,
+            a_m["hard_neg_fp_count"], a_m["hard_neg_total"], (a_m["hard_neg_fp_count"] / a_m["hard_neg_total"]) * 100,
+            a_m["gen_neg_fp_count"], a_m["gen_neg_total"],
+            a_m["accuracy"], a_m["f1"]
+        )
+        logger.info(
+            "%-6.2f | %-10s | %2d/%-2d (%5.1f%%)   | %2d/%-2d (%5.1f%%)    | %2d/%-2d     | %5.3f  | %5.3f",
+            t, "Candidate",
+            c_m["positive_recall_count"], c_m["positive_total"], c_m["recall"] * 100,
+            c_m["hard_neg_fp_count"], c_m["hard_neg_total"], (c_m["hard_neg_fp_count"] / c_m["hard_neg_total"]) * 100,
+            c_m["gen_neg_fp_count"], c_m["gen_neg_total"],
+            c_m["accuracy"], c_m["f1"]
+        )
+        logger.info("-" * 90)
+
+    return {
+        "active": active_eval,
+        "candidate": candidate_eval,
+    }
+
+
+# ============================================================================
 # Model Export & Validation
 # ============================================================================
 def export_model_to_onnx(
@@ -374,13 +560,20 @@ def export_model_to_onnx(
 ) -> Path:
     """Export PyTorch model to ONNX format compatible with openWakeWord."""
     output_path = Path(output_onnx_path)
+
+    # Critical Safety Guard: NEVER overwrite active model
+    if output_path.resolve() == Path(DEFAULT_ACTIVE_MODEL).resolve():
+        raise PermissionError(
+            f"CRITICAL SAFETY VIOLATION: Attempted to overwrite active production model at {DEFAULT_ACTIVE_MODEL}!"
+        )
+
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     model.eval()
     model.to("cpu")
     dummy_input = torch.randn(1, 16, 96, dtype=torch.float32)
 
-    logger.info("Exporting hardened model to ONNX at %s...", output_path)
+    logger.info("Exporting candidate model to ONNX at %s...", output_path)
     torch.onnx.export(
         model,
         dummy_input,
@@ -429,20 +622,25 @@ def verify_with_openwakeword_provider(onnx_path: Path) -> bool:
 # Main Orchestration CLI
 # ============================================================================
 def main() -> None:
-    parser = argparse.ArgumentParser(description="E.V. Task 014F-5 Hardened Training Pipeline")
-    parser.add_argument("--epochs", type=int, default=40, help="Training epochs")
+    parser = argparse.ArgumentParser(description="E.V. Task 014F-10 Controlled Human-Augmented Retraining")
+    parser.add_argument("--epochs", type=int, default=45, help="Training epochs")
     parser.add_argument("--lr", type=float, default=8e-4, help="Learning rate")
     parser.add_argument("--batch-size", type=int, default=32, help="Batch size")
-    parser.add_argument("--output-dir", type=str, default=DEFAULT_MODEL_OUTPUT_DIR, help="Output directory")
-    parser.add_argument("--model-name", type=str, default=DEFAULT_MODEL_FILENAME, help="Output model filename")
+    parser.add_argument("--output-dir", type=str, default=DEFAULT_CANDIDATE_OUTPUT_DIR, help="Output directory")
+    parser.add_argument("--model-name", type=str, default=DEFAULT_CANDIDATE_FILENAME, help="Output model filename")
     parser.add_argument("--seed", type=int, default=42, help="Random seed")
+    parser.add_argument("--neg-weight", type=float, default=1.4, help="Negative penalty weight")
 
     args = parser.parse_args()
 
     start_time = time.monotonic()
-    logger.info("=== E.V. TASK 014F-5: HARDENED 'HEY EV' TRAINING PIPELINE ===")
+    logger.info("=== E.V. TASK 014F-10: CONTROLLED HUMAN-AUGMENTED WAKE-WORD RETRAINING ===")
 
-    # Step 1: Hardened Dataset Generation
+    # Phase 1: Verify Baseline Model Immutability before starting
+    pre_sha = verify_active_model_hash()
+    logger.info("Phase 1 Passed: Active model hey_ev.onnx verified SHA: %s", pre_sha)
+
+    # Phase 2 & 3: Generate Dataset with strict holdout exclusion & leakage audit
     pipeline = WakeWordDatasetPipeline(random_seed=args.seed)
     metadata, clips, labels = pipeline.generate_hardened_audio_dataset(
         num_positive_base=48,
@@ -450,12 +648,12 @@ def main() -> None:
         augmentations_per_negative=6,
     )
 
-    # Step 2: Feature Extraction (Train / Val / Holdout)
-    X_train, y_train, X_val, y_val, X_holdout, y_holdout = pipeline.extract_features(clips, labels, metadata)
-    meta_holdout = [m for m in metadata if m.split == "holdout"]
+    # Extract Features
+    X_train, y_train, X_val, y_val, _, _ = pipeline.extract_features(clips, labels, metadata)
 
-    # Step 3: Hardened Model Training
-    hardened_model, val_metrics = train_hey_ev_model(
+    # Phase 4 & 5: Train Candidate Model
+    logger.info("Training speaker-adapted candidate model with deterministic seed %d...", args.seed)
+    candidate_model, val_metrics = train_hey_ev_model(
         X_train,
         y_train,
         X_val,
@@ -463,31 +661,79 @@ def main() -> None:
         epochs=args.epochs,
         batch_size=args.batch_size,
         learning_rate=args.lr,
-        neg_penalty_weight=1.3,
+        neg_penalty_weight=args.neg_weight,
         random_seed=args.seed,
     )
 
-    # Step 4: Comparison with Baseline on Unbiased Holdout Set
-    comparison = compare_with_baseline_model(
-        DEFAULT_BASELINE_MODEL,
-        hardened_model,
+    # Phase 6: Save Candidate Model (NEVER overwrites hey_ev.onnx)
+    output_candidate_path = Path(args.output_dir) / args.model_name
+    export_model_to_onnx(candidate_model, str(output_candidate_path))
+    candidate_sha = compute_file_sha256(output_candidate_path)
+    logger.info("Candidate exported to: %s (SHA256: %s)", output_candidate_path, candidate_sha)
+
+    # Phase 8: Final Locked Holdout Evaluation
+    logger.info("Executing Final Locked Human Holdout Benchmark...")
+    X_holdout, y_holdout, holdout_samples = pipeline.extract_locked_holdout_features()
+
+    comparison = compare_models_on_locked_holdout(
+        DEFAULT_ACTIVE_MODEL,
+        str(output_candidate_path),
         X_holdout,
         y_holdout,
-        meta_holdout,
+        holdout_samples,
+        human_dir=pipeline.human_dir,
     )
 
-    # Step 5: Export Hardened Model to ONNX
-    output_path = Path(args.output_dir) / args.model_name
-    export_model_to_onnx(hardened_model, str(output_path))
+    # Phase 14: Verify OpenWakeWord runtime compatibility
+    verify_with_openwakeword_provider(output_candidate_path)
 
-    # Step 6: Verify OpenWakeWord Provider
-    verify_with_openwakeword_provider(output_path)
+    # Phase 16: Verify Active Model Immutability after task
+    post_sha = verify_active_model_hash()
+    assert post_sha == pre_sha == EXPECTED_ACTIVE_SHA
+    logger.info("Phase 16 Passed: Active model hey_ev.onnx remains 100%% byte-for-byte identical (SHA: %s)", post_sha)
+
+    # Save Reproducibility Record
+    rep_record = {
+        "task": "TASK_014F_10",
+        "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "active_baseline_model": {
+            "path": DEFAULT_ACTIVE_MODEL,
+            "sha256": post_sha,
+        },
+        "candidate_model": {
+            "path": str(output_candidate_path),
+            "sha256": candidate_sha,
+            "architecture": "OpenWakeWordNet(16,96 -> 128 -> FCNBlock(128) -> Sigmoid)",
+        },
+        "holdout_manifest": {
+            "path": str(pipeline.holdout_manifest_path),
+            "samples_count": len(holdout_samples),
+        },
+        "training_config": {
+            "seed": args.seed,
+            "epochs": args.epochs,
+            "batch_size": args.batch_size,
+            "learning_rate": args.lr,
+            "neg_penalty_weight": args.neg_weight,
+            "optimizer": "AdamW",
+            "weight_decay": 1e-4,
+        },
+        "dataset_summary": {
+            "total_training_clips": len(X_train),
+            "total_val_clips": len(X_val),
+            "leakage_audit": pipeline.last_leakage_audit,
+        },
+        "development_val_metrics": val_metrics,
+        "locked_holdout_comparison": comparison,
+    }
+
+    rep_path = Path(args.output_dir) / "reproducibility_record_014f10.json"
+    with open(rep_path, "w", encoding="utf-8") as rf:
+        json.dump(rep_record, rf, indent=2)
+    logger.info("Reproducibility record saved to: %s", rep_path)
 
     elapsed = time.monotonic() - start_time
-    logger.info("=== HARDENED TRAINING & EXPORT COMPLETED in %.2f seconds ===", elapsed)
-    logger.info("Exported Model: %s (Size: %d bytes)", output_path, output_path.stat().st_size)
-    logger.info("Validation Metrics: %s", val_metrics)
-    logger.info("Holdout Breakdown: %s", comparison.get("hardened", {}).get("phrase_breakdown", {}))
+    logger.info("=== E.V. TASK 014F-10 COMPLETE in %.2f seconds ===", elapsed)
 
 
 if __name__ == "__main__":

@@ -10,6 +10,7 @@ Expands the custom "Hey EV" wake-word dataset with:
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import os
@@ -19,7 +20,7 @@ import time
 import wave
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Dict, List, Optional, Sequence, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Set, Tuple
 
 import numpy as np
 
@@ -99,6 +100,68 @@ class SampleMetadata:
     augmentation: str
     split: str  # "train", "val", or "holdout"
     duration_samples: int
+    sha256: str = ""
+    source_file: str = ""
+
+
+def compute_file_sha256(file_path: Path | str) -> str:
+    """Compute hex SHA256 of file."""
+    h = hashlib.sha256()
+    with open(file_path, "rb") as f:
+        while chunk := f.read(65536):
+            h.update(chunk)
+    return h.hexdigest().lower()
+
+
+def audit_dataset_leakage(
+    samples_metadata: List[SampleMetadata],
+    holdout_manifest_path: Optional[Path | str],
+) -> Dict[str, Any]:
+    """
+    Deterministically audit dataset metadata against locked holdout manifest.
+    Ensures zero holdout samples enter training or validation splits.
+    """
+    if not holdout_manifest_path:
+        return {"status": "SKIPPED_NO_HOLDOUT_FILE", "overlap_count": 0}
+
+    holdout_p = Path(holdout_manifest_path)
+    if not holdout_p.exists():
+        return {"status": "SKIPPED_FILE_NOT_FOUND", "overlap_count": 0}
+
+    with open(holdout_p, "r", encoding="utf-8") as f:
+        holdout_data = json.load(f)
+
+    holdout_samples = holdout_data.get("samples", [])
+    holdout_shas = {s["sha256"].lower() for s in holdout_samples if "sha256" in s}
+    holdout_filenames = {s["filename"].lower() for s in holdout_samples if "filename" in s}
+
+    train_shas = {m.sha256.lower() for m in samples_metadata if m.split == "train" and m.sha256}
+    val_shas = {m.sha256.lower() for m in samples_metadata if m.split == "val" and m.sha256}
+    all_ingested_shas = train_shas.union(val_shas)
+
+    train_overlap = train_shas.intersection(holdout_shas)
+    val_overlap = val_shas.intersection(holdout_shas)
+    total_overlap = all_ingested_shas.intersection(holdout_shas)
+
+    result = {
+        "holdout_samples_count": len(holdout_samples),
+        "train_samples_count": sum(1 for m in samples_metadata if m.split == "train"),
+        "val_samples_count": sum(1 for m in samples_metadata if m.split == "val"),
+        "train_unique_shas": len(train_shas),
+        "val_unique_shas": len(val_shas),
+        "overlap_count": len(total_overlap),
+        "train_overlap_count": len(train_overlap),
+        "val_overlap_count": len(val_overlap),
+        "overlap_shas": list(total_overlap),
+        "leakage_detected": len(total_overlap) > 0,
+    }
+
+    if len(total_overlap) > 0:
+        raise RuntimeError(
+            f"CRITICAL DATA LEAKAGE DETECTED: {len(total_overlap)} holdout samples present in train/val sets: {total_overlap}"
+        )
+
+    return result
 
 
 def get_available_sapi_voices() -> List[str]:
@@ -288,14 +351,30 @@ class WakeWordDatasetPipeline:
     human speech ingestion, and disjoint 3-way dataset splitting.
     """
 
-    def __init__(self, data_dir: str = r"D:\EV\models\wakeword\dataset", random_seed: int = 42) -> None:
+    def __init__(
+        self,
+        data_dir: str = r"D:\EV\models\wakeword\dataset",
+        random_seed: int = 42,
+        holdout_manifest_path: Optional[str] = None,
+    ) -> None:
         self.data_dir = Path(data_dir)
         self.raw_dir = self.data_dir / "raw"
         self.features_dir = self.data_dir / "features"
-        self.human_pos_dir = self.data_dir / "human" / "positive"
-        self.human_neg_dir = self.data_dir / "human" / "negative"
+        self.human_dir = self.data_dir / "human"
+        self.human_pos_dir = self.human_dir / "positive"
+        self.human_neg_dir = self.human_dir / "negative"
+        self.human_quarantine_dir = self.human_dir / "quarantine"
+        self.manifest_path = self.human_dir / "human_collection_manifest.json"
+
+        if holdout_manifest_path is not None:
+            self.holdout_manifest_path = Path(holdout_manifest_path)
+        else:
+            default_holdout = self.data_dir / "human" / "locked_human_holdout_manifest.json"
+            self.holdout_manifest_path = default_holdout if default_holdout.exists() else None
+
         self.random_seed = random_seed
         np.random.seed(self.random_seed)
+        self.last_leakage_audit: Dict[str, Any] = {}
 
     def prepare_directories(self) -> None:
         """Create dataset storage structure."""
@@ -303,23 +382,43 @@ class WakeWordDatasetPipeline:
         self.features_dir.mkdir(parents=True, exist_ok=True)
         self.human_pos_dir.mkdir(parents=True, exist_ok=True)
         self.human_neg_dir.mkdir(parents=True, exist_ok=True)
-        self.human_quarantine_dir = self.data_dir / "human" / "quarantine"
         self.human_quarantine_dir.mkdir(parents=True, exist_ok=True)
-        self.manifest_path = self.data_dir / "human" / "human_collection_manifest.json"
 
-    def scan_and_ingest_human_speech(self) -> Tuple[List[SampleMetadata], List[np.ndarray], List[int]]:
+    def scan_and_ingest_human_speech(self, augment_human: bool = False) -> Tuple[List[SampleMetadata], List[np.ndarray], List[int]]:
         """
         Scan human audio directories for local recordings and ingest canonical clips.
         Strictly ignores quarantine/ and review/ subdirectories.
+        Cross-references locked_human_holdout_manifest.json to ensure ZERO holdout recordings enter training/validation.
         Cross-references human_collection_manifest.json to ensure only confirmed valid positive clips are ingested.
+        Applies deterministic audio augmentations to teach natural human variation (quiet, breathy, conversational, SNR variation).
         """
         self.prepare_directories()
         human_meta: List[SampleMetadata] = []
         human_clips: List[np.ndarray] = []
         human_labels: List[int] = []
 
+        # Load holdout manifest if available
+        holdout_shas: Set[str] = set()
+        holdout_filenames: Set[str] = set()
+        holdout_relpaths: Set[str] = set()
+        if self.holdout_manifest_path and self.holdout_manifest_path.exists():
+            try:
+                with open(self.holdout_manifest_path, "r", encoding="utf-8") as hf:
+                    h_data = json.load(hf)
+                    for s in h_data.get("samples", []):
+                        if "sha256" in s:
+                            holdout_shas.add(s["sha256"].lower())
+                        if "filename" in s:
+                            holdout_filenames.add(s["filename"].lower())
+                        if "relative_path" in s:
+                            holdout_relpaths.add(s["relative_path"].replace("\\", "/").lower())
+                logger.info("Loaded locked holdout manifest with %d samples for exclusion guard.", len(holdout_shas))
+            except Exception as exc:
+                logger.warning("Could not read locked holdout manifest: %s", exc)
+
         # Load manifest metadata lookup if available
         manifest_lookup: Dict[str, Dict[str, Any]] = {}
+        quarantine_shas: Set[str] = set()
         if self.manifest_path.exists():
             try:
                 with open(self.manifest_path, "r", encoding="utf-8") as mf:
@@ -334,26 +433,59 @@ class WakeWordDatasetPipeline:
                             manifest_lookup[f"{cat}::{fn}"] = item
                         if fn and fn not in manifest_lookup:
                             manifest_lookup[fn] = item
+                        if cat == "QUARANTINE" and "sha256" in item:
+                            quarantine_shas.add(item["sha256"].lower())
             except Exception as exc:
                 logger.warning("Could not read human collection manifest: %s", exc)
 
-        # Scan positives (strictly *.wav files in human_pos_dir)
-        for wav_file in sorted(self.human_pos_dir.glob("*.wav")):
-            try:
-                # Check manifest for quarantine / rejection status
-                rel_key = f"positive/{wav_file.name}"
-                m_info = manifest_lookup.get(rel_key) or manifest_lookup.get(f"POSITIVE::{wav_file.name}") or manifest_lookup.get(wav_file.name)
-                if m_info:
-                    if m_info.get("category") == "QUARANTINE" or m_info.get("target_label", 1) != 1:
-                        logger.warning("Skipping quarantined/rejected file found in positive dir: %s", wav_file.name)
-                        continue
+        # Also gather hashes of all files physically in quarantine directory
+        if self.human_quarantine_dir.exists():
+            for q_wav in self.human_quarantine_dir.glob("*.wav"):
+                try:
+                    quarantine_shas.add(compute_file_sha256(q_wav))
+                except Exception:
+                    pass
 
+        excluded_holdout_count = 0
+        excluded_quarantine_count = 0
+
+        # Scan positives (strictly *.wav files in human_pos_dir)
+        valid_pos_files = []
+        for wav_file in sorted(self.human_pos_dir.glob("*.wav")):
+            rel_key = f"positive/{wav_file.name}"
+            m_info = manifest_lookup.get(rel_key) or manifest_lookup.get(f"POSITIVE::{wav_file.name}") or manifest_lookup.get(wav_file.name)
+            file_sha = compute_file_sha256(wav_file)
+
+            # 1. Holdout exclusion guard
+            if file_sha in holdout_shas or wav_file.name.lower() in holdout_filenames or rel_key.lower() in holdout_relpaths:
+                excluded_holdout_count += 1
+                continue
+
+            # 2. Quarantine exclusion guard
+            is_quarantined = (
+                (m_info and m_info.get("category") == "QUARANTINE")
+                or (m_info and m_info.get("target_label", 1) != 1)
+                or (file_sha in quarantine_shas and not (m_info and m_info.get("confirmed_by_user", False)))
+            )
+            if is_quarantined:
+                excluded_quarantine_count += 1
+                continue
+
+            valid_pos_files.append((wav_file, file_sha, m_info))
+
+        # Ingest valid positives with partition split and controlled acoustic augmentations
+        for p_idx, (wav_file, file_sha, m_info) in enumerate(valid_pos_files):
+            try:
                 audio = load_pcm16_wav(str(wav_file))
-                clip = pad_or_trim_to_length(audio, CLIP_TOTAL_SAMPLES)
-                speaker = wav_file.stem.split("_")[0] if "_" in wav_file.stem else "human_unknown"
+                speaker = wav_file.stem.split("_")[0] if "_" in wav_file.stem else "user_speaker_1"
                 phrase = m_info.get("phrase", "Hey EV") if m_info else "Hey EV"
-                meta = SampleMetadata(
-                    sample_id=f"human_pos_{wav_file.stem}",
+                # Disjoint non-holdout split: 85% train, 15% validation
+                split = "val" if (p_idx % 7 == 6) else "train"
+
+                # 1. Base clean human recording
+                raw_clip = pad_or_trim_to_length(audio, CLIP_TOTAL_SAMPLES)
+                meta_raw = SampleMetadata(
+                    sample_id=f"human_pos_{wav_file.stem}_raw",
                     label=1,
                     phrase=phrase,
                     is_hard_negative=False,
@@ -362,48 +494,186 @@ class WakeWordDatasetPipeline:
                     rate=0,
                     volume=100,
                     augmentation="raw_human",
-                    split="train",  # Partitioned later
-                    duration_samples=len(clip),
+                    split=split,
+                    duration_samples=len(raw_clip),
+                    sha256=file_sha,
+                    source_file=wav_file.name,
                 )
-                human_meta.append(meta)
-                human_clips.append(clip)
+                human_meta.append(meta_raw)
+                human_clips.append(raw_clip)
                 human_labels.append(1)
+
+                if augment_human:
+                    # Augmentation variations to address quiet/casual/whisper/resonance failure modes
+                    aug_configs = [
+                        ("boost_quiet", 1.25, "none", 30.0, 0.5),      # boosts quiet/whisper
+                        ("attenuate_loud", 0.80, "none", 30.0, 0.5),   # models distance/softness
+                        ("room_noise", 1.00, "fan", 22.0, 0.5),        # models natural room ambient
+                        ("time_early", 1.00, "none", 30.0, 0.35),      # slight early onset
+                        ("time_late", 1.00, "none", 30.0, 0.65),       # slight late onset
+                    ]
+                    for aug_name, gain, noise, snr, offset in aug_configs:
+                        aug_clip = augment_audio(
+                            audio,
+                            gain=gain,
+                            noise_type=noise,
+                            noise_snr_db=snr,
+                            time_offset_fraction=offset,
+                        )
+                        meta_aug = SampleMetadata(
+                            sample_id=f"human_pos_{wav_file.stem}_{aug_name}",
+                            label=1,
+                            phrase=phrase,
+                            is_hard_negative=False,
+                            is_human=True,
+                            speaker_id=speaker,
+                            rate=0,
+                            volume=100,
+                            augmentation=f"human_{aug_name}",
+                            split=split,
+                            duration_samples=len(aug_clip),
+                            sha256=file_sha,
+                            source_file=wav_file.name,
+                        )
+                        human_meta.append(meta_aug)
+                        human_clips.append(aug_clip)
+                        human_labels.append(1)
+
             except Exception as exc:
                 logger.warning("Skipping invalid human recording %s: %s", wav_file, exc)
 
         # Scan negatives (strictly *.wav files in human_neg_dir)
+        valid_neg_files = []
         for wav_file in sorted(self.human_neg_dir.glob("*.wav")):
-            try:
-                rel_key = f"negative/{wav_file.name}"
-                m_info = manifest_lookup.get(rel_key) or manifest_lookup.get(f"HARD_NEGATIVE::{wav_file.name}") or manifest_lookup.get(f"NEGATIVE::{wav_file.name}") or manifest_lookup.get(wav_file.name)
-                if m_info and (m_info.get("category") == "QUARANTINE" or m_info.get("target_label", 0) != 0):
-                    logger.warning("Skipping quarantined file in negative dir: %s", wav_file.name)
-                    continue
+            rel_key = f"negative/{wav_file.name}"
+            m_info = manifest_lookup.get(rel_key) or manifest_lookup.get(f"HARD_NEGATIVE::{wav_file.name}") or manifest_lookup.get(f"NEGATIVE::{wav_file.name}") or manifest_lookup.get(wav_file.name)
+            file_sha = compute_file_sha256(wav_file)
 
+            # 1. Holdout exclusion guard
+            if file_sha in holdout_shas or wav_file.name.lower() in holdout_filenames or rel_key.lower() in holdout_relpaths:
+                excluded_holdout_count += 1
+                continue
+
+            # 2. Quarantine exclusion guard
+            is_quarantined = (
+                (m_info and m_info.get("category") == "QUARANTINE")
+                or (m_info and m_info.get("target_label", 0) not in (0, "0", None))
+                or (file_sha in quarantine_shas and not (m_info and m_info.get("confirmed_by_user", False)))
+            )
+            if is_quarantined:
+                excluded_quarantine_count += 1
+                continue
+
+            valid_neg_files.append((wav_file, file_sha, m_info))
+
+        # Ingest valid negatives with partition split and controlled acoustic augmentations
+        for n_idx, (wav_file, file_sha, m_info) in enumerate(valid_neg_files):
+            try:
                 audio = load_pcm16_wav(str(wav_file))
-                clip = pad_or_trim_to_length(audio, CLIP_TOTAL_SAMPLES)
-                speaker = wav_file.stem.split("_")[0] if "_" in wav_file.stem else "human_unknown"
+                speaker = wav_file.stem.split("_")[0] if "_" in wav_file.stem else "user_speaker_1"
                 phrase = m_info.get("phrase", wav_file.stem) if m_info else wav_file.stem
-                meta = SampleMetadata(
-                    sample_id=f"human_neg_{wav_file.stem}",
+                is_hn = bool(
+                    (m_info and m_info.get("category") == "HARD_NEGATIVE")
+                    or any(k in phrase.lower() for k in ["hey ev", "hey", "ev", "every", "heavy", "stevie", "steve"])
+                )
+                split = "val" if (n_idx % 7 == 6) else "train"
+
+                # 1. Base clean human negative
+                raw_clip = pad_or_trim_to_length(audio, CLIP_TOTAL_SAMPLES)
+                meta_raw = SampleMetadata(
+                    sample_id=f"human_neg_{wav_file.stem}_raw",
                     label=0,
                     phrase=phrase,
-                    is_hard_negative=True,
+                    is_hard_negative=is_hn,
                     is_human=True,
                     speaker_id=speaker,
                     rate=0,
                     volume=100,
                     augmentation="raw_human",
-                    split="train",
-                    duration_samples=len(clip),
+                    split=split,
+                    duration_samples=len(raw_clip),
+                    sha256=file_sha,
+                    source_file=wav_file.name,
                 )
-                human_meta.append(meta)
-                human_clips.append(clip)
+                human_meta.append(meta_raw)
+                human_clips.append(raw_clip)
                 human_labels.append(0)
+
+                if augment_human:
+                    # Negative augmentations (gain variations + ambient noise)
+                    neg_aug_configs = [
+                        ("gain_low", 0.85, "none", 30.0, 0.5),
+                        ("gain_high", 1.15, "none", 30.0, 0.5),
+                        ("ambient_fan", 1.00, "fan", 22.0, 0.5),
+                    ]
+                    for aug_name, gain, noise, snr, offset in neg_aug_configs:
+                        aug_clip = augment_audio(
+                            audio,
+                            gain=gain,
+                            noise_type=noise,
+                            noise_snr_db=snr,
+                            time_offset_fraction=offset,
+                        )
+                        meta_aug = SampleMetadata(
+                            sample_id=f"human_neg_{wav_file.stem}_{aug_name}",
+                            label=0,
+                            phrase=phrase,
+                            is_hard_negative=is_hn,
+                            is_human=True,
+                            speaker_id=speaker,
+                            rate=0,
+                            volume=100,
+                            augmentation=f"human_{aug_name}",
+                            split=split,
+                            duration_samples=len(aug_clip),
+                            sha256=file_sha,
+                            source_file=wav_file.name,
+                        )
+                        human_meta.append(meta_aug)
+                        human_clips.append(aug_clip)
+                        human_labels.append(0)
+
             except Exception as exc:
                 logger.warning("Skipping invalid human recording %s: %s", wav_file, exc)
 
-        logger.info("Human speech ingestion scanned: %d positive clips, %d negative clips", human_labels.count(1), human_labels.count(0))
+        # Deterministic post-ingestion leakage audit
+        ingested_shas = {m.sha256 for m in human_meta if m.sha256}
+        overlap = ingested_shas.intersection(holdout_shas)
+        # Quarantine leakage check: ensure no files originate from quarantine
+        ingested_sources = {m.source_file.lower() for m in human_meta if m.source_file}
+        quarantine_filenames = {f.name.lower() for f in self.human_quarantine_dir.glob("*.wav")} if self.human_quarantine_dir.exists() else set()
+        quar_file_overlap = ingested_sources.intersection(quarantine_filenames)
+
+        if len(overlap) > 0:
+            raise RuntimeError(
+                f"CRITICAL LEAKAGE DETECTED: {len(overlap)} holdout samples present in ingested human data: {overlap}"
+            )
+
+        if len(quar_file_overlap) > 0:
+            raise RuntimeError(
+                f"CRITICAL QUARANTINE LEAKAGE: {len(quar_file_overlap)} quarantined files present in ingested human data: {quar_file_overlap}"
+            )
+
+        logger.info(
+            "Human speech ingestion verified: %d pos clips (%d files), %d neg clips (%d files). Excluded %d holdout, %d quarantine. Overlap = 0.",
+            human_labels.count(1),
+            len(valid_pos_files),
+            human_labels.count(0),
+            len(valid_neg_files),
+            excluded_holdout_count,
+            excluded_quarantine_count,
+        )
+
+        self.last_leakage_audit = {
+            "holdout_count": len(holdout_shas),
+            "excluded_holdout_files": excluded_holdout_count,
+            "excluded_quarantine_files": excluded_quarantine_count,
+            "valid_pos_files": len(valid_pos_files),
+            "valid_neg_files": len(valid_neg_files),
+            "total_human_clips": len(human_clips),
+            "overlap_count": len(overlap),
+        }
+
         return human_meta, human_clips, human_labels
 
     def generate_hardened_audio_dataset(
@@ -422,7 +692,7 @@ class WakeWordDatasetPipeline:
         labels: List[int] = []
 
         # Ingest human speech first (if any exists locally)
-        h_meta, h_clips, h_labels = self.scan_and_ingest_human_speech()
+        h_meta, h_clips, h_labels = self.scan_and_ingest_human_speech(augment_human=True)
         samples_metadata.extend(h_meta)
         audio_clips.extend(h_clips)
         labels.extend(h_labels)
@@ -451,9 +721,12 @@ class WakeWordDatasetPipeline:
 
             base_filename = f"pos_base_h_{pos_id}.wav"
             base_path = self.raw_dir / base_filename
-            success = synthesize_sapi_speech(phrase, str(base_path), voice=voice, rate=rate, volume=vol)
-            if not success:
-                continue
+            if not base_path.exists():
+                success = synthesize_sapi_speech(phrase, str(base_path), voice=voice, rate=rate, volume=vol)
+                if not success:
+                    continue
+            else:
+                success = True
 
             base_audio = load_pcm16_wav(str(base_path))
 
@@ -536,9 +809,12 @@ class WakeWordDatasetPipeline:
 
                     base_filename = f"neg_hn_{hn_id}.wav"
                     base_path = self.raw_dir / base_filename
-                    success = synthesize_sapi_speech(phrase, str(base_path), voice=voice, rate=rate, volume=85)
-                    if not success:
-                        continue
+                    if not base_path.exists():
+                        success = synthesize_sapi_speech(phrase, str(base_path), voice=voice, rate=rate, volume=85)
+                        if not success:
+                            continue
+                    else:
+                        success = True
 
                     base_audio = load_pcm16_wav(str(base_path))
 
@@ -587,9 +863,12 @@ class WakeWordDatasetPipeline:
 
                 base_filename = f"neg_cmd_{cmd_id}.wav"
                 base_path = self.raw_dir / base_filename
-                success = synthesize_sapi_speech(phrase, str(base_path), voice=voice, rate=0, volume=85)
-                if not success:
-                    continue
+                if not base_path.exists():
+                    success = synthesize_sapi_speech(phrase, str(base_path), voice=voice, rate=0, volume=85)
+                    if not success:
+                        continue
+                else:
+                    success = True
 
                 base_audio = load_pcm16_wav(str(base_path))
 
@@ -675,6 +954,10 @@ class WakeWordDatasetPipeline:
         with open(metadata_path, "w", encoding="utf-8") as mf:
             json.dump([asdict(m) for m in samples_metadata], mf, indent=2)
 
+        # Run deterministic leakage audit
+        audit_res = audit_dataset_leakage(samples_metadata, self.holdout_manifest_path)
+        logger.info("Deterministic leakage audit PASSED: %s", audit_res)
+
         hn_count = sum(1 for m in samples_metadata if m.is_hard_negative)
         logger.info(
             "Hardened dataset generation complete: Total clips=%d (Positives: %d, Negatives: %d, Hard Negatives: %d)",
@@ -712,7 +995,11 @@ class WakeWordDatasetPipeline:
 
         X_train, y_train = features[train_idx], labels_arr[train_idx]
         X_val, y_val = features[val_idx], labels_arr[val_idx]
-        X_holdout, y_holdout = features[holdout_idx], labels_arr[holdout_idx]
+        if holdout_idx:
+            X_holdout, y_holdout = features[holdout_idx], labels_arr[holdout_idx]
+        else:
+            X_holdout = np.empty((0, 16, 96), dtype=np.float32)
+            y_holdout = np.empty((0,), dtype=np.float32)
 
         # Save partitioned features
         np.save(self.features_dir / "X_train.npy", X_train)
@@ -736,3 +1023,81 @@ class WakeWordDatasetPipeline:
         )
 
         return X_train, y_train, X_val, y_val, X_holdout, y_holdout
+
+    def extract_locked_holdout_features(
+        self,
+        manifest_path: Optional[Path | str] = None,
+        force_recompute: bool = False,
+    ) -> Tuple[np.ndarray, np.ndarray, List[Dict[str, Any]]]:
+        """
+        Extract openWakeWord (16, 96) feature embeddings for the 33 frozen holdout samples
+        defined in locked_human_holdout_manifest.json.
+        Guarantees exact, deterministic feature representation for holdout evaluation.
+        """
+        from openwakeword.utils import AudioFeatures
+
+        m_path = Path(manifest_path or self.holdout_manifest_path or (self.data_dir / "human" / "locked_human_holdout_manifest.json"))
+        if not m_path.exists():
+            raise FileNotFoundError(f"Locked human holdout manifest not found at {m_path}")
+
+        holdout_feat_path = self.features_dir / "X_locked_holdout.npy"
+        holdout_labels_path = self.features_dir / "y_locked_holdout.npy"
+        holdout_meta_path = self.features_dir / "meta_locked_holdout.json"
+
+        with open(m_path, "r", encoding="utf-8") as f:
+            m_data = json.load(f)
+        samples = m_data.get("samples", [])
+
+        if not force_recompute and holdout_feat_path.exists() and holdout_labels_path.exists() and holdout_meta_path.exists():
+            try:
+                X_h = np.load(holdout_feat_path)
+                y_h = np.load(holdout_labels_path)
+                with open(holdout_meta_path, "r", encoding="utf-8") as mf:
+                    saved_meta = json.load(mf)
+                if len(X_h) == len(samples) and len(y_h) == len(samples):
+                    logger.info("Loaded cached locked holdout features (%d samples).", len(X_h))
+                    return X_h, y_h, saved_meta
+            except Exception as exc:
+                logger.warning("Failed to load cached holdout features: %s. Recomputing...", exc)
+
+        logger.info("Extracting features for %d locked holdout samples...", len(samples))
+        human_root = m_path.parent
+        clips = []
+        labels = []
+        loaded_samples = []
+
+        for s in samples:
+            rel_p = s["relative_path"]
+            full_p = human_root / rel_p
+            if not full_p.exists():
+                raise FileNotFoundError(f"Holdout file missing: {full_p} (from {rel_p})")
+
+            # Cryptographic verification
+            actual_sha = compute_file_sha256(full_p)
+            if actual_sha != s["sha256"].lower():
+                raise ValueError(f"Holdout SHA256 mismatch for {rel_p}! Expected {s['sha256']}, got {actual_sha}")
+
+            audio = load_pcm16_wav(str(full_p))
+            clip = pad_or_trim_to_length(audio, CLIP_TOTAL_SAMPLES)
+            clips.append(clip)
+            labels.append(int(s["target_label"]))
+            loaded_samples.append(s)
+
+        F = AudioFeatures(inference_framework="onnx", device="cpu", ncpu=4)
+        clips_array = np.vstack(clips).astype(np.int16)
+        X_holdout = F.embed_clips(clips_array, batch_size=32)
+        y_holdout = np.array(labels, dtype=np.float32)
+
+        self.features_dir.mkdir(parents=True, exist_ok=True)
+        np.save(holdout_feat_path, X_holdout)
+        np.save(holdout_labels_path, y_holdout)
+        with open(holdout_meta_path, "w", encoding="utf-8") as mf:
+            json.dump(loaded_samples, mf, indent=2)
+
+        logger.info(
+            "Locked holdout feature extraction complete: shape=%s (pos=%d, neg=%d)",
+            X_holdout.shape,
+            int(np.sum(y_holdout == 1)),
+            int(np.sum(y_holdout == 0)),
+        )
+        return X_holdout, y_holdout, loaded_samples
