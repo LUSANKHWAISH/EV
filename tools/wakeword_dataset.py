@@ -325,7 +325,15 @@ class WakeWordDatasetPipeline:
                 with open(self.manifest_path, "r", encoding="utf-8") as mf:
                     m_data = json.load(mf)
                     for item in m_data:
-                        manifest_lookup[item.get("filename", "")] = item
+                        rel = str(item.get("relative_path", "")).replace("\\", "/")
+                        if rel:
+                            manifest_lookup[rel] = item
+                        cat = str(item.get("category", "")).upper()
+                        fn = str(item.get("filename", ""))
+                        if cat and fn:
+                            manifest_lookup[f"{cat}::{fn}"] = item
+                        if fn and fn not in manifest_lookup:
+                            manifest_lookup[fn] = item
             except Exception as exc:
                 logger.warning("Could not read human collection manifest: %s", exc)
 
@@ -333,7 +341,8 @@ class WakeWordDatasetPipeline:
         for wav_file in sorted(self.human_pos_dir.glob("*.wav")):
             try:
                 # Check manifest for quarantine / rejection status
-                m_info = manifest_lookup.get(wav_file.name)
+                rel_key = f"positive/{wav_file.name}"
+                m_info = manifest_lookup.get(rel_key) or manifest_lookup.get(f"POSITIVE::{wav_file.name}") or manifest_lookup.get(wav_file.name)
                 if m_info:
                     if m_info.get("category") == "QUARANTINE" or m_info.get("target_label", 1) != 1:
                         logger.warning("Skipping quarantined/rejected file found in positive dir: %s", wav_file.name)
@@ -365,7 +374,8 @@ class WakeWordDatasetPipeline:
         # Scan negatives (strictly *.wav files in human_neg_dir)
         for wav_file in sorted(self.human_neg_dir.glob("*.wav")):
             try:
-                m_info = manifest_lookup.get(wav_file.name)
+                rel_key = f"negative/{wav_file.name}"
+                m_info = manifest_lookup.get(rel_key) or manifest_lookup.get(f"HARD_NEGATIVE::{wav_file.name}") or manifest_lookup.get(f"NEGATIVE::{wav_file.name}") or manifest_lookup.get(wav_file.name)
                 if m_info and (m_info.get("category") == "QUARANTINE" or m_info.get("target_label", 0) != 0):
                     logger.warning("Skipping quarantined file in negative dir: %s", wav_file.name)
                     continue

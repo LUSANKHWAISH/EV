@@ -143,6 +143,77 @@ COLLECTION_PROMPTS = [
 ]
 
 
+VALID_CONFIRMATION_CHOICES = frozenset({"y", "n", "r", "s", "q"})
+
+
+def normalize_and_validate_confirmation_input(raw_input: Optional[str]) -> Optional[str]:
+    """
+    Validate and normalize human confirmation gate input.
+
+    Returns:
+      Normalized single-character action ('y', 'n', 'r', 's', 'q') if valid.
+      None if the input is invalid, empty, or unaccepted.
+    """
+    if raw_input is None:
+        return None
+    normalized = raw_input.strip().lower()
+    if normalized in VALID_CONFIRMATION_CHOICES:
+        return normalized
+    return None
+
+
+def estimate_speech_snr(
+    audio: np.ndarray,
+    sample_rate: int = CANONICAL_SAMPLE_RATE,
+    frame_ms: float = 50.0,
+) -> Optional[float]:
+    """
+    Estimate Signal-to-Noise Ratio (SNR in dB) for short speech recordings using
+    energy percentile tracking across non-overlapping frames.
+
+    Methodology:
+      1. Slices audio into short analysis frames (default 50 ms / 800 samples at 16kHz).
+      2. Computes RMS energy for each frame.
+      3. Filters out digital silence (RMS < 1.0 quantization count in 16-bit PCM).
+         If insufficient non-zero frames exist (e.g. muted/gated track), returns None (undefined).
+      4. Estimates ambient noise floor from the lowest 20% frame energies (min 1 frame).
+      5. Estimates active speech level from the top 30% frame energies (min 1 frame).
+      6. Computes SNR_dB = 20 * log10(speech_rms / noise_rms).
+      7. Bounds result to physically plausible acoustic range [0.0 dB, 80.0 dB].
+         Returns 0.0 dB if speech energy does not exceed noise floor.
+
+    Returns:
+      float SNR in dB rounded to 2 decimal places, or None if undefined (pure silence/zero noise floor).
+    """
+    if len(audio) == 0:
+        return None
+    frame_len = int(sample_rate * (frame_ms / 1000.0))
+    if frame_len <= 0 or len(audio) < frame_len * 2:
+        return None
+
+    num_frames = len(audio) // frame_len
+    frames = audio[: num_frames * frame_len].reshape(num_frames, frame_len).astype(np.float64)
+    frame_rms = np.sqrt(np.mean(frames**2, axis=1))
+
+    # Identify non-zero frames (at least 1 quantization count RMS in int16)
+    non_zero = frame_rms[frame_rms >= 1.0]
+    if len(non_zero) < 3:
+        return None
+
+    sorted_rms = np.sort(non_zero)
+    noise_count = max(1, int(len(sorted_rms) * 0.20))
+    noise_rms = float(np.mean(sorted_rms[:noise_count]))
+
+    speech_count = max(1, int(len(sorted_rms) * 0.30))
+    speech_rms = float(np.mean(sorted_rms[-speech_count:]))
+
+    if noise_rms < 1.0 or speech_rms <= noise_rms:
+        return 0.0
+
+    snr = 20.0 * np.log10(speech_rms / noise_rms)
+    return round(float(np.clip(snr, 0.0, 80.0)), 2)
+
+
 @dataclass
 class AudioQualityMetrics:
     sample_rate: int
@@ -152,7 +223,7 @@ class AudioQualityMetrics:
     rms: float
     peak: int
     clipping_percent: float
-    snr_db: float
+    snr_db: Optional[float]
     is_silent: bool
     is_valid: bool
     rejection_reason: Optional[str] = None
@@ -186,7 +257,7 @@ def analyze_audio_quality(
     Compute objective quality and acoustic health metrics for a recorded PCM16 clip.
     """
     total_samples = len(audio)
-    duration_sec = round(total_samples / float(sample_rate), 3)
+    duration_sec = round(total_samples / float(sample_rate), 3) if sample_rate > 0 else 0.0
 
     if total_samples == 0:
         return AudioQualityMetrics(
@@ -197,7 +268,7 @@ def analyze_audio_quality(
             rms=0.0,
             peak=0,
             clipping_percent=0.0,
-            snr_db=0.0,
+            snr_db=None,
             is_silent=True,
             is_valid=False,
             rejection_reason="Audio buffer contains zero samples",
@@ -210,12 +281,8 @@ def analyze_audio_quality(
     clipped_samples = int(np.sum(np.abs(audio) >= 32767))
     clipping_percent = round((clipped_samples / float(total_samples)) * 100.0, 3)
 
-    # Estimate noise floor from leading 200 ms (first 3200 samples)
-    lead_len = min(3200, total_samples // 4)
-    lead_noise = audio[:lead_len].astype(np.float64)
-    noise_power = np.mean(lead_noise**2) + 1e-12
-    signal_power = rms**2 + 1e-12
-    snr_db = round(10.0 * np.log10(max(1.0, signal_power / noise_power)), 2)
+    # Robust frame-based acoustic SNR estimation
+    snr_db = estimate_speech_snr(audio, sample_rate=sample_rate)
 
     is_silent = rms < min_rms
     is_valid = True
@@ -501,11 +568,19 @@ def run_interactive_collector(device_index: int = 1, speaker_id: str = "user_spe
             print(f"Condition: {condition}")
             print("-" * 75)
 
-            user_in = input("Press ENTER to record (or 's' to skip, 'q' to quit): ").strip().lower()
-            if user_in == "q":
+            # Prompt start confirmation loop
+            start_action: Optional[str] = None
+            while start_action is None:
+                user_in = input("Press ENTER to record (or 's' to skip, 'q' to quit): ").strip().lower()
+                if user_in in {"", "s", "q"}:
+                    start_action = user_in
+                else:
+                    print(f"\n[!] Invalid input '{user_in}'. Press ENTER to record, 's' to skip, or 'q' to quit.")
+
+            if start_action == "q":
                 print("Exiting collector session.")
                 return
-            if user_in == "s":
+            if start_action == "s":
                 print("Skipping prompt.\n")
                 break
 
@@ -516,26 +591,43 @@ def run_interactive_collector(device_index: int = 1, speaker_id: str = "user_spe
 
             if not quality.is_valid:
                 print(f"\n[!] ACOUSTIC QUALITY REJECTED: {quality.rejection_reason}")
-                retry_in = input("Retry this take? [r=Re-record, s=Skip, q=Quit]: ").strip().lower()
-                if retry_in == "q":
+                retry_action: Optional[str] = None
+                while retry_action is None:
+                    retry_in = input("Retry this take? [r=Re-record, s=Skip, q=Quit]: ").strip().lower()
+                    if retry_in in {"r", "s", "q"}:
+                        retry_action = retry_in
+                    else:
+                        print(f"\n[!] Invalid input '{retry_in}'. Expected 'r' to re-record, 's' to skip, or 'q' to quit.")
+
+                if retry_action == "q":
                     print("Exiting collector session.")
                     return
-                elif retry_in == "s":
+                elif retry_action == "s":
                     print("Skipping prompt.\n")
                     break
                 else:
                     continue  # Loop back to re-record
 
             # Acoustic Quality Passed: Display Metrics
-            print(f"\n[+] Acoustic Metrics: RMS={quality.rms:.1f} | Peak={quality.peak} | SNR={quality.snr_db:.1f}dB | Clipping={quality.clipping_percent:.2f}%")
-            
-            # MANDATORY HUMAN CONFIRMATION GATE
-            confirm = input(
-                f"--> Was that a correct take of \"{phrase}\"? [y/n/r/s/q]\n"
-                f"    (y=Accept & Save, n=Reject to Quarantine, r=Re-record, s=Skip, q=Quit): "
-            ).strip().lower()
+            snr_disp = f"{quality.snr_db:.1f}dB" if quality.snr_db is not None else "N/A (silence/zero floor)"
+            print(f"\n[+] Acoustic Metrics: RMS={quality.rms:.1f} | Peak={quality.peak} | SNR={snr_disp} | Clipping={quality.clipping_percent:.2f}%")
 
-            if confirm == "y":
+            # MANDATORY HUMAN CONFIRMATION GATE (STRICT VALIDATION)
+            confirm_choice: Optional[str] = None
+            while confirm_choice is None:
+                raw_confirm = input(
+                    f"--> Was that a correct take of \"{phrase}\"? [y/n/r/s/q]\n"
+                    f"    (y=Accept & Save, n=Reject to Quarantine, r=Re-record, s=Skip, q=Quit): "
+                )
+                confirm_choice = normalize_and_validate_confirmation_input(raw_confirm)
+                if confirm_choice is None:
+                    print(
+                        f"\n[!] Invalid input '{raw_confirm.strip()}'. "
+                        "Expected exactly one of: [y=accept, n=quarantine, r=re-record, s=skip, q=quit]. "
+                        "No state was altered. Please try again."
+                    )
+
+            if confirm_choice == "y":
                 success, item = collector.record_and_store_prompt(
                     category=category,
                     phrase=phrase,
@@ -553,7 +645,7 @@ def run_interactive_collector(device_index: int = 1, speaker_id: str = "user_spe
                         neg_idx += 1
                 break
 
-            elif confirm == "n":
+            elif confirm_choice == "n":
                 reason = input("Enter quarantine reason (or press ENTER for default): ").strip()
                 success, item = collector.record_and_store_prompt(
                     category=category,
@@ -566,18 +658,22 @@ def run_interactive_collector(device_index: int = 1, speaker_id: str = "user_spe
                     raw_audio_override=raw_audio,
                 )
                 if success and item:
-                    print(f"--> [QUARANTINED] Take safely routed to {item.relative_path} (Excluded from positive training)\n")
+                    print(f"--> [QUARANTINED] Take safely routed to {item.relative_path} (Excluded from training)\n")
+                    if target == "pos":
+                        pos_idx += 1
+                    else:
+                        neg_idx += 1
                 break
 
-            elif confirm == "r":
+            elif confirm_choice == "r":
                 print("--> Re-recording prompt...\n")
                 continue
 
-            elif confirm == "s":
+            elif confirm_choice == "s":
                 print("Skipping prompt.\n")
                 break
 
-            elif confirm == "q":
+            elif confirm_choice == "q":
                 print("Exiting collector session.")
                 return
 

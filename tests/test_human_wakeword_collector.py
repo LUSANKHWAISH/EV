@@ -26,10 +26,13 @@ import pytest
 from tools.collect_human_wakeword import (
     CANONICAL_SAMPLE_RATE,
     TARGET_TOTAL_SAMPLES,
+    VALID_CONFIRMATION_CHOICES,
     AudioQualityMetrics,
     HumanAudioCollector,
     HumanRecordingManifestItem,
     analyze_audio_quality,
+    estimate_speech_snr,
+    normalize_and_validate_confirmation_input,
     pad_or_trim_canonical,
     save_canonical_pcm16_wav,
 )
@@ -224,3 +227,108 @@ class TestHumanCollectionHardening:
         assert any("pos" in s for s in sample_ids)
         assert any("neg" in s for s in sample_ids)
         assert not any("quarantine" in s.lower() for s in sample_ids)
+
+    def test_confirmation_input_validation(self):
+        """
+        Task 014F-8C Requirement: Test strict confirmation gate input validation.
+        Only exact choices [y, n, r, s, q] are valid; arbitrary strings (e.g. 't') MUST be rejected.
+        """
+        # Valid inputs with whitespace and casing variants
+        assert normalize_and_validate_confirmation_input("y") == "y"
+        assert normalize_and_validate_confirmation_input("Y") == "y"
+        assert normalize_and_validate_confirmation_input("  y  ") == "y"
+        assert normalize_and_validate_confirmation_input("n") == "n"
+        assert normalize_and_validate_confirmation_input("N\n") == "n"
+        assert normalize_and_validate_confirmation_input("r") == "r"
+        assert normalize_and_validate_confirmation_input("  R  ") == "r"
+        assert normalize_and_validate_confirmation_input("s") == "s"
+        assert normalize_and_validate_confirmation_input("S") == "s"
+        assert normalize_and_validate_confirmation_input("q") == "q"
+        assert normalize_and_validate_confirmation_input("Q\t") == "q"
+
+        # Invalid inputs must return None (rejected)
+        assert normalize_and_validate_confirmation_input("t") is None
+        assert normalize_and_validate_confirmation_input("yes") is None
+        assert normalize_and_validate_confirmation_input("no") is None
+        assert normalize_and_validate_confirmation_input("quit") is None
+        assert normalize_and_validate_confirmation_input("1") is None
+        assert normalize_and_validate_confirmation_input("") is None
+        assert normalize_and_validate_confirmation_input("   ") is None
+        assert normalize_and_validate_confirmation_input(None) is None
+        assert normalize_and_validate_confirmation_input("invalid_choice") is None
+
+    def test_estimate_speech_snr_synthetic(self):
+        """
+        Task 014F-8C Requirement: Test frame-based SNR calculation with known synthetic signals.
+        Verifies divide-by-zero prevention, zero-noise handling, and physical bounds [0, 80] dB.
+        """
+        # 1. Pure digital silence (all zeros) -> None (undefined)
+        zeros = np.zeros(32000, dtype=np.int16)
+        assert estimate_speech_snr(zeros) is None
+
+        # 2. Empty buffer -> None
+        assert estimate_speech_snr(np.zeros(0, dtype=np.int16)) is None
+
+        # 3. Flat uniform noise (equal signal & noise floor across frames) -> ~0.0 dB
+        np.random.seed(42)
+        flat_noise = np.random.normal(0, 100, 32000).astype(np.int16)
+        snr_flat = estimate_speech_snr(flat_noise)
+        assert snr_flat is not None
+        assert 0.0 <= snr_flat <= 3.0
+
+        # 4. Synthetic speech burst (1.0s sine wave amplitude=5000 in background noise std=50)
+        # Expected ratio: Speech RMS = 5000 / sqrt(2) = 3535.5; Noise RMS = 50 -> Expected SNR = 20*log10(70.7) = 37.0 dB
+        t = np.linspace(0, 1.0, 16000, endpoint=False)
+        sine_burst = (5000 * np.sin(2 * np.pi * 440 * t)).astype(np.float64)
+        noise_full = np.random.normal(0, 50, 32000).astype(np.float64)
+        synthetic_signal = noise_full.copy()
+        synthetic_signal[8000:24000] += sine_burst
+        synthetic_pcm16 = np.clip(synthetic_signal, -32768, 32767).astype(np.int16)
+
+        snr_burst = estimate_speech_snr(synthetic_pcm16)
+        assert snr_burst is not None
+        assert 35.0 <= snr_burst <= 40.0  # Closely matches 37.0 dB theoretical
+
+        # 5. Quality metrics integration
+        q = analyze_audio_quality(synthetic_pcm16)
+        assert q.is_valid is True
+        assert q.snr_db is not None
+        assert 35.0 <= q.snr_db <= 40.0
+
+    def test_manifest_schema_and_path_resolution(self, temp_dataset_env: Path):
+        """
+        Verify manifest records serialize, deserialize, and resolve relative paths correctly.
+        """
+        collector = HumanAudioCollector(
+            speaker_id="speaker_audit",
+            session_id="session_audit_001",
+            output_base_dir=temp_dataset_env,
+        )
+        audio = create_synthetic_pcm16_audio(amplitude=6000.0)
+        success, item = collector.record_and_store_prompt(
+            category="POSITIVE",
+            phrase="Hey EV",
+            condition="desk baseline",
+            target="pos",
+            index=0,
+            user_confirmed=True,
+            raw_audio_override=audio,
+        )
+        assert success and item is not None
+
+        # Verify relative path resolves relative to dataset root
+        resolved_path = temp_dataset_env / item.relative_path
+        assert resolved_path.exists()
+        assert resolved_path.name == item.filename
+
+        # Load back from manifest
+        manifest_items = collector.load_manifest()
+        assert len(manifest_items) == 1
+        loaded = manifest_items[0]
+        assert loaded.filename == item.filename
+        assert loaded.relative_path == item.relative_path
+        assert loaded.target_label == 1
+        assert loaded.confirmed_by_user is True
+        assert loaded.status == "ACCEPTED"
+        assert loaded.quality.snr_db is not None
+
