@@ -60,17 +60,40 @@ MANIFEST_PATH = HUMAN_DATASET_DIR / "human_collection_manifest.json"
 # Target Phrase Catalog for Human Collection
 COLLECTION_PROMPTS = [
     # ------------------------------------------------------------------------
-    # 1. POSITIVE PHRASES ("Hey EV" variants & acoustic conditions)
+    # 1. POSITIVE PHRASES ("Hey EV" variants, distances, & acoustic conditions)
     # ------------------------------------------------------------------------
-    {"category": "POSITIVE", "phrase": "Hey EV", "condition": "natural speaking volume", "target": "pos"},
-    {"category": "POSITIVE", "phrase": "Hey EV", "condition": "quiet speaking", "target": "pos"},
-    {"category": "POSITIVE", "phrase": "Hey EV", "condition": "normal speaking", "target": "pos"},
-    {"category": "POSITIVE", "phrase": "Hey EV", "condition": "slightly distant microphone (~1m)", "target": "pos"},
-    {"category": "POSITIVE", "phrase": "Hey EV", "condition": "fast speaking rate", "target": "pos"},
-    {"category": "POSITIVE", "phrase": "Hey EV", "condition": "slow deliberate speaking rate", "target": "pos"},
-    {"category": "POSITIVE", "phrase": "Hey E.V.", "condition": "distinct letters E-V", "target": "pos"},
-    {"category": "POSITIVE", "phrase": "Hey E V", "condition": "natural pause between letters", "target": "pos"},
-    {"category": "POSITIVE", "phrase": "hey ev", "condition": "casual / low energy", "target": "pos"},
+    {"category": "POSITIVE", "phrase": "Hey EV", "condition": "natural speaking volume (~0.3m)", "target": "pos"},
+    {"category": "POSITIVE", "phrase": "Hey EV", "condition": "quiet speaking (~0.3m)", "target": "pos"},
+    {"category": "POSITIVE", "phrase": "Hey EV", "condition": "normal speaking (~0.3m)", "target": "pos"},
+    {"category": "POSITIVE", "phrase": "Hey EV", "condition": "slightly distant microphone (~1m desk)", "target": "pos"},
+    {"category": "POSITIVE", "phrase": "Hey EV", "condition": "fast speaking rate (~0.3m)", "target": "pos"},
+    {"category": "POSITIVE", "phrase": "Hey EV", "condition": "slow deliberate speaking rate (~0.3m)", "target": "pos"},
+    {"category": "POSITIVE", "phrase": "Hey E.V.", "condition": "distinct letters E-V (~0.3m)", "target": "pos"},
+    {"category": "POSITIVE", "phrase": "Hey E V", "condition": "natural pause between letters (~0.3m)", "target": "pos"},
+    {"category": "POSITIVE", "phrase": "hey ev", "condition": "casual / low energy (~0.3m)", "target": "pos"},
+    {"category": "POSITIVE", "phrase": "Hey EV", "condition": "louder / projected voice (~1m)", "target": "pos"},
+    {"category": "POSITIVE", "phrase": "Hey EV", "condition": "whisper / near-mic breathy (~0.1m)", "target": "pos"},
+    {"category": "POSITIVE", "phrase": "Hey EV", "condition": "rising question inflection (~0.3m)", "target": "pos"},
+    {"category": "POSITIVE", "phrase": "Hey EV", "condition": "falling command cadence (~0.3m)", "target": "pos"},
+    {"category": "POSITIVE", "phrase": "Hey EV", "condition": "off-axis / head turned away (~0.5m)", "target": "pos"},
+    {"category": "POSITIVE", "phrase": "Hey EV", "condition": "standing room position (~1.5m)", "target": "pos"},
+    {"category": "POSITIVE", "phrase": "Hey E.V.", "condition": "slow deliberate cadence (~1m)", "target": "pos"},
+    {"category": "POSITIVE", "phrase": "Hey EV", "condition": "quick casual greeting (~0.3m)", "target": "pos"},
+    {"category": "POSITIVE", "phrase": "Hey EV", "condition": "deep / low-pitch vocal tone (~0.3m)", "target": "pos"},
+    {"category": "POSITIVE", "phrase": "Hey EV", "condition": "higher / brighter vocal pitch (~0.3m)", "target": "pos"},
+    {"category": "POSITIVE", "phrase": "Hey E V", "condition": "spaced letters E... V... (~1m)", "target": "pos"},
+    {"category": "POSITIVE", "phrase": "Hey EV", "condition": "seated working position (~0.6m)", "target": "pos"},
+    {"category": "POSITIVE", "phrase": "Hey EV", "condition": "conversational flow into command (~0.3m)", "target": "pos"},
+    {"category": "POSITIVE", "phrase": "Hey EV", "condition": "gentle / soft wake call (~0.5m)", "target": "pos"},
+    {"category": "POSITIVE", "phrase": "Hey EV", "condition": "crisp consonant emphasis (~0.3m)", "target": "pos"},
+    {"category": "POSITIVE", "phrase": "Hey EV", "condition": "relaxed morning tone (~0.3m)", "target": "pos"},
+    {"category": "POSITIVE", "phrase": "Hey E.V.", "condition": "staccato letters E - V (~0.3m)", "target": "pos"},
+    {"category": "POSITIVE", "phrase": "Hey EV", "condition": "firm assertive voice (~0.8m)", "target": "pos"},
+    {"category": "POSITIVE", "phrase": "Hey EV", "condition": "slightly tired / low resonance (~0.3m)", "target": "pos"},
+    {"category": "POSITIVE", "phrase": "Hey EV", "condition": "natural desk baseline (~0.4m)", "target": "pos"},
+    {"category": "POSITIVE", "phrase": "Hey EV", "condition": "natural desk baseline take 2 (~0.4m)", "target": "pos"},
+    {"category": "POSITIVE", "phrase": "Hey EV", "condition": "natural desk baseline take 3 (~0.4m)", "target": "pos"},
+    {"category": "POSITIVE", "phrase": "Hey EV", "condition": "natural desk baseline take 4 (~0.4m)", "target": "pos"},
     # ------------------------------------------------------------------------
     # 2. HARD NEGATIVE PHRASES (Demonstrated Prefix & Confusable Failure Phrases)
     # ------------------------------------------------------------------------
@@ -85,6 +108,25 @@ COLLECTION_PROMPTS = [
     {"category": "HARD_NEGATIVE", "phrase": "Hey Steve", "condition": "normal cadence", "target": "neg"},
     {"category": "HARD_NEGATIVE", "phrase": "Hey", "condition": "greeting without EV", "target": "neg"},
     {"category": "HARD_NEGATIVE", "phrase": "EV", "condition": "letters without Hey", "target": "neg"},
+    {"category": "HARD_NEGATIVE", "phrase": "Hey Event", "condition": "normal cadence", "target": "neg"},
+    {"category": "HARD_NEGATIVE", "phrase": "Hey Events", "condition": "normal cadence", "target": "neg"},
+    {"category": "HARD_NEGATIVE", "phrase": "Hey Evelyn", "condition": "normal cadence", "target": "neg"},
+    {"category": "HARD_NEGATIVE", "phrase": "Hey Everest", "condition": "normal cadence", "target": "neg"},
+    {"category": "HARD_NEGATIVE", "phrase": "Hey Everett", "condition": "normal cadence", "target": "neg"},
+    {"category": "HARD_NEGATIVE", "phrase": "Hey Everyday", "condition": "normal cadence", "target": "neg"},
+    {"category": "HARD_NEGATIVE", "phrase": "Hey Everybody", "condition": "normal cadence", "target": "neg"},
+    {"category": "HARD_NEGATIVE", "phrase": "Hey Everywhere", "condition": "normal cadence", "target": "neg"},
+    {"category": "HARD_NEGATIVE", "phrase": "Hey Eventually", "condition": "normal cadence", "target": "neg"},
+    {"category": "HARD_NEGATIVE", "phrase": "Heavy duty", "condition": "two word phrase", "target": "neg"},
+    {"category": "HARD_NEGATIVE", "phrase": "Every day", "condition": "two word phrase", "target": "neg"},
+    {"category": "HARD_NEGATIVE", "phrase": "Every morning", "condition": "two word phrase", "target": "neg"},
+    {"category": "HARD_NEGATIVE", "phrase": "Heavy rain", "condition": "two word phrase", "target": "neg"},
+    {"category": "HARD_NEGATIVE", "phrase": "Hey Eddie", "condition": "normal cadence", "target": "neg"},
+    {"category": "HARD_NEGATIVE", "phrase": "Hey Ivy", "condition": "normal cadence", "target": "neg"},
+    {"category": "HARD_NEGATIVE", "phrase": "Hey Avi", "condition": "normal cadence", "target": "neg"},
+    {"category": "HARD_NEGATIVE", "phrase": "Hey Steven", "condition": "normal cadence", "target": "neg"},
+    {"category": "HARD_NEGATIVE", "phrase": "A V", "condition": "letters without Hey", "target": "neg"},
+    {"category": "HARD_NEGATIVE", "phrase": "E V", "condition": "letters without Hey", "target": "neg"},
     # ------------------------------------------------------------------------
     # 3. GENERAL NEGATIVE PHRASES (Standard In-Room Voice Commands)
     # ------------------------------------------------------------------------
@@ -94,6 +136,10 @@ COLLECTION_PROMPTS = [
     {"category": "GENERAL_NEGATIVE", "phrase": "Turn on the lights", "condition": "command utterance", "target": "neg"},
     {"category": "GENERAL_NEGATIVE", "phrase": "Cancel that command", "condition": "command utterance", "target": "neg"},
     {"category": "GENERAL_NEGATIVE", "phrase": "Show active tasks", "condition": "command utterance", "target": "neg"},
+    {"category": "GENERAL_NEGATIVE", "phrase": "Close the window", "condition": "command utterance", "target": "neg"},
+    {"category": "GENERAL_NEGATIVE", "phrase": "Search the web", "condition": "command utterance", "target": "neg"},
+    {"category": "GENERAL_NEGATIVE", "phrase": "Mute speakers", "condition": "command utterance", "target": "neg"},
+    {"category": "GENERAL_NEGATIVE", "phrase": "Run diagnostics", "condition": "command utterance", "target": "neg"},
 ]
 
 
