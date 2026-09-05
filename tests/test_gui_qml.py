@@ -87,6 +87,8 @@ def test_qml_components_importable(qml_engine):
         "EVCoreRing.qml",
         "EVCoreLattice.qml",
         "EVTelemetryRail.qml",
+        "EVExperienceModeIndicator.qml",
+        "EVSystemAlertBanner.qml",
     ]
 
     failures = []
@@ -165,6 +167,8 @@ def test_qmldir_registers_all_components():
         "EVCoreLattice 1.0 EVCoreLattice.qml",
         "EVTelemetryRail 1.0 EVTelemetryRail.qml",
         "EVIntelligenceTaskRail 1.0 EVIntelligenceTaskRail.qml",
+        "EVExperienceModeIndicator 1.0 EVExperienceModeIndicator.qml",
+        "EVSystemAlertBanner 1.0 EVSystemAlertBanner.qml",
     }
 
     actual = {
@@ -196,6 +200,8 @@ def test_design_system_tokens_used():
         "EVCoreRing.qml",
         "EVCoreLattice.qml",
         "EVTelemetryRail.qml",
+        "EVExperienceModeIndicator.qml",
+        "EVSystemAlertBanner.qml",
     ]
 
     for filename in component_files:

@@ -65,8 +65,12 @@ ApplicationWindow {
             anchors.bottomMargin: Theme.spacingXS
 
             state: guiBridge.currentState
-            visualMode: "STANDARD"
-            themeProfile: "EV_CORE"
+            visualMode: (typeof guiBridge !== "undefined" && guiBridge !== null && guiBridge.experienceMode !== "")
+                        ? guiBridge.experienceMode
+                        : "STANDARD"
+            themeProfile: (typeof guiBridge !== "undefined" && guiBridge !== null && guiBridge.stylePreset !== "")
+                          ? guiBridge.stylePreset
+                          : "EV_CORE"
         }
 
         EVCommandInput {

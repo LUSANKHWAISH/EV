@@ -16,6 +16,7 @@ from core.brain_provider import EVBrainProvider
 from core.brain_provider_manager import EVBrainProviderManager
 from core.brain_router import BrainRouter
 from core.events import EVEventBus
+from core.experience import EVExperienceManager
 from core.models import EVState
 from core.orchestrator import EVOrchestrator
 from gui.bridge import GuiBridge
@@ -96,6 +97,11 @@ def main() -> None:
 
     # Create bridge and register context property for QML
     bridge = GuiBridge(event_bus)
+
+    # Create experience manager and attach to bridge
+    experience_manager = EVExperienceManager(event_bus)
+    bridge.set_experience_manager(experience_manager)
+
     engine.rootContext().setContextProperty("guiBridge", bridge)
 
     # Discover providers and instantiate production backend orchestrator
@@ -156,8 +162,9 @@ def main() -> None:
     # lifetime. QAbstractNativeEventFilter must not be garbage-collected.
     setattr(app, "_ev_windows_native_chrome", native_chrome)
 
-    # Store orchestrator on app to prevent garbage collection and allow future access
+    # Store orchestrator and experience manager on app to prevent garbage collection
     setattr(app, "_ev_orchestrator", orchestrator)
+    setattr(app, "_ev_experience_manager", experience_manager)
 
     app.aboutToQuit.connect(bridge.shutdown)
     sys.exit(app.exec())

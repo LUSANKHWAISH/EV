@@ -16,3 +16,5 @@ EVCoreRing 1.0 EVCoreRing.qml
 EVCoreLattice 1.0 EVCoreLattice.qml
 EVTelemetryRail 1.0 EVTelemetryRail.qml
 EVIntelligenceTaskRail 1.0 EVIntelligenceTaskRail.qml
+EVExperienceModeIndicator 1.0 EVExperienceModeIndicator.qml
+EVSystemAlertBanner 1.0 EVSystemAlertBanner.qml

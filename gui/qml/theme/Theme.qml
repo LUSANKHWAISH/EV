@@ -262,4 +262,65 @@ QtObject {
         // factor > 1 for lighter, < 1 for darker (simple approach)
         return Qt.lighter(baseColor, factor * 100)
     }
+
+    // ==================================
+    // EXPERIENCE MODE VISUAL MAPPINGS
+    // ==================================
+    function experienceModeColor(mode) {
+        if (!mode) return luminousPrimary
+        switch (mode) {
+        case "STANDARD":  return stateColorIdle          // calm blue
+        case "AI":        return luminousPrimary          // green-cyan (intelligence)
+        case "WORK":      return stateColorProcessing     // green (productivity)
+        case "MUSIC":     return stateColorTranscribing   // soft violet (creative)
+        case "SYSTEM":    return stateColorVerifying       // yellow (diagnostics)
+        case "APPROVAL":  return stateColorAwaitingApproval // amber (decision)
+        case "SLEEP":     return stateColorStopped        // blue-gray (dormant)
+        default:          return luminousPrimary
+        }
+    }
+
+    function experienceModeGlyph(mode) {
+        // Text-only glyphs for experience mode indicators (no icon fonts)
+        if (!mode) return "◆"
+        switch (mode) {
+        case "STANDARD":  return "◆"   // diamond — default
+        case "AI":        return "◈"   // diamond with dot — intelligence
+        case "WORK":      return "▣"   // filled square — structured
+        case "MUSIC":     return "♪"   // eighth note — audio
+        case "SYSTEM":    return "⚙"   // gear — diagnostics
+        case "APPROVAL":  return "⚑"   // flag — attention
+        case "SLEEP":     return "◇"   // empty diamond — minimal
+        default:          return "◆"
+        }
+    }
+
+    // ==================================
+    // STYLE PRESET VISUAL MAPPINGS
+    // ==================================
+    function stylePresetOpacity(preset) {
+        // Ambient opacity multiplier per preset
+        if (!preset) return 1.0
+        switch (preset) {
+        case "EV_CORE":  return 1.0    // full flagship detail
+        case "MINIMAL":  return 0.6    // reduced density
+        case "AMBIENT":  return 0.8    // atmospheric
+        case "FOCUSED":  return 1.0    // sharp and bright
+        case "ALERT":    return 1.0    // elevated urgency
+        default:         return 1.0
+        }
+    }
+
+    function stylePresetEnergy(preset) {
+        // Energy/intensity multiplier per preset
+        if (!preset) return 1.0
+        switch (preset) {
+        case "EV_CORE":  return 1.0    // standard energy
+        case "MINIMAL":  return 0.4    // quiet
+        case "AMBIENT":  return 0.6    // soft
+        case "FOCUSED":  return 1.2    // amplified
+        case "ALERT":    return 1.4    // urgent
+        default:         return 1.0
+        }
+    }
 }

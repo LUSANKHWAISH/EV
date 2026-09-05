@@ -7,6 +7,7 @@ from typing import List, Optional
 from PySide6.QtCore import QObject, Property, Signal, Slot, Qt
 
 from core.events import EVEvent, EVEventBus
+from core.experience import EVExperienceManager
 from core.models import EVEventType, EVState
 
 
@@ -25,6 +26,9 @@ class GuiBridge(QObject):
     approvalRequested = Signal(str, str, str, str)  # task_id, action, risk_level, reason
     approvalResolved = Signal(str, bool)             # task_id, approved
     approvalSubmitted = Signal(str, bool)            # task_id, approved (for orchestrator hook)
+    experienceModeChanged = Signal(str)
+    stylePresetChanged = Signal(str)
+    systemAlertChanged = Signal(str)
 
     # Internal signal for safe cross-thread queued handoff
     _stateChangeRequested = Signal(object)
@@ -32,16 +36,38 @@ class GuiBridge(QObject):
     _currentTaskChangeRequested = Signal(str)
     _latestObservationChangeRequested = Signal(str)
     _approvalRequestQueued = Signal(str, str, str, str)
+    _experienceModeChangeRequested = Signal(str)
+    _stylePresetChangeRequested = Signal(str)
+    _systemAlertChangeRequested = Signal(str)
 
-    def __init__(self, event_bus: EVEventBus) -> None:
+    def __init__(
+        self,
+        event_bus: EVEventBus,
+        experience_manager: Optional[EVExperienceManager] = None,
+    ) -> None:
         super().__init__()
         self._event_bus: EVEventBus = event_bus
+        self._experience_manager: Optional[EVExperienceManager] = experience_manager
         self._state: Optional[EVState] = event_bus.current_state
         self._voice_state: str = "IDLE"
         self._current_task: str = ""
         self._latest_observation: str = ""
+        self._experience_mode: str = (
+            experience_manager.current_mode.value if experience_manager else "STANDARD"
+        )
+        self._style_preset: str = (
+            experience_manager.current_preset.value if experience_manager else "EV_CORE"
+        )
+        self._system_alert_message: str = ""
         self._subscription_tokens: List[str] = []
         self._setup_subscriptions()
+
+    def set_experience_manager(self, experience_manager: Optional[EVExperienceManager]) -> None:
+        """Attach an experience manager to the bridge after construction."""
+        self._experience_manager = experience_manager
+        if experience_manager is not None:
+            self._experience_mode = experience_manager.current_mode.value
+            self._style_preset = experience_manager.current_preset.value
 
     def _setup_subscriptions(self) -> None:
         """Connect internal signals and subscribe to EVEventBus."""
@@ -65,6 +91,18 @@ class GuiBridge(QObject):
             self._on_approval_requested_internal,
             type=Qt.ConnectionType.QueuedConnection,
         )
+        self._experienceModeChangeRequested.connect(
+            self._on_experience_mode_changed_internal,
+            type=Qt.ConnectionType.QueuedConnection,
+        )
+        self._stylePresetChangeRequested.connect(
+            self._on_style_preset_changed_internal,
+            type=Qt.ConnectionType.QueuedConnection,
+        )
+        self._systemAlertChangeRequested.connect(
+            self._on_system_alert_changed_internal,
+            type=Qt.ConnectionType.QueuedConnection,
+        )
 
         token = self._event_bus.subscribe(
             self._on_event_received,
@@ -78,6 +116,8 @@ class GuiBridge(QObject):
                 EVEventType.STATUS,
                 EVEventType.SYSTEM_ALERT,
                 EVEventType.SYSTEM_ALERT_RECOVERED,
+                EVEventType.EXPERIENCE_MODE_CHANGED,
+                EVEventType.STYLE_PRESET_CHANGED,
             ],
         )
         self._subscription_tokens.append(token)
@@ -116,6 +156,15 @@ class GuiBridge(QObject):
         elif event.event_type in (EVEventType.SYSTEM_ALERT, EVEventType.SYSTEM_ALERT_RECOVERED):
             if event.message:
                 self._latestObservationChangeRequested.emit(event.message)
+                self._systemAlertChangeRequested.emit(event.message)
+        elif event.event_type == EVEventType.EXPERIENCE_MODE_CHANGED:
+            mode = str(event.data.get("current_mode", "")) if event.data else ""
+            if mode:
+                self._experienceModeChangeRequested.emit(mode)
+        elif event.event_type == EVEventType.STYLE_PRESET_CHANGED:
+            preset = str(event.data.get("current_preset", "")) if event.data else ""
+            if preset:
+                self._stylePresetChangeRequested.emit(preset)
 
     @Slot(object)
     def _on_state_changed_internal(self, new_state: EVState) -> None:
@@ -232,6 +281,73 @@ class GuiBridge(QObject):
         """Called by QML or tests to submit user approval or denial."""
         self.approvalSubmitted.emit(task_id, approved)
         self.approvalResolved.emit(task_id, approved)
+
+    # ------------------------------------------------------------------
+    # Experience mode / style preset properties
+    # ------------------------------------------------------------------
+
+    @Slot(str)
+    def _on_experience_mode_changed_internal(self, mode: str) -> None:
+        if self._experience_mode == mode:
+            return
+        self._experience_mode = mode
+        self.experienceModeChanged.emit(mode)
+
+    @Slot(str)
+    def _on_style_preset_changed_internal(self, preset: str) -> None:
+        if self._style_preset == preset:
+            return
+        self._style_preset = preset
+        self.stylePresetChanged.emit(preset)
+
+    @Slot(str)
+    def _on_system_alert_changed_internal(self, message: str) -> None:
+        if self._system_alert_message == message:
+            return
+        self._system_alert_message = message
+        self.systemAlertChanged.emit(message)
+
+    @Property(str, notify=experienceModeChanged)
+    def experienceMode(self) -> str:
+        """Current experience mode for QML binding."""
+        return self._experience_mode
+
+    @Property(str, notify=stylePresetChanged)
+    def stylePreset(self) -> str:
+        """Current visual style preset for QML binding."""
+        return self._style_preset
+
+    @Property(str, notify=systemAlertChanged)
+    def systemAlertMessage(self) -> str:
+        """Latest system alert message for QML binding."""
+        return self._system_alert_message
+
+    @Property(str, notify=experienceModeChanged)
+    def experienceModeDescription(self) -> str:
+        """Human-readable description of the current experience mode."""
+        if self._experience_manager:
+            return self._experience_manager.get_mode_description(self._experience_mode)
+        return ""
+
+    @Slot(str)
+    def setExperienceMode(self, mode: str) -> None:
+        """Called by QML to change the experience mode."""
+        if self._experience_manager:
+            try:
+                from core.experience import EVExperienceMode
+                self._experience_manager.set_mode(EVExperienceMode(mode))
+            except (ValueError, KeyError):
+                pass  # Invalid mode string — silently ignore from QML
+
+    @Slot(str)
+    def setStylePreset(self, preset: str) -> None:
+        """Called by QML to change the visual style preset."""
+        if self._experience_manager:
+            try:
+                from core.experience import EVCoreStylePreset
+                self._experience_manager.set_style_preset(EVCoreStylePreset(preset))
+            except (ValueError, KeyError):
+                pass  # Invalid preset string — silently ignore from QML
 
     def shutdown(self) -> None:
         """Unsubscribe from the event bus. Idempotent."""
