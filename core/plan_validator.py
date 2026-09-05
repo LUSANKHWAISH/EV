@@ -447,13 +447,17 @@ class PlanValidator:
         file_verifications = {
             VerificationType.FILE_EXISTS,
             VerificationType.FILE_NOT_EXISTS,
+            VerificationType.FILE_CONTENT_MATCH,
+            VerificationType.FILE_HASH_MATCH,
             VerificationType.DIRECTORY_EXISTS,
             VerificationType.TEXT_CONTAINS,
             VerificationType.TEXT_NOT_CONTAINS,
+            VerificationType.READ_CONTENT_VALID,
         }
         process_verifications = {
             VerificationType.PROCESS_EXISTS,
             VerificationType.PROCESS_NOT_EXISTS,
+            VerificationType.PROCESS_IDENTITY_VALID,
         }
         port_verifications = {
             VerificationType.TCP_PORT_EXISTS,

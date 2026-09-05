@@ -11,17 +11,22 @@ from .models import (
     AgentStatus,
     AgentStepResult,
     AgentRunResult,
+    ExecutionStatus,
+    ExecutionResult,
     EVEventType,
+    EVEventSeverity,
     VerificationType,
     VerificationRequest,
     VerificationResult,
     VerificationStatus,
+    sanitize_metadata,
 )
+from .cancellation import CancellationToken
 from .verifier import EVVerifier
 from .history import EVTaskHistoryStore
 from .events import EVEventBus
 from .backup import EVBackupManager
-from tools.processes import find_processes, stop_process
+from tools.processes import find_processes, stop_process, list_processes
 from tools.network import find_tcp_port, flush_dns
 from tools.services import find_services, restart_service
 from tools.filesystem import (
@@ -36,6 +41,23 @@ from tools.filesystem import (
 )
 
 logger = logging.getLogger(__name__)
+
+# Deterministic idempotency classification matrix (Task 016 Part F)
+IS_ACTION_IDEMPOTENT: Dict[AgentAction, bool] = {
+    AgentAction.FIND_PROCESS: True,
+    AgentAction.FIND_TCP_PORT: True,
+    AgentAction.GET_FILE_INFO: True,
+    AgentAction.LIST_DIRECTORY: True,
+    AgentAction.READ_TEXT_FILE: True,
+    AgentAction.FIND_FILES: True,
+    AgentAction.SEARCH_TEXT: True,
+    AgentAction.FIND_SERVICE: True,
+    AgentAction.WRITE_FILE: True,
+    AgentAction.DELETE_FILE: True,
+    AgentAction.FLUSH_DNS: True,
+    AgentAction.STOP_PROCESS: False,   # Terminating a process by PID is non-idempotent
+    AgentAction.RESTART_SERVICE: False, # Service bouncing can disrupt dependencies
+}
 
 
 class EVAgent:
@@ -138,13 +160,21 @@ class EVAgent:
             return str(task.parameters["port"])
         return "unknown"
 
-    def run(self, task: AgentTask) -> AgentRunResult:
+    def run(
+        self,
+        task: AgentTask,
+        cancellation_token: Optional[CancellationToken] = None,
+    ) -> AgentRunResult:
         """
-        Execute a read-only agent task.
-        Returns AgentRunResult with status and optional step details.
+        Execute an approved agent task with structured execution and verification tracking.
+        Returns AgentRunResult with execution status, verification results, and optional step details.
 
-        If the task carries a verification_type, the observation result is
-        passed through EVVerifier to produce a VerificationResult.
+        Enforces:
+        - Cancellation checks before dispatch and before verification.
+        - Idempotency & retry_allowed semantics.
+        - Timeout detection mapping to ExecutionStatus.UNKNOWN on mutating operations.
+        - Observation-only safe state resolution.
+        - Execution succeeded + Verification failed = OVERALL FAILURE.
         """
         started_at = datetime.now()
         self._history("record_task", task)
@@ -155,11 +185,62 @@ class EVAgent:
             task.action.value,
             task.verification_type.value if task.verification_type else "none",
         )
+
+        # 1. Pre-dispatch cooperative cancellation check
+        if cancellation_token and cancellation_token.is_cancelled():
+            cancel_reason = cancellation_token.state.reason or "Cancelled before dispatch"
+            finished_at = datetime.now()
+            duration = (finished_at - started_at).total_seconds()
+            logger.info("Task %s cancelled before dispatch: %s", task.task_id, cancel_reason)
+            exec_res = ExecutionResult(
+                action_id=task.task_id,
+                step_id=task.parameters.get("step_id"),
+                action_type=task.action,
+                started_at=started_at,
+                finished_at=finished_at,
+                duration=duration,
+                status=ExecutionStatus.CANCELLED,
+                error=cancel_reason,
+                metadata=sanitize_metadata(task.parameters),
+                retry_allowed=False,
+            )
+            result = AgentRunResult(
+                task_id=task.task_id,
+                status=AgentStatus.FAILED,
+                error=cancel_reason,
+                step=AgentStepResult(
+                    action=task.action,
+                    success=False,
+                    started_at=started_at,
+                    finished_at=finished_at,
+                    duration_seconds=duration,
+                    error=cancel_reason,
+                ),
+                execution=exec_res,
+            )
+            self._publish_event(
+                event_type=EVEventType.ACTION_COMPLETED,
+                correlation_id=task.task_id,
+                message=f"{task.action.value}: cancelled before dispatch",
+                data={"task_id": task.task_id, "action": task.action.value, "status": "CANCELLED"},
+            )
+            self._history("record_run", task, result)
+            return result
+
+        # 2. Publish ACTION_ACCEPTED
+        self._publish_event(
+            event_type=EVEventType.ACTION_ACCEPTED,
+            correlation_id=task.task_id,
+            message=f"{task.action.value}: accepted",
+            data={"task_id": task.task_id, "action": task.action.value},
+        )
+
+        # 3. Publish ACTION_STARTED
         self._publish_event(
             event_type=EVEventType.ACTION_STARTED,
             correlation_id=task.task_id,
             message=f"{task.action.value}: started",
-            data={"task_id": task.task_id, "action": task.action.value}
+            data={"task_id": task.task_id, "action": task.action.value},
         )
 
         # Validate action is supported via whitelist
@@ -170,6 +251,18 @@ class EVAgent:
             logger.error("Agent task failed: %s", error_msg)
             finished_at = datetime.now()
             duration = (finished_at - started_at).total_seconds()
+            exec_res = ExecutionResult(
+                action_id=task.task_id,
+                step_id=task.parameters.get("step_id"),
+                action_type=task.action,
+                started_at=started_at,
+                finished_at=finished_at,
+                duration=duration,
+                status=ExecutionStatus.FAILED,
+                error=error_msg,
+                metadata=sanitize_metadata(task.parameters),
+                retry_allowed=False,
+            )
             result = AgentRunResult(
                 task_id=task.task_id,
                 status=AgentStatus.FAILED,
@@ -182,6 +275,7 @@ class EVAgent:
                     duration_seconds=duration,
                     error=error_msg,
                 ),
+                execution=exec_res,
             )
             self._publish_event(
                 event_type=EVEventType.STATUS,
@@ -197,7 +291,7 @@ class EVAgent:
                     "action": task.action.value,
                     "success": False,
                     "duration_seconds": duration,
-                }
+                },
             )
             self._history("record_run", task, result)
             return result
@@ -208,6 +302,18 @@ class EVAgent:
             logger.error("Agent task failed: %s", validation_error)
             finished_at = datetime.now()
             duration = (finished_at - started_at).total_seconds()
+            exec_res = ExecutionResult(
+                action_id=task.task_id,
+                step_id=task.parameters.get("step_id"),
+                action_type=task.action,
+                started_at=started_at,
+                finished_at=finished_at,
+                duration=duration,
+                status=ExecutionStatus.FAILED,
+                error=validation_error,
+                metadata=sanitize_metadata(task.parameters),
+                retry_allowed=False,
+            )
             result = AgentRunResult(
                 task_id=task.task_id,
                 status=AgentStatus.FAILED,
@@ -220,6 +326,7 @@ class EVAgent:
                     duration_seconds=duration,
                     error=validation_error,
                 ),
+                execution=exec_res,
             )
             self._publish_event(
                 event_type=EVEventType.STATUS,
@@ -235,7 +342,7 @@ class EVAgent:
                     "action": task.action.value,
                     "success": False,
                     "duration_seconds": duration,
-                }
+                },
             )
             self._history("record_run", task, result)
             return result
@@ -263,6 +370,18 @@ class EVAgent:
                 logger.error("Agent task failed: %s", validation_error)
                 finished_at = datetime.now()
                 duration = (finished_at - started_at).total_seconds()
+                exec_res = ExecutionResult(
+                    action_id=task.task_id,
+                    step_id=task.parameters.get("step_id"),
+                    action_type=task.action,
+                    started_at=started_at,
+                    finished_at=finished_at,
+                    duration=duration,
+                    status=ExecutionStatus.FAILED,
+                    error=validation_error,
+                    metadata=sanitize_metadata(task.parameters),
+                    retry_allowed=False,
+                )
                 result = AgentRunResult(
                     task_id=task.task_id,
                     status=AgentStatus.FAILED,
@@ -275,6 +394,7 @@ class EVAgent:
                         duration_seconds=duration,
                         error=validation_error,
                     ),
+                    execution=exec_res,
                 )
                 self._publish_event(
                     event_type=EVEventType.STATUS,
@@ -290,7 +410,7 @@ class EVAgent:
                         "action": task.action.value,
                         "success": False,
                         "duration_seconds": duration,
-                    }
+                    },
                 )
                 self._history("record_run", task, result)
                 return result
@@ -304,6 +424,18 @@ class EVAgent:
                     logger.error("Agent task failed: %s", backup_err)
                     finished_at = datetime.now()
                     duration = (finished_at - started_at).total_seconds()
+                    exec_res = ExecutionResult(
+                        action_id=task.task_id,
+                        step_id=task.parameters.get("step_id"),
+                        action_type=task.action,
+                        started_at=started_at,
+                        finished_at=finished_at,
+                        duration=duration,
+                        status=ExecutionStatus.FAILED,
+                        error=backup_err,
+                        metadata=sanitize_metadata(task.parameters),
+                        retry_allowed=False,
+                    )
                     result = AgentRunResult(
                         task_id=task.task_id,
                         status=AgentStatus.FAILED,
@@ -316,6 +448,7 @@ class EVAgent:
                             duration_seconds=duration,
                             error=backup_err,
                         ),
+                        execution=exec_res,
                     )
                     self._publish_event(
                         event_type=EVEventType.STATUS,
@@ -331,7 +464,7 @@ class EVAgent:
                             "action": task.action.value,
                             "success": False,
                             "duration_seconds": duration,
-                        }
+                        },
                     )
                     self._history("record_run", task, result)
                     return result
@@ -341,6 +474,86 @@ class EVAgent:
             if is_file_mutation and self._allowed_roots is not None and "allowed_roots" not in tool_params:
                 tool_params["allowed_roots"] = self._allowed_roots
             evidence = handler(**tool_params)
+
+            # Check if execution timed out or produced an ambiguous outcome (Task 016 Part E & I)
+            is_timed_out = getattr(evidence, "timed_out", False) or (
+                hasattr(evidence, "error") and evidence.error and "timed out" in str(evidence.error).lower()
+            )
+
+            if is_timed_out and is_mutation:
+                logger.warning(
+                    "Mutating action %s timed out; entering UNKNOWN state for safe observation",
+                    task.action.value,
+                )
+                obs_resolution = self._observe_unknown_mutation(task, target_path_obj)
+                finished_at = datetime.now()
+                duration = (finished_at - started_at).total_seconds()
+
+                if obs_resolution == "RESOLVED_SUCCESS":
+                    logger.info("Mutating action %s timeout resolved to SUCCESS via safe observation", task.action.value)
+                    if hasattr(evidence, "success"):
+                        evidence.success = True
+                else:
+                    # Unresolved or still failed -> status UNKNOWN, retry_allowed = False
+                    error_msg = f"{task.action.value} execution timed out; Windows state is UNKNOWN ({obs_resolution})"
+                    exec_res = ExecutionResult(
+                        action_id=task.task_id,
+                        step_id=task.parameters.get("step_id"),
+                        action_type=task.action,
+                        started_at=started_at,
+                        finished_at=finished_at,
+                        duration=duration,
+                        status=ExecutionStatus.UNKNOWN,
+                        result=evidence,
+                        error=error_msg,
+                        metadata=sanitize_metadata(task.parameters),
+                        retry_allowed=False,  # Never blindly retry unknown mutating action
+                        verification_status=VerificationStatus.UNKNOWN,
+                    )
+                    v_res = VerificationResult(
+                        verification_type=task.verification_type or VerificationType.NONE,
+                        status=VerificationStatus.UNKNOWN,
+                        success=False,
+                        message=error_msg,
+                        timestamp=datetime.now(),
+                    )
+                    result = AgentRunResult(
+                        task_id=task.task_id,
+                        status=AgentStatus.FAILED,
+                        error=error_msg,
+                        step=AgentStepResult(
+                            action=task.action,
+                            success=False,
+                            started_at=started_at,
+                            finished_at=finished_at,
+                            duration_seconds=duration,
+                            error=error_msg,
+                            result=evidence,
+                        ),
+                        execution=exec_res,
+                        verification=v_res,
+                    )
+                    self._publish_event(
+                        event_type=EVEventType.ACTION_UNKNOWN,
+                        correlation_id=task.task_id,
+                        message=error_msg,
+                        data={"task_id": task.task_id, "action": task.action.value, "retry_allowed": False},
+                    )
+                    self._publish_event(
+                        event_type=EVEventType.ACTION_COMPLETED,
+                        correlation_id=task.task_id,
+                        message=error_msg,
+                        data={
+                            "task_id": task.task_id,
+                            "action": task.action.value,
+                            "success": False,
+                            "execution_status": "UNKNOWN",
+                            "retry_allowed": False,
+                            "duration_seconds": duration,
+                        },
+                    )
+                    self._history("record_run", task, result)
+                    return result
 
             # Check if mutating tool itself reported failure
             if is_mutation and hasattr(evidence, "success") and not evidence.success:
@@ -357,6 +570,19 @@ class EVAgent:
 
                 finished_at = datetime.now()
                 duration = (finished_at - started_at).total_seconds()
+                exec_res = ExecutionResult(
+                    action_id=task.task_id,
+                    step_id=task.parameters.get("step_id"),
+                    action_type=task.action,
+                    started_at=started_at,
+                    finished_at=finished_at,
+                    duration=duration,
+                    status=ExecutionStatus.FAILED,
+                    result=evidence,
+                    error=error_msg,
+                    metadata=sanitize_metadata(task.parameters),
+                    retry_allowed=IS_ACTION_IDEMPOTENT.get(task.action, False),
+                )
                 result = AgentRunResult(
                     task_id=task.task_id,
                     status=AgentStatus.FAILED,
@@ -370,6 +596,7 @@ class EVAgent:
                         error=error_msg,
                         result=evidence,
                     ),
+                    execution=exec_res,
                 )
                 self._publish_event(
                     event_type=EVEventType.STATUS,
@@ -385,7 +612,54 @@ class EVAgent:
                         "action": task.action.value,
                         "success": False,
                         "duration_seconds": duration,
-                    }
+                    },
+                )
+                self._history("record_run", task, result)
+                return result
+
+            # Pre-verification cooperative cancellation check (Task 016 Part H)
+            if cancellation_token and cancellation_token.is_cancelled():
+                cancel_err = cancellation_token.state.reason or "Cancelled before verification"
+                if is_mutation:
+                    self._rollback_if_needed(
+                        task=task,
+                        target_path_obj=target_path_obj,
+                        target_existed_before=target_existed_before,
+                        backup_record_res=backup_record_res,
+                    )
+                finished_at = datetime.now()
+                duration = (finished_at - started_at).total_seconds()
+                exec_res = ExecutionResult(
+                    action_id=task.task_id,
+                    step_id=task.parameters.get("step_id"),
+                    action_type=task.action,
+                    started_at=started_at,
+                    finished_at=finished_at,
+                    duration=duration,
+                    status=ExecutionStatus.CANCELLED,
+                    error=cancel_err,
+                    metadata=sanitize_metadata(task.parameters),
+                    retry_allowed=False,
+                )
+                result = AgentRunResult(
+                    task_id=task.task_id,
+                    status=AgentStatus.FAILED,
+                    error=cancel_err,
+                    step=AgentStepResult(
+                        action=task.action,
+                        success=False,
+                        started_at=started_at,
+                        finished_at=finished_at,
+                        duration_seconds=duration,
+                        error=cancel_err,
+                    ),
+                    execution=exec_res,
+                )
+                self._publish_event(
+                    event_type=EVEventType.ACTION_COMPLETED,
+                    correlation_id=task.task_id,
+                    message=f"{task.action.value}: cancelled before verification",
+                    data={"task_id": task.task_id, "action": task.action.value, "status": "CANCELLED"},
                 )
                 self._history("record_run", task, result)
                 return result
@@ -404,6 +678,7 @@ class EVAgent:
                     target_path_obj=target_path_obj,
                     target_existed_before=target_existed_before,
                     backup_record_res=backup_record_res,
+                    cancellation_token=cancellation_token,
                 )
 
             # -----------------------------------------------------------
@@ -417,6 +692,26 @@ class EVAgent:
                 task.action.value,
                 duration,
             )
+            exec_res = ExecutionResult(
+                action_id=task.task_id,
+                step_id=task.parameters.get("step_id"),
+                action_type=task.action,
+                started_at=started_at,
+                finished_at=finished_at,
+                duration=duration,
+                status=ExecutionStatus.SUCCEEDED,
+                result=evidence,
+                metadata=sanitize_metadata(task.parameters),
+                retry_allowed=IS_ACTION_IDEMPOTENT.get(task.action, True),
+                verification_status=VerificationStatus.NOT_APPLICABLE,
+            )
+            v_res = VerificationResult(
+                verification_type=VerificationType.NONE,
+                status=VerificationStatus.NOT_APPLICABLE,
+                success=True,
+                message="Verification not applicable for this action",
+                timestamp=datetime.now(),
+            )
             result = AgentRunResult(
                 task_id=task.task_id,
                 status=AgentStatus.COMPLETED,
@@ -428,6 +723,8 @@ class EVAgent:
                     duration_seconds=duration,
                     result=evidence,
                 ),
+                execution=exec_res,
+                verification=v_res,
             )
             if is_mutation:
                 if is_file_mutation:
@@ -470,13 +767,111 @@ class EVAgent:
                     "action": task.action.value,
                     "success": True,
                     "duration_seconds": duration,
-                }
+                },
             )
             self._history("record_run", task, result)
             return result
         except Exception as exc:  # pragma: no cover - defensive
             logger.exception("Agent task error: task_id=%s action=%s", task.task_id, task.action.value)
             error_msg = f"{type(exc).__name__}: {exc}"
+            is_timeout_exc = isinstance(exc, TimeoutError) or "timed out" in str(exc).lower()
+
+            if is_mutation and is_timeout_exc:
+                logger.warning("Mutating action %s timed out with exception; checking safe observation", task.action.value)
+                obs_resolution = self._observe_unknown_mutation(task, target_path_obj)
+                finished_at = datetime.now()
+                duration = (finished_at - started_at).total_seconds()
+                if obs_resolution == "RESOLVED_SUCCESS":
+                    logger.info("Mutating action %s timeout resolved to SUCCESS via safe observation", task.action.value)
+                    exec_res = ExecutionResult(
+                        action_id=task.task_id,
+                        step_id=task.parameters.get("step_id"),
+                        action_type=task.action,
+                        started_at=started_at,
+                        finished_at=finished_at,
+                        duration=duration,
+                        status=ExecutionStatus.SUCCEEDED,
+                        metadata=sanitize_metadata(task.parameters),
+                        retry_allowed=IS_ACTION_IDEMPOTENT.get(task.action, False),
+                        verification_status=VerificationStatus.VERIFIED,
+                    )
+                    v_res = VerificationResult(
+                        verification_type=task.verification_type or VerificationType.NONE,
+                        status=VerificationStatus.VERIFIED,
+                        success=True,
+                        message=f"Mutating action {task.action.value} timeout resolved to success via observation",
+                        timestamp=datetime.now(),
+                    )
+                    result = AgentRunResult(
+                        task_id=task.task_id,
+                        status=AgentStatus.COMPLETED,
+                        step=AgentStepResult(
+                            action=task.action,
+                            success=True,
+                            started_at=started_at,
+                            finished_at=finished_at,
+                            duration_seconds=duration,
+                            result={"resolved_via_observation": True},
+                        ),
+                        execution=exec_res,
+                        verification=v_res,
+                    )
+                    self._publish_event(
+                        event_type=EVEventType.ACTION_COMPLETED,
+                        correlation_id=task.task_id,
+                        message=f"{task.action.value}: completed (resolved via observation)",
+                        data={"task_id": task.task_id, "action": task.action.value, "success": True},
+                    )
+                    self._history("record_run", task, result)
+                    return result
+                else:
+                    # Ambiguous/unknown outcome: do not rollback blindly if state cannot be confirmed, stop further mutation
+                    error_msg = f"{task.action.value} timed out: {exc}; state is UNKNOWN ({obs_resolution})"
+                    exec_res = ExecutionResult(
+                        action_id=task.task_id,
+                        step_id=task.parameters.get("step_id"),
+                        action_type=task.action,
+                        started_at=started_at,
+                        finished_at=finished_at,
+                        duration=duration,
+                        status=ExecutionStatus.UNKNOWN,
+                        error=error_msg,
+                        metadata=sanitize_metadata(task.parameters),
+                        retry_allowed=False,
+                        verification_status=VerificationStatus.UNKNOWN,
+                    )
+                    v_res = VerificationResult(
+                        verification_type=task.verification_type or VerificationType.NONE,
+                        status=VerificationStatus.UNKNOWN,
+                        success=False,
+                        message=error_msg,
+                        timestamp=datetime.now(),
+                    )
+                    result = AgentRunResult(
+                        task_id=task.task_id,
+                        status=AgentStatus.FAILED,
+                        error=error_msg,
+                        step=AgentStepResult(
+                            action=task.action,
+                            success=False,
+                            started_at=started_at,
+                            finished_at=finished_at,
+                            duration_seconds=duration,
+                            error=error_msg,
+                        ),
+                        execution=exec_res,
+                        verification=v_res,
+                    )
+                    self._publish_event(
+                        event_type=EVEventType.ACTION_UNKNOWN,
+                        correlation_id=task.task_id,
+                        message=error_msg,
+                        severity=EVEventSeverity.WARNING,
+                        data={"task_id": task.task_id, "action": task.action.value, "error": error_msg},
+                    )
+                    self._history("record_run", task, result)
+                    return result
+
             if is_mutation:
                 restore_res = self._rollback_if_needed(
                     task=task,
@@ -490,6 +885,18 @@ class EVAgent:
 
             finished_at = datetime.now()
             duration = (finished_at - started_at).total_seconds()
+            exec_res = ExecutionResult(
+                action_id=task.task_id,
+                step_id=task.parameters.get("step_id"),
+                action_type=task.action,
+                started_at=started_at,
+                finished_at=finished_at,
+                duration=duration,
+                status=ExecutionStatus.FAILED,
+                error=error_msg,
+                metadata=sanitize_metadata(task.parameters),
+                retry_allowed=False,
+            )
             result = AgentRunResult(
                 task_id=task.task_id,
                 status=AgentStatus.FAILED,
@@ -502,6 +909,7 @@ class EVAgent:
                     duration_seconds=duration,
                     error=error_msg,
                 ),
+                execution=exec_res,
             )
             self._publish_event(
                 event_type=EVEventType.STATUS,
@@ -517,10 +925,11 @@ class EVAgent:
                     "action": task.action.value,
                     "success": False,
                     "duration_seconds": duration,
-                }
+                },
             )
             self._history("record_run", task, result)
             return result
+
 
     def _rollback_if_needed(
         self,
@@ -568,6 +977,63 @@ class EVAgent:
         self._recovered_tasks[task_id] = restore_res
         return restore_res
 
+    def _observe_unknown_mutation(self, task: AgentTask, target_path_obj: Optional[Any] = None) -> str:
+        """
+        Observation-only inspection to safely resolve ambiguous/timeout mutation outcomes.
+        Never executes mutations. Never retries mutating calls.
+        """
+        try:
+            if task.action == AgentAction.STOP_PROCESS:
+                pid = task.parameters.get("pid")
+                proc_name = task.parameters.get("process_name") or task.parameters.get("name")
+                if pid:
+                    all_procs = list_processes()
+                    matching = [p for p in all_procs if p.pid == pid]
+                    if not matching:
+                        return "RESOLVED_SUCCESS"
+                    return f"PROCESS_STILL_RUNNING (PID {pid})"
+                elif proc_name:
+                    matches = find_processes(proc_name)
+                    if not matches:
+                        return "RESOLVED_SUCCESS"
+                    return f"PROCESS_STILL_RUNNING ({proc_name})"
+            elif task.action == AgentAction.RESTART_SERVICE:
+                name = task.parameters.get("name")
+                if name:
+                    matches = find_services(name)
+                    if matches and matches[0].status and matches[0].status.lower() == "running":
+                        return "RESOLVED_SUCCESS"
+                    current = matches[0].status if matches else "NOT_FOUND"
+                    return f"SERVICE_NOT_RUNNING (current: {current})"
+            elif task.action == AgentAction.WRITE_FILE:
+                raw_path = task.parameters.get("path")
+                from pathlib import Path
+                p = target_path_obj or Path(raw_path)
+                if p.exists() and p.is_file():
+                    expected_content = task.parameters.get("content")
+                    if expected_content is not None:
+                        try:
+                            actual = p.read_text(encoding=task.parameters.get("encoding", "utf-8"))
+                            if actual == expected_content:
+                                return "RESOLVED_SUCCESS"
+                        except Exception:
+                            pass
+                    else:
+                        return "RESOLVED_SUCCESS"
+                return "FILE_NOT_VERIFIED"
+            elif task.action == AgentAction.DELETE_FILE:
+                raw_path = task.parameters.get("path")
+                from pathlib import Path
+                p = target_path_obj or Path(raw_path)
+                if not p.exists():
+                    return "RESOLVED_SUCCESS"
+                return "FILE_STILL_EXISTS"
+            elif task.action == AgentAction.FLUSH_DNS:
+                return "RESOLVED_SUCCESS"
+        except Exception as exc:
+            logger.debug("Error during safe observation of unknown mutation: %s", exc)
+        return "OBSERVATION_UNRESOLVED"
+
     def _run_verification(
         self,
         task: AgentTask,
@@ -578,9 +1044,63 @@ class EVAgent:
         target_path_obj: Optional[Any] = None,
         target_existed_before: bool = False,
         backup_record_res: Optional[Any] = None,
+        cancellation_token: Optional[CancellationToken] = None,
     ) -> AgentRunResult:
+        # Pre-verification cancellation check
+        if cancellation_token and cancellation_token.is_cancelled():
+            cancel_err = cancellation_token.state.reason or "Cancelled before verification"
+            if is_mutation:
+                self._rollback_if_needed(
+                    task=task,
+                    target_path_obj=target_path_obj,
+                    target_existed_before=target_existed_before,
+                    backup_record_res=backup_record_res,
+                )
+            finished_at = datetime.now()
+            duration = (finished_at - started_at).total_seconds()
+            exec_res = ExecutionResult(
+                action_id=task.task_id,
+                step_id=task.parameters.get("step_id"),
+                action_type=task.action,
+                started_at=started_at,
+                finished_at=finished_at,
+                duration=duration,
+                status=ExecutionStatus.CANCELLED,
+                error=cancel_err,
+                metadata=sanitize_metadata(task.parameters),
+                retry_allowed=False,
+            )
+            result = AgentRunResult(
+                task_id=task.task_id,
+                status=AgentStatus.FAILED,
+                error=cancel_err,
+                step=AgentStepResult(
+                    action=task.action,
+                    success=False,
+                    started_at=started_at,
+                    finished_at=finished_at,
+                    duration_seconds=duration,
+                    error=cancel_err,
+                ),
+                execution=exec_res,
+            )
+            self._publish_event(
+                event_type=EVEventType.ACTION_COMPLETED,
+                correlation_id=task.task_id,
+                message=f"{task.action.value}: cancelled before verification",
+                data={"task_id": task.task_id, "action": task.action.value, "status": "CANCELLED"},
+            )
+            self._history("record_run", task, result)
+            return result
+
         # Signal entry into VERIFYING state
         self._set_state_safe("VERIFYING")
+        self._publish_event(
+            event_type=EVEventType.ACTION_VERIFYING,
+            correlation_id=task.task_id,
+            message=f"{task.action.value}: verifying {task.verification_type.value if task.verification_type else ''}",
+            data={"task_id": task.task_id, "action": task.action.value},
+        )
 
         try:
             v_evidence = evidence
@@ -589,18 +1109,25 @@ class EVAgent:
             elif hasattr(evidence, "dict"):
                 v_evidence = evidence.dict()
 
-            if is_file_mutation and target_path_obj is not None:
-                if task.verification_type in (
-                    VerificationType.FILE_EXISTS,
-                    VerificationType.FILE_NOT_EXISTS,
-                    VerificationType.DIRECTORY_EXISTS,
-                ):
-                    v_evidence = get_file_info(str(target_path_obj))
-                elif task.verification_type in (
-                    VerificationType.TEXT_CONTAINS,
-                    VerificationType.TEXT_NOT_CONTAINS,
-                ):
-                    v_evidence = read_text_file(str(target_path_obj))
+            target_path_str = str(target_path_obj) if target_path_obj else task.parameters.get("path")
+
+            # Gather deterministic observation evidence
+            if task.verification_type in (
+                VerificationType.FILE_EXISTS,
+                VerificationType.FILE_NOT_EXISTS,
+                VerificationType.DIRECTORY_EXISTS,
+            ) and target_path_str:
+                v_evidence = get_file_info(target_path_str)
+            elif task.verification_type in (
+                VerificationType.TEXT_CONTAINS,
+                VerificationType.TEXT_NOT_CONTAINS,
+                VerificationType.FILE_CONTENT_MATCH,
+            ) and target_path_str:
+                v_evidence = read_text_file(target_path_str)
+            elif task.verification_type == VerificationType.READ_CONTENT_VALID:
+                v_evidence = evidence
+            elif task.verification_type == VerificationType.FILE_HASH_MATCH:
+                v_evidence = evidence
             elif task.action == AgentAction.STOP_PROCESS:
                 if task.verification_type == VerificationType.PROCESS_NOT_EXISTS:
                     proc_name = task.parameters.get("process_name") or task.parameters.get("name")
@@ -612,20 +1139,38 @@ class EVAgent:
                         v_evidence = [p for p in all_procs if p.pid == pid_val]
                 elif task.verification_type == VerificationType.TCP_PORT_NOT_EXISTS and "port" in task.parameters:
                     v_evidence = find_tcp_port(int(task.parameters["port"]))
+            elif task.verification_type == VerificationType.PROCESS_IDENTITY_VALID:
+                if isinstance(evidence, list):
+                    v_evidence = evidence
+                else:
+                    name_param = task.parameters.get("name") or task.parameters.get("process_name")
+                    v_evidence = find_processes(name_param) if name_param else evidence
+            elif task.verification_type in (VerificationType.SERVICE_RUNNING, VerificationType.SERVICE_STOPPED):
+                service_name = task.parameters.get("name")
+                if service_name:
+                    v_evidence = find_services(service_name)
+                else:
+                    v_evidence = evidence
 
             expected_text = (
                 task.parameters.get("expected_text")
                 or task.parameters.get("text")
                 or task.parameters.get("content")
             )
+            expected_content = task.parameters.get("content") or task.parameters.get("expected_content")
+            expected_sha256 = task.parameters.get("sha256") or task.parameters.get("expected_sha256")
+            expected_bytes = task.parameters.get("expected_bytes")
+
             v_request = VerificationRequest(
                 verification_type=task.verification_type,
                 evidence=v_evidence,
                 expected_text=expected_text,
+                expected_content=expected_content,
+                expected_sha256=expected_sha256,
+                expected_bytes=expected_bytes,
             )
             v_result = self._verifier.verify(v_request)
         except Exception as exc:
-            # Verifier itself raised — treat as failed verification
             logger.exception(
                 "Verification engine error: task_id=%s verification_type=%s",
                 task.task_id,
@@ -645,7 +1190,26 @@ class EVAgent:
 
             finished_at = datetime.now()
             duration = (finished_at - started_at).total_seconds()
-
+            exec_res = ExecutionResult(
+                action_id=task.task_id,
+                step_id=task.parameters.get("step_id"),
+                action_type=task.action,
+                started_at=started_at,
+                finished_at=finished_at,
+                duration=duration,
+                status=ExecutionStatus.FAILED,
+                error=error_msg,
+                metadata=sanitize_metadata(task.parameters),
+                retry_allowed=False,
+                verification_status=VerificationStatus.ERROR,
+            )
+            v_res = VerificationResult(
+                verification_type=task.verification_type,
+                status=VerificationStatus.ERROR,
+                success=False,
+                message=error_msg,
+                timestamp=datetime.now(),
+            )
             result = AgentRunResult(
                 task_id=task.task_id,
                 status=AgentStatus.FAILED,
@@ -658,6 +1222,8 @@ class EVAgent:
                     duration_seconds=duration,
                     error=error_msg,
                 ),
+                execution=exec_res,
+                verification=v_res,
             )
             self._publish_event(
                 event_type=EVEventType.VERIFICATION_RESULT,
@@ -684,7 +1250,7 @@ class EVAgent:
             self._history("record_run", task, result)
             return result
 
-        # Verification completed — format and publish
+        # Verification completed — format and evaluate
         finished_at = datetime.now()
         duration = (finished_at - started_at).total_seconds()
         target_name = self._extract_target_name(task)
@@ -692,23 +1258,43 @@ class EVAgent:
             task.verification_type, v_result, target_name
         )
 
-        is_success = v_result.status == VerificationStatus.VERIFIED
+        is_verified = (v_result.status == VerificationStatus.VERIFIED or v_result.status == VerificationStatus.NOT_APPLICABLE)
         restore_res = None
-        if not is_success and is_mutation:
-            restore_res = self._rollback_if_needed(
-                task=task,
-                target_path_obj=target_path_obj,
-                target_existed_before=target_existed_before,
-                backup_record_res=backup_record_res,
-            )
 
-        agent_status = AgentStatus.COMPLETED if is_success else AgentStatus.FAILED
+        if not is_verified:
+            # Critical Task 016 rule: Execution succeeded + Verification failed = OVERALL FAILURE
+            logger.warning(
+                "Execution verification FAILED for task %s (status=%s): %s",
+                task.task_id,
+                v_result.status.value,
+                v_result.message,
+            )
+            if is_mutation:
+                restore_res = self._rollback_if_needed(
+                    task=task,
+                    target_path_obj=target_path_obj,
+                    target_existed_before=target_existed_before,
+                    backup_record_res=backup_record_res,
+                )
+
+        agent_status = AgentStatus.COMPLETED if is_verified else AgentStatus.FAILED
         error_val = None
-        if not is_success:
+        if not is_verified:
             error_val = v_message
             if restore_res is not None and not restore_res.success:
                 restore_err_detail = restore_res.error or restore_res.message or "restore failed"
                 error_val = f"{v_message} | Recovery restore failed: {restore_err_detail}"
+
+        # Determine execution status and retry eligibility
+        if is_verified:
+            exec_status = ExecutionStatus.SUCCEEDED
+            retry_allowed = IS_ACTION_IDEMPOTENT.get(task.action, True)
+        elif v_result.status in (VerificationStatus.UNKNOWN, VerificationStatus.INDETERMINATE):
+            exec_status = ExecutionStatus.UNKNOWN
+            retry_allowed = False  # Crucial rule: Never blindly retry unknown mutating action
+        else:
+            exec_status = ExecutionStatus.FAILED
+            retry_allowed = IS_ACTION_IDEMPOTENT.get(task.action, False)
 
         logger.info(
             "Verification complete: task_id=%s type=%s status=%s duration=%.3fs",
@@ -718,21 +1304,39 @@ class EVAgent:
             duration,
         )
 
+        exec_res = ExecutionResult(
+            action_id=task.task_id,
+            step_id=task.parameters.get("step_id"),
+            action_type=task.action,
+            started_at=started_at,
+            finished_at=finished_at,
+            duration=duration,
+            status=exec_status,
+            result=evidence,
+            error=error_val,
+            metadata=sanitize_metadata(task.parameters),
+            retry_allowed=retry_allowed,
+            verification_status=v_result.status,
+        )
+
         result = AgentRunResult(
             task_id=task.task_id,
             status=agent_status,
             error=error_val,
             step=AgentStepResult(
                 action=task.action,
-                success=is_success,
+                success=is_verified,
                 started_at=started_at,
                 finished_at=finished_at,
                 duration_seconds=duration,
                 result=v_result,
                 error=error_val,
             ),
+            execution=exec_res,
+            verification=v_result,
         )
-        if is_success and is_mutation:
+
+        if is_verified and is_mutation:
             if is_file_mutation:
                 b_path = backup_record_res.backup_path if backup_record_res else None
                 b_sha = (
@@ -768,8 +1372,18 @@ class EVAgent:
                 "verification_type": task.verification_type.value,
                 "status": v_result.status.value,
                 "success": v_result.success,
+                "retry_allowed": retry_allowed,
             },
         )
+
+        # Publish ACTION_UNKNOWN if outcome is unknown
+        if exec_status == ExecutionStatus.UNKNOWN:
+            self._publish_event(
+                event_type=EVEventType.ACTION_UNKNOWN,
+                correlation_id=task.task_id,
+                message=f"{task.action.value}: outcome is UNKNOWN ({v_message})",
+                data={"task_id": task.task_id, "action": task.action.value, "retry_allowed": False},
+            )
 
         # Publish ACTION_COMPLETED
         self._publish_event(
@@ -781,7 +1395,9 @@ class EVAgent:
                 "action": task.action.value,
                 "verification_type": task.verification_type.value,
                 "verification_status": v_result.status.value,
-                "success": is_success,
+                "execution_status": exec_status.value,
+                "success": is_verified,
+                "retry_allowed": retry_allowed,
                 "duration_seconds": duration,
             },
         )
@@ -791,6 +1407,7 @@ class EVAgent:
         self._history("attach_verification", task.task_id, v_result)
 
         return result
+
 
     def _set_state_safe(self, state_name: str) -> None:
         """Attempt to set EVState via the event bus; swallow failures."""
@@ -927,12 +1544,18 @@ class EVAgent:
         """Return the recorded mutation metadata for a completed task."""
         return self._task_mutations.get(task_id)
 
+    @property
+    def verifier(self) -> EVVerifier:
+        """Return the configured EVVerifier instance."""
+        return self._verifier
+
     def _publish_event(
         self,
         event_type: EVEventType,
         correlation_id: str,
         message: Optional[str] = None,
         data: Optional[Dict[str, Any]] = None,
+        severity: EVEventSeverity = EVEventSeverity.INFO,
     ) -> None:
         if self._event_bus is None:
             return
@@ -942,6 +1565,7 @@ class EVAgent:
                 source="agent",
                 correlation_id=correlation_id,
                 message=message,
+                severity=severity,
                 data=data,
             )
         except Exception:

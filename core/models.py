@@ -1,7 +1,51 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from datetime import datetime
-from typing import Optional, Any, List
+from typing import Optional, Any, List, Dict
 from enum import Enum
+
+SENSITIVE_METADATA_KEYS = {
+    "password", "passwd", "pwd", "secret", "token", "access_token",
+    "refresh_token", "api_key", "apikey", "credential",
+    "credentials", "authorization", "auth", "private_key", "raw_audio",
+    "audio_data", "audio_buffer", "bearer_token"
+}
+
+def sanitize_metadata(meta: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    """
+    Sanitize metadata to guarantee no secrets, credentials, or raw audio are stored.
+    """
+    if not meta or not isinstance(meta, dict):
+        return {}
+    sanitized: Dict[str, Any] = {}
+    for k, v in meta.items():
+        k_lower = str(k).lower()
+        is_sensitive = (
+            k_lower in SENSITIVE_METADATA_KEYS
+            or any(k_lower.startswith(s + "_") or k_lower.endswith("_" + s) for s in ("password", "secret", "token", "auth", "credential"))
+            or any(s in k_lower for s in ("api_key", "apikey", "bearer", "access_token", "refresh_token", "raw_audio", "audio_buffer", "audio_data", "private_key"))
+        )
+        if is_sensitive:
+            if "audio" in k_lower:
+                sanitized[k] = "[REDACTED_AUDIO_BUFFER]"
+            else:
+                sanitized[k] = "[REDACTED]"
+        elif isinstance(v, (bytes, bytearray)):
+            sanitized[k] = "[REDACTED_AUDIO_BUFFER]" if "audio" in k_lower else f"<{len(v)} bytes binary omitted>"
+        elif isinstance(v, dict):
+            sanitized[k] = sanitize_metadata(v)
+        elif isinstance(v, list):
+            sanitized[k] = [
+                sanitize_metadata(item) if isinstance(item, dict) else (
+                    "[REDACTED_AUDIO_BUFFER]" if "audio" in k_lower else (
+                        f"<{len(item)} bytes binary omitted>" if isinstance(item, (bytes, bytearray)) else item
+                    )
+                )
+                for item in v
+            ]
+        else:
+            sanitized[k] = v
+    return sanitized
+
 
 class PowerShellResult(BaseModel):
     """
@@ -131,42 +175,94 @@ class DnsFlushResult(BaseModel):
     error: Optional[str] = None
 
 
-# Verifier models
+# Execution and Verifier models
+class ExecutionStatus(str, Enum):
+    ACCEPTED = "ACCEPTED"
+    EXECUTING = "EXECUTING"
+    SUCCEEDED = "SUCCEEDED"
+    FAILED = "FAILED"
+    CANCELLED = "CANCELLED"
+    UNKNOWN = "UNKNOWN"
+
 class VerificationStatus(str, Enum):
     VERIFIED = "VERIFIED"
+    FAILED = "FAILED"
+    NOT_APPLICABLE = "NOT_APPLICABLE"
+    UNKNOWN = "UNKNOWN"
+    # Backward compatibility aliases
     NOT_VERIFIED = "NOT_VERIFIED"
     INDETERMINATE = "INDETERMINATE"
     ERROR = "ERROR"
 
+    def __eq__(self, other: Any) -> bool:
+        if super().__eq__(other):
+            return True
+        if isinstance(other, (VerificationStatus, str)):
+            val = other.value if isinstance(other, VerificationStatus) else str(other)
+            if self.value in ("FAILED", "NOT_VERIFIED", "ERROR") and val in ("FAILED", "NOT_VERIFIED", "ERROR"):
+                return True
+            if self.value in ("UNKNOWN", "INDETERMINATE") and val in ("UNKNOWN", "INDETERMINATE"):
+                return True
+        return False
+
+    def __hash__(self) -> int:
+        return hash(self.value)
+
 class VerificationType(str, Enum):
     PROCESS_EXISTS = "PROCESS_EXISTS"
     PROCESS_NOT_EXISTS = "PROCESS_NOT_EXISTS"
+    PROCESS_IDENTITY_VALID = "PROCESS_IDENTITY_VALID"
     TCP_PORT_EXISTS = "TCP_PORT_EXISTS"
     TCP_PORT_NOT_EXISTS = "TCP_PORT_NOT_EXISTS"
     FILE_EXISTS = "FILE_EXISTS"
     FILE_NOT_EXISTS = "FILE_NOT_EXISTS"
+    FILE_CONTENT_MATCH = "FILE_CONTENT_MATCH"
+    FILE_HASH_MATCH = "FILE_HASH_MATCH"
     DIRECTORY_EXISTS = "DIRECTORY_EXISTS"
     TEXT_CONTAINS = "TEXT_CONTAINS"
     TEXT_NOT_CONTAINS = "TEXT_NOT_CONTAINS"
+    READ_CONTENT_VALID = "READ_CONTENT_VALID"
     RESULT_NOT_EMPTY = "RESULT_NOT_EMPTY"
     RESULT_EMPTY = "RESULT_EMPTY"
     SERVICE_RUNNING = "SERVICE_RUNNING"
     SERVICE_STOPPED = "SERVICE_STOPPED"
+    NONE = "NONE"
 
 class VerificationRequest(BaseModel):
     verification_type: VerificationType
     evidence: Any
     expected_text: Optional[str] = None
+    expected_sha256: Optional[str] = None
+    expected_bytes: Optional[int] = None
+    expected_content: Optional[str] = None
+    expected_service_status: Optional[str] = None
     # If needed, other parameters can be added here for specific verification types.
 
 class VerificationResult(BaseModel):
-    verification_type: VerificationType
+    verification_type: Optional[VerificationType] = None
     status: VerificationStatus
-    success: bool  # True if VERIFIED, False otherwise (NOT_VERIFIED, INDETERMINATE, ERROR)
-    message: str
-    evidence_summary: Any
+    success: bool = True  # True if VERIFIED or NOT_APPLICABLE, False otherwise
+    message: str = ""
+    evidence_summary: Optional[Any] = None
     timestamp: datetime = Field(default_factory=datetime.now)
     error: Optional[str] = None
+    observed_state: Optional[Dict[str, Any]] = None
+
+    def __init__(self, **data: Any):
+        if "reason" in data and "message" not in data:
+            data["message"] = data["reason"]
+        if "success" not in data and "status" in data:
+            st = data["status"]
+            data["success"] = st in (VerificationStatus.VERIFIED, VerificationStatus.NOT_APPLICABLE)
+        super().__init__(**data)
+
+    @property
+    def reason(self) -> str:
+        return self.message or (self.error or "")
+
+    @property
+    def is_verified(self) -> bool:
+        return self.status in (VerificationStatus.VERIFIED, VerificationStatus.NOT_APPLICABLE)
 
 # Agent orchestration models
 class AgentStatus(str, Enum):
@@ -190,6 +286,28 @@ class AgentAction(str, Enum):
     RESTART_SERVICE = "RESTART_SERVICE"
     FLUSH_DNS = "FLUSH_DNS"
 
+class ExecutionResult(BaseModel):
+    """
+    Structured execution result tracking the lifecycle of an action.
+    """
+    action_id: str
+    step_id: Optional[str] = None
+    action_type: Any
+    started_at: datetime = Field(default_factory=datetime.now)
+    finished_at: datetime = Field(default_factory=datetime.now)
+    duration: float = 0.0
+    status: ExecutionStatus = ExecutionStatus.EXECUTING
+    result: Optional[Any] = None
+    error: Optional[str] = None
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+    retry_allowed: bool = True
+    verification_status: Optional[VerificationStatus] = None
+
+    @field_validator("metadata", mode="before")
+    @classmethod
+    def _sanitize(cls, val: Any) -> Dict[str, Any]:
+        return sanitize_metadata(val if isinstance(val, dict) else {})
+
 class AgentTask(BaseModel):
     task_id: str
     action: AgentAction
@@ -211,6 +329,8 @@ class AgentRunResult(BaseModel):
     status: AgentStatus
     step: Optional[AgentStepResult] = None
     error: Optional[str] = None
+    execution: Optional[ExecutionResult] = None
+    verification: Optional[VerificationResult] = None
 
 # Backup models
 class BackupStatus(str, Enum):
@@ -344,6 +464,9 @@ class EVEventType(str, Enum):
     PLAN_FAILED = "PLAN_FAILED"
     PLAN_CANCELLED = "PLAN_CANCELLED"
     PLAN_ROLLED_BACK = "PLAN_ROLLED_BACK"
+    ACTION_ACCEPTED = "ACTION_ACCEPTED"
+    ACTION_VERIFYING = "ACTION_VERIFYING"
+    ACTION_UNKNOWN = "ACTION_UNKNOWN"
 
 
 class EVEventSeverity(str, Enum):

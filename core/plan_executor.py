@@ -40,6 +40,7 @@ from core.models import (
     EVEventSeverity,
     EVEventType,
     EVState,
+    ExecutionStatus,
     PermissionDecision,
     RiskAssessmentRequest,
     RiskLevel,
@@ -340,23 +341,45 @@ class EVPlanExecutor:
 
             logger.info("Plan '%s' executing step %d/%d: '%s' (%s)", plan.plan_id, idx + 1, len(topo_order), sid, step.action.value)
 
-            run_result: AgentRunResult = self.agent.run(task)
+            run_result: AgentRunResult = self.agent.run(task, cancellation_token=token)
 
-            # 3. Verification Boundary Check
+            # 3. Verification & Execution Boundary Check
             step_verified = True
             verification_err = None
 
-            if run_result.status == AgentStatus.COMPLETED:
+            if run_result.execution:
+                step.metadata["execution_status"] = run_result.execution.status.value
+                step.metadata["retry_allowed"] = run_result.execution.retry_allowed
+                step.metadata["action_type"] = run_result.execution.action_type
+            if run_result.verification:
+                step.metadata["verification_status"] = run_result.verification.status.value
+
+            # Evaluate execution & verification outcomes
+            if token.is_cancelled() or (run_result.execution and run_result.execution.status == ExecutionStatus.CANCELLED):
+                step.status = StepStatus.CANCELLED
+                step_verified = False
+                verification_err = f"Cancelled: {token.state.reason if token.is_cancelled() else run_result.error or 'Step cancelled'}"
+            elif run_result.execution and run_result.execution.status == ExecutionStatus.UNKNOWN:
+                step_verified = False
+                verification_err = f"Execution outcome UNKNOWN: {run_result.execution.error or run_result.error or 'ambiguous outcome; blind retry prohibited'}"
+                logger.warning("Step '%s' produced UNKNOWN execution status; halting plan without retry", sid)
+            elif run_result.status == AgentStatus.COMPLETED:
                 step.status = StepStatus.VERIFYING
-                # Check if step has explicit verification
-                if step.verification_type is not None:
+                # Check explicit verification result
+                if run_result.verification:
+                    if run_result.verification.status not in (VerificationStatus.VERIFIED, VerificationStatus.NOT_APPLICABLE):
+                        step_verified = False
+                        verification_err = f"Verification failed: {run_result.verification.reason}"
+                elif step.verification_type is not None:
                     # EVAgent run() already runs verification if task.verification_type is set.
                     # Double-check through task history or run result
                     if run_result.step and run_result.step.result is not None:
-                        # If agent reported failure during verification
                         if not run_result.step.success:
                             step_verified = False
                             verification_err = run_result.step.error or "Verification check failed"
+            else:
+                step_verified = False
+                verification_err = run_result.error or "Step execution failed"
 
             step.finished_at = datetime.now()
             step.duration_seconds = (step.finished_at - step.started_at).total_seconds()
@@ -378,11 +401,12 @@ class EVPlanExecutor:
                         is_compensable=mutation_info.get("is_compensable", True),
                     )
             else:
-                # Step failed or verification failed
+                # Step failed or verification failed or execution unknown
                 all_steps_succeeded = False
                 failed_step_id = sid
                 failure_reason = verification_err or run_result.error or "Step execution failed"
-                step.status = StepStatus.FAILED
+                if step.status != StepStatus.CANCELLED:
+                    step.status = StepStatus.FAILED
                 step.error = failure_reason
 
                 logger.warning("Plan '%s' failed at step '%s': %s", plan.plan_id, sid, failure_reason)
