@@ -1186,6 +1186,7 @@ class EVOrchestrator:
                                     target_existed_before=mutation_info["target_existed_before"],
                                     backup_path=mutation_info.get("backup_path"),
                                     original_sha256=mutation_info.get("original_sha256"),
+                                    is_compensable=mutation_info.get("is_compensable", True),
                                 )
                         else:
                             all_completed = False

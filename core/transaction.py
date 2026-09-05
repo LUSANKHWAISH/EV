@@ -42,18 +42,34 @@ class TransactionStatus(str, Enum):
     FAILED = "FAILED"
 
 
+class CompensationStatus(str, Enum):
+    """Deterministic compensation outcome states for a mutation step."""
+    COMPENSATION_SUCCEEDED = "COMPENSATION_SUCCEEDED"
+    COMPENSATION_FAILED = "COMPENSATION_FAILED"
+    COMPENSATION_NOT_AVAILABLE = "COMPENSATION_NOT_AVAILABLE"
+
+
+class ActionReversibility(str, Enum):
+    """Action reversibility classification for transaction rollback capability."""
+    REVERSIBLE = "REVERSIBLE"
+    NON_REVERSIBLE = "NON_REVERSIBLE"
+
+
 @dataclass
 class StepCompensationRecord:
     """Record of a single mutation step within a transaction eligible for compensation."""
     step_index: int
     task_id: str
     action: AgentAction
-    target_path: str
-    target_existed_before: bool
+    target_path: Optional[str] = None
+    target_existed_before: bool = False
     backup_path: Optional[str] = None
     original_sha256: Optional[str] = None
     completed_at: datetime = field(default_factory=datetime.now)
+    is_compensable: bool = True
+    reversibility: ActionReversibility = ActionReversibility.REVERSIBLE
     compensated: bool = False
+    compensation_status: Optional[CompensationStatus] = None
     compensation_error: Optional[str] = None
 
 
@@ -94,32 +110,57 @@ class CompoundTransaction:
         self,
         step_index: int,
         task: AgentTask,
-        target_path: str,
+        target_path: Optional[str],
         target_existed_before: bool,
         backup_path: Optional[str] = None,
         original_sha256: Optional[str] = None,
+        is_compensable: bool = True,
+        reversibility: Optional[ActionReversibility] = None,
     ) -> StepCompensationRecord:
         """
         Record a successfully completed mutation step for future LIFO compensation.
         """
         with self._lock:
+            # Deterministic sanitization: never treat None, "None", or empty string as valid path
+            cleaned_target_path: Optional[str] = None
+            if target_path is not None:
+                s_path = str(target_path).strip()
+                if s_path and s_path.lower() != "none":
+                    cleaned_target_path = s_path
+
+            # If no valid target path exists or explicitly marked non-compensable
+            effective_is_compensable = bool(is_compensable)
+            if cleaned_target_path is None:
+                effective_is_compensable = False
+
+            if reversibility is not None:
+                effective_reversibility = reversibility
+            elif effective_is_compensable:
+                effective_reversibility = ActionReversibility.REVERSIBLE
+            else:
+                effective_reversibility = ActionReversibility.NON_REVERSIBLE
+
             record = StepCompensationRecord(
                 step_index=step_index,
                 task_id=task.task_id,
                 action=task.action,
-                target_path=str(target_path),
+                target_path=cleaned_target_path,
                 target_existed_before=target_existed_before,
                 backup_path=str(backup_path) if backup_path else None,
                 original_sha256=original_sha256,
+                is_compensable=effective_is_compensable,
+                reversibility=effective_reversibility,
             )
             self.completed_mutations.append(record)
             logger.debug(
-                "Transaction %s recorded mutation step %d (task=%s, action=%s, existed=%s)",
+                "Transaction %s recorded mutation step %d (task=%s, action=%s, existed=%s, compensable=%s, reversibility=%s)",
                 self.transaction_id,
                 step_index,
                 task.task_id,
                 task.action.value,
                 target_existed_before,
+                effective_is_compensable,
+                effective_reversibility.value,
             )
             return record
 
@@ -152,7 +193,7 @@ class CompoundTransaction:
 
         Returns:
             True if all completed mutation steps were cleanly compensated (ROLLED_BACK).
-            False if any compensation step failed (ROLLBACK_FAILED).
+            False if any compensation step failed or was non-compensable (ROLLBACK_FAILED).
         """
         with self._lock:
             self.status = TransactionStatus.ROLLING_BACK
@@ -172,6 +213,32 @@ class CompoundTransaction:
             for record in reversed(self.completed_mutations):
                 step_success = False
                 err_msg = None
+
+                # 1. Non-compensable or missing path check: fail closed!
+                if not record.is_compensable or not record.target_path:
+                    step_success = False
+                    err_msg = f"Step {record.step_index} ({record.action.value}) is non-reversible (is_compensable=False)"
+                    logger.warning(
+                        "Transaction %s cannot compensate step %d (%s): non-reversible action",
+                        self.transaction_id,
+                        record.step_index,
+                        record.action.value,
+                    )
+                    record.compensated = False
+                    record.compensation_status = CompensationStatus.COMPENSATION_NOT_AVAILABLE
+                    record.compensation_error = err_msg
+                    self.rollback_records.append({
+                        "step_index": record.step_index,
+                        "task_id": record.task_id,
+                        "target_path": record.target_path,
+                        "action": record.action.value,
+                        "success": False,
+                        "error": err_msg,
+                        "compensation_status": CompensationStatus.COMPENSATION_NOT_AVAILABLE.value,
+                        "is_compensable": False,
+                    })
+                    continue
+
                 target_p = Path(record.target_path)
 
                 try:
@@ -185,6 +252,7 @@ class CompoundTransaction:
                         )
                         if restore_res.success:
                             step_success = True
+                            record.compensation_status = CompensationStatus.COMPENSATION_SUCCEEDED
                             logger.info(
                                 "Transaction %s compensated step %d (restored %s from %s)",
                                 self.transaction_id,
@@ -194,6 +262,7 @@ class CompoundTransaction:
                             )
                         else:
                             step_success = False
+                            record.compensation_status = CompensationStatus.COMPENSATION_FAILED
                             err_msg = restore_res.error or restore_res.message or "Restore failed"
                             logger.error(
                                 "Transaction %s failed to restore step %d (%s): %s",
@@ -207,6 +276,7 @@ class CompoundTransaction:
                         if target_p.exists():
                             target_p.unlink()
                             step_success = True
+                            record.compensation_status = CompensationStatus.COMPENSATION_SUCCEEDED
                             logger.info(
                                 "Transaction %s compensated step %d (unlinked newly created file %s)",
                                 self.transaction_id,
@@ -216,9 +286,11 @@ class CompoundTransaction:
                         else:
                             # Already deleted or not present -> cleanly compensated
                             step_success = True
+                            record.compensation_status = CompensationStatus.COMPENSATION_SUCCEEDED
                     else:
                         # Missing backup information for an existing file
                         step_success = False
+                        record.compensation_status = CompensationStatus.COMPENSATION_FAILED
                         err_msg = f"Missing backup path for existing file {record.target_path}"
                         logger.error(
                             "Transaction %s compensation error on step %d: %s",
@@ -229,6 +301,7 @@ class CompoundTransaction:
 
                 except Exception as exc:
                     step_success = False
+                    record.compensation_status = CompensationStatus.COMPENSATION_FAILED
                     err_msg = f"{type(exc).__name__}: {exc}"
                     logger.exception(
                         "Transaction %s unexpected exception compensating step %d: %s",
@@ -247,6 +320,8 @@ class CompoundTransaction:
                     "action": record.action.value,
                     "success": step_success,
                     "error": err_msg,
+                    "compensation_status": record.compensation_status.value if record.compensation_status else CompensationStatus.COMPENSATION_FAILED.value,
+                    "is_compensable": True,
                 })
 
                 if not step_success:
