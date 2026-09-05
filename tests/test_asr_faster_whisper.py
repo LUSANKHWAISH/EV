@@ -54,6 +54,11 @@ class TestFasterWhisperProviderContract:
         assert provider.compute_type == "int8"
         assert provider.cpu_threads == 4
         assert provider.download_root == DEFAULT_MODEL_DIR
+        assert provider.beam_size == 1
+        assert provider.without_timestamps is True
+        assert provider.condition_on_previous_text is False
+        assert provider.initial_prompt == "E.V. PowerShell CPU RAM"
+        assert provider.vad_filter is False
         assert provider._model is None  # Lazy loading verified
 
     def test_custom_configuration(self):
@@ -63,15 +68,23 @@ class TestFasterWhisperProviderContract:
             compute_type="int8",
             cpu_threads=8,
             download_root=r"D:\custom\models",
-            beam_size=1,
+            beam_size=2,
             temperature=0.2,
+            without_timestamps=False,
+            condition_on_previous_text=True,
+            initial_prompt="Custom prompt",
+            vad_filter=True,
         )
         assert provider.model_size_or_path == "tiny.en"
         assert provider.device == "cpu"
         assert provider.cpu_threads == 8
         assert provider.download_root == r"D:\custom\models"
-        assert provider.beam_size == 1
+        assert provider.beam_size == 2
         assert provider.temperature == 0.2
+        assert provider.without_timestamps is False
+        assert provider.condition_on_previous_text is True
+        assert provider.initial_prompt == "Custom prompt"
+        assert provider.vad_filter is True
 
     def test_environment_override_model_dir(self, monkeypatch):
         monkeypatch.setenv("EV_ASR_MODEL_DIR", r"D:\env_models\asr")
@@ -192,6 +205,29 @@ class TestTranscription:
         assert res.duration_seconds == pytest.approx(0.300, rel=1e-3)
         assert res.provider == "faster_whisper"
         assert provider.transcription_count == 1
+
+    @patch("faster_whisper.WhisperModel")
+    def test_transcribe_passes_optimized_parameters(self, mock_whisper_cls):
+        mock_instance = MagicMock()
+        mock_whisper_cls.return_value = mock_instance
+        mock_instance.transcribe.return_value = (iter([DummySegment("test")]), DummyInfo(language="en"))
+
+        provider = FasterWhisperASRProvider(
+            beam_size=1,
+            without_timestamps=True,
+            condition_on_previous_text=False,
+            initial_prompt="E.V. PowerShell CPU RAM",
+            vad_filter=False,
+        )
+        provider.transcribe([create_silence_frame()])
+
+        mock_instance.transcribe.assert_called_once()
+        _, kwargs = mock_instance.transcribe.call_args
+        assert kwargs["beam_size"] == 1
+        assert kwargs["without_timestamps"] is True
+        assert kwargs["condition_on_previous_text"] is False
+        assert kwargs["initial_prompt"] == "E.V. PowerShell CPU RAM"
+        assert kwargs["vad_filter"] is False
 
     @patch("faster_whisper.WhisperModel")
     def test_no_speech_detected_in_audio(self, mock_whisper_cls):

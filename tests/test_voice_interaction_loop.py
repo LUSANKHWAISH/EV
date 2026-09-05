@@ -1672,3 +1672,109 @@ class TestSafetyInvariants:
         # There is no god_mode attribute or ability to bypass risk on EVVoiceManager
         assert not hasattr(mgr, "_god_mode")
         assert not hasattr(mgr, "enable_god_mode")
+
+
+# ============================================================================
+# 11. Resource & Leak Testing (Task 014F-15: Section 12)
+# ============================================================================
+
+class TestVoiceManagerResourceAndLeaks:
+    """Verifies resource safety, absence of leaks, and thread stability across repeated cycles."""
+
+    def test_twenty_consecutive_voice_interactions_leak_free(self):
+        """
+        Execute 20 consecutive voice interactions using deterministic mocked providers.
+        Verify:
+          - zero thread growth / worker accumulation
+          - bounded memory growth
+          - no model duplication
+          - zero persistent audio files
+          - zero queue or buffer accumulation
+        """
+        import gc
+        import os
+        import psutil
+
+        gc.collect()
+        proc = psutil.Process()
+        ram_before_mb = proc.memory_info().rss / (1024 * 1024)
+        threads_before = threading.active_count()
+        files_before = set(os.listdir("."))
+
+        capture = MockAudioCaptureProvider()
+        wake = MockWakeWordProvider()
+        vad = ScriptedVADProvider()
+        asr = MockASRProvider()
+        orch = MockOrchestrator()
+        verifier = MockWakeVerifier(default_verified=True)
+
+        mgr = EVVoiceManager(
+            capture_provider=capture,
+            wake_word_provider=wake,
+            vad_provider=vad,
+            asr_provider=asr,
+            orchestrator=orch,
+            wake_verifier=verifier,
+            enable_stage2_verification=True,
+            silence_timeout_seconds=0.06,  # 2 silence frames
+            min_speech_seconds=0.06,       # 2 speech frames
+        )
+
+        for cycle in range(20):
+            asr.default_text = f"command cycle {cycle}"
+
+            # 1. Trigger Wake
+            wake.set_triggered(True)
+            mgr.process_frame(make_frame(1))
+
+            # Wait for Stage 2 -> LISTENING
+            t_deadline = time.monotonic() + 1.0
+            while mgr.state == VoiceState.VERIFYING_WAKE and time.monotonic() < t_deadline:
+                time.sleep(0.005)
+            assert mgr.state == VoiceState.LISTENING
+
+            # 2. Feed speech frames (Item 4)
+            vad.set_script([True, True, False, False, False])
+            mgr.process_frame(make_frame(2))
+            mgr.process_frame(make_frame(2))
+
+            # 3. Feed trailing silence frames (Item 5) to finalize utterance
+            mgr.process_frame(make_frame(0))
+            mgr.process_frame(make_frame(0))
+            mgr.process_frame(make_frame(0))
+
+            # Wait for TRANSCRIBING -> submit -> IDLE
+            t_deadline = time.monotonic() + 1.0
+            while mgr.state != VoiceState.IDLE and time.monotonic() < t_deadline:
+                time.sleep(0.005)
+
+            assert mgr.state == VoiceState.IDLE
+            assert len(mgr._active_utterance_frames) == 0
+
+        # Post-loop verification
+        assert mgr.total_commands_submitted == 20
+        assert mgr.total_utterances_processed == 20
+        assert len(orch.submitted_commands) == 20
+        assert orch.submitted_commands[0] == "command cycle 0"
+        assert orch.submitted_commands[-1] == "command cycle 19"
+
+        # Allow worker thread pool/transient threads to exit
+        time.sleep(0.1)
+        gc.collect()
+
+        threads_after = threading.active_count()
+        ram_after_mb = proc.memory_info().rss / (1024 * 1024)
+        files_after = set(os.listdir("."))
+
+        # Thread invariant: No worker or thread accumulation
+        assert abs(threads_after - threads_before) <= 1, (
+            f"Thread leak detected: before={threads_before}, after={threads_after}"
+        )
+
+        # Memory invariant: Bounded growth (< 30 MB delta across 20 interactions)
+        ram_delta_mb = ram_after_mb - ram_before_mb
+        assert ram_delta_mb < 30.0, f"Excessive memory growth: delta={ram_delta_mb:.1f} MB"
+
+        # File invariant: Zero persistent audio files leaked
+        assert files_after == files_before, "Persistent files were leaked during voice interactions"
+

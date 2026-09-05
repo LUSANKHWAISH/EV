@@ -47,8 +47,12 @@ class FasterWhisperASRProvider(EVASRProvider):
         cpu_threads: Optional[int] = 4,
         num_workers: int = 1,
         download_root: Optional[str] = None,
-        beam_size: int = 5,
+        beam_size: int = 1,
         temperature: float = 0.0,
+        without_timestamps: bool = True,
+        condition_on_previous_text: bool = False,
+        initial_prompt: Optional[str] = "E.V. PowerShell CPU RAM",
+        vad_filter: bool = False,
     ) -> None:
         self.model_size_or_path: str = model_size_or_path
         self.device: str = device
@@ -62,6 +66,10 @@ class FasterWhisperASRProvider(EVASRProvider):
         )
         self.beam_size: int = beam_size
         self.temperature: float = temperature
+        self.without_timestamps: bool = without_timestamps
+        self.condition_on_previous_text: bool = condition_on_previous_text
+        self.initial_prompt: Optional[str] = initial_prompt
+        self.vad_filter: bool = vad_filter
 
         self._model: Optional[Any] = None
         self._model_lock = threading.Lock()
@@ -171,12 +179,18 @@ class FasterWhisperASRProvider(EVASRProvider):
         audio_array = np.frombuffer(pcm_bytes, dtype=np.int16).astype(np.float32) / 32768.0
 
         try:
-            segments, info = model.transcribe(
-                audio_array,
-                language=lang,
-                beam_size=self.beam_size,
-                temperature=self.temperature,
-            )
+            transcribe_kwargs: dict[str, Any] = {
+                "language": lang,
+                "beam_size": self.beam_size,
+                "temperature": self.temperature,
+                "without_timestamps": self.without_timestamps,
+                "condition_on_previous_text": self.condition_on_previous_text,
+                "vad_filter": self.vad_filter,
+            }
+            if self.initial_prompt:
+                transcribe_kwargs["initial_prompt"] = self.initial_prompt
+
+            segments, info = model.transcribe(audio_array, **transcribe_kwargs)
             segments_list = list(segments)
         except Exception as exc:
             logger.warning("faster-whisper transcription error: %s", exc)
