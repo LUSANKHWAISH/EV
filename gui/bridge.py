@@ -18,6 +18,7 @@ class GuiBridge(QObject):
 
     # Public signals for QML to bind to
     stateChanged = Signal(str)
+    voiceStateChanged = Signal(str)
     currentTaskChanged = Signal(str)
     latestObservationChanged = Signal(str)
     taskSubmitted = Signal(str)
@@ -27,6 +28,7 @@ class GuiBridge(QObject):
 
     # Internal signal for safe cross-thread queued handoff
     _stateChangeRequested = Signal(object)
+    _voiceStateChangeRequested = Signal(str)
     _currentTaskChangeRequested = Signal(str)
     _latestObservationChangeRequested = Signal(str)
     _approvalRequestQueued = Signal(str, str, str, str)
@@ -35,6 +37,7 @@ class GuiBridge(QObject):
         super().__init__()
         self._event_bus: EVEventBus = event_bus
         self._state: Optional[EVState] = event_bus.current_state
+        self._voice_state: str = "IDLE"
         self._current_task: str = ""
         self._latest_observation: str = ""
         self._subscription_tokens: List[str] = []
@@ -44,6 +47,10 @@ class GuiBridge(QObject):
         """Connect internal signals and subscribe to EVEventBus."""
         self._stateChangeRequested.connect(
             self._on_state_changed_internal,
+            type=Qt.ConnectionType.QueuedConnection,
+        )
+        self._voiceStateChangeRequested.connect(
+            self._on_voice_state_changed_internal,
             type=Qt.ConnectionType.QueuedConnection,
         )
         self._currentTaskChangeRequested.connect(
@@ -63,6 +70,7 @@ class GuiBridge(QObject):
             self._on_event_received,
             event_types=[
                 EVEventType.STATE_CHANGED,
+                EVEventType.VOICE_STATE_CHANGED,
                 EVEventType.ACTION_STARTED,
                 EVEventType.ACTION_COMPLETED,
                 EVEventType.VERIFICATION_RESULT,
@@ -80,6 +88,10 @@ class GuiBridge(QObject):
         if event.event_type == EVEventType.STATE_CHANGED:
             if event.state is not None:
                 self._stateChangeRequested.emit(event.state)
+        elif event.event_type == EVEventType.VOICE_STATE_CHANGED:
+            voice_state = str(event.data.get("voice_state", "")) if event.data else ""
+            if voice_state:
+                self._voiceStateChangeRequested.emit(voice_state)
         elif event.event_type == EVEventType.ACTION_STARTED:
             msg = event.message if event.message else "Active"
             self._currentTaskChangeRequested.emit(msg)
@@ -109,7 +121,44 @@ class GuiBridge(QObject):
         if self._state == new_state:
             return
         self._state = new_state
-        self.stateChanged.emit(new_state.value)
+        val = new_state.value if hasattr(new_state, "value") else str(new_state)
+        self.stateChanged.emit(val)
+
+    @Slot(str)
+    def _on_voice_state_changed_internal(self, voice_state: str) -> None:
+        """
+        Slot executed in the Qt thread.
+        Mutates voice state and synchronizes display state when appropriate.
+        """
+        if self._voice_state == voice_state:
+            return
+        self._voice_state = voice_state
+        self.voiceStateChanged.emit(voice_state)
+
+        # Synchronize currentState so existing flagship HUD components
+        # (EVStatusIndicator, EVTelemetryRail, EVIntelligenceCore) reflect voice interaction
+        # unless a blocking system state (like AWAITING_APPROVAL) takes precedence.
+        if self._state not in (EVState.AWAITING_APPROVAL,):
+            try:
+                new_state = EVState(voice_state)
+                if self._state != new_state:
+                    self._state = new_state
+                    self.stateChanged.emit(new_state.value)
+            except ValueError:
+                current_val = self._state.value if hasattr(self._state, "value") else str(self._state or "")
+                if current_val != voice_state:
+                    self._state = voice_state  # type: ignore
+                    self.stateChanged.emit(voice_state)
+
+    @Property(str, notify=voiceStateChanged)
+    def voiceState(self) -> str:
+        """Current voice subsystem state for QML binding."""
+        return self._voice_state
+
+    @Property(bool, notify=voiceStateChanged)
+    def isVoiceActive(self) -> bool:
+        """True when the voice subsystem is actively interacting (not IDLE/PAUSED)."""
+        return self._voice_state not in ("IDLE", "PAUSED", "")
 
     @Slot(str, str, str, str)
     def _on_approval_requested_internal(self, task_id: str, action: str, risk_level: str, reason: str) -> None:
@@ -119,7 +168,9 @@ class GuiBridge(QObject):
     @Property(str, notify=stateChanged)
     def currentState(self) -> str:
         """Current state of E.V. for QML binding."""
-        return self._state.value if self._state is not None else ""
+        if self._state is None:
+            return ""
+        return self._state.value if hasattr(self._state, "value") else str(self._state)
 
     @Slot(str)
     def _on_current_task_changed_internal(self, task: str) -> None:
@@ -146,24 +197,25 @@ class GuiBridge(QObject):
     @Slot(str, result=str)
     def getStateDescription(self, state_str: str) -> str:
         """Return a user-friendly description for a given state string."""
-        try:
-            state = EVState(state_str)
-            descriptions = {
-                EVState.IDLE: "Ready and waiting for input",
-                EVState.LISTENING: "Listening for voice commands",
-                EVState.PLANNING: "Formulating a plan",
-                EVState.AWAITING_APPROVAL: "Waiting for user approval",
-                EVState.EXECUTING: "Executing the planned action",
-                EVState.VERIFYING: "Verifying the results",
-                EVState.RECOVERING: "Recovering from an error",
-                EVState.SPEAKING: "Speaking response",
-                EVState.SUCCESS: "Task completed successfully",
-                EVState.FAILED: "Task failed",
-                EVState.STOPPED: "System stopped",
-            }
-            return descriptions.get(state, "Invalid state")
-        except (ValueError, KeyError):
-            return "Invalid state"
+        descriptions = {
+            "IDLE": "Ready and waiting for input",
+            "VERIFYING_WAKE": "Verifying wake phrase...",
+            "LISTENING": "Listening for voice commands",
+            "TRANSCRIBING": "Transcribing speech...",
+            "PROCESSING": "Processing command...",
+            "PLANNING": "Formulating a plan",
+            "AWAITING_APPROVAL": "Waiting for user approval",
+            "EXECUTING": "Executing the planned action",
+            "VERIFYING": "Verifying the results",
+            "RECOVERING": "Recovering from an error",
+            "SPEAKING": "Speaking response",
+            "SUCCESS": "Task completed successfully",
+            "FAILED": "Task failed",
+            "STOPPED": "System stopped",
+            "PAUSED": "Voice processing paused",
+            "ERROR": "Error encountered",
+        }
+        return descriptions.get(state_str, "Invalid state")
 
     @Slot(str)
     def submitTask(self, command: str) -> None:

@@ -20,9 +20,10 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import numpy as np
-import onnx
-import onnxruntime as ort
 import pytest
+
+onnx = pytest.importorskip("onnx", reason="onnx is required for wake-word training tests")
+import onnxruntime as ort
 import torch
 
 from tools.train_wakeword import (

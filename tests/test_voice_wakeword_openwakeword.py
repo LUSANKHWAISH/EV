@@ -109,6 +109,7 @@ class TestMissingDependency:
             assert "openwakeword is not installed" in str(exc_info.value)
 
     def test_clean_error_when_model_init_fails(self):
+        pytest.importorskip("openwakeword")
         with patch("openwakeword.model.Model", side_effect=Exception("Model weights missing")):
             with pytest.raises(RuntimeError) as exc_info:
                 OpenWakeWordProvider(model_instance=None)

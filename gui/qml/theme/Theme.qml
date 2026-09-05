@@ -38,7 +38,10 @@ QtObject {
 
     // State-specific colors (for identity beyond just color)
     readonly property color stateColorIdle: "#64b5f6"      // blue (calm)
+    readonly property color stateColorVerifyingWake: "#80deea" // teal (receptive evaluation)
     readonly property color stateColorListening: "#4fc3f7" // cyan (receptive)
+    readonly property color stateColorTranscribing: "#b39ddb"  // soft violet (speech inference)
+    readonly property color stateColorProcessing: "#81c784"    // green (action cognition)
     readonly property color stateColorPlanning: "#9575cd"  // purple (cognition)
     readonly property color stateColorAwaitingApproval: "#ffb74d" // amber (tension)
     readonly property color stateColorExecuting: "#81c784" // green (action)
@@ -181,7 +184,10 @@ QtObject {
         if (!state) return textPrimary
         switch (state) {
         case "IDLE": return stateColorIdle
+        case "VERIFYING_WAKE": return stateColorVerifyingWake
         case "LISTENING": return stateColorListening
+        case "TRANSCRIBING": return stateColorTranscribing
+        case "PROCESSING": return stateColorProcessing
         case "PLANNING": return stateColorPlanning
         case "AWAITING_APPROVAL": return stateColorAwaitingApproval
         case "EXECUTING": return stateColorExecuting
@@ -207,7 +213,10 @@ QtObject {
         if (!state) return 0.0
         switch (state) {
         case "IDLE": return 0.1
+        case "VERIFYING_WAKE": return 0.35
         case "LISTENING": return 0.3
+        case "TRANSCRIBING": return 0.5
+        case "PROCESSING": return 0.7
         case "PLANNING": return 0.5
         case "AWAITING_APPROVAL": return 0.7
         case "EXECUTING": return 0.9
@@ -225,7 +234,10 @@ QtObject {
         // Returns a suggested pulse duration for state visualization
         if (!state) return motionInstant
         switch (state) {
+        case "VERIFYING_WAKE": return motionFast
         case "LISTENING": return motionAmbient
+        case "TRANSCRIBING": return motionStandard
+        case "PROCESSING": return motionDeliberate
         case "SPEAKING": return motionDeliberate
         case "VERIFYING": return motionStandard
         default: return motionInstant

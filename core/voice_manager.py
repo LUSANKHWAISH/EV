@@ -32,7 +32,7 @@ from enum import Enum
 from typing import Any, Callable, List, Optional, Sequence, Union
 
 from core.asr import ASRResult, EVASRProvider
-from core.models import EVState
+from core.models import EVEventType, EVState
 from core.voice_capture import (
     DEFAULT_BYTES_PER_FRAME,
     DEFAULT_CHANNELS,
@@ -560,6 +560,18 @@ class EVVoiceManager:
                     self._on_state_change(new_state)
                 except Exception as exc:
                     logger.debug("EVVoiceManager: on_state_change callback error: %s", exc)
+            if self._event_bus is not None:
+                try:
+                    self._event_bus.publish(
+                        event_type=EVEventType.VOICE_STATE_CHANGED,
+                        source="voice_manager",
+                        data={
+                            "voice_state": new_state.value,
+                            "old_state": old_state.value,
+                        },
+                    )
+                except Exception as exc:
+                    logger.debug("EVVoiceManager: event_bus publish VOICE_STATE_CHANGED error: %s", exc)
 
     # ------------------------------------------------------------------------
     # Worker Thread Loop

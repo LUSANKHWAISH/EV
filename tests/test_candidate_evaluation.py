@@ -92,6 +92,7 @@ class TestCandidateEvaluationAndSafety:
 
     def test_candidate_runtime_provider_compatibility(self):
         """Verify candidate model loads and executes in OpenWakeWordProvider without errors."""
+        pytest.importorskip("openwakeword")
         from core.voice_capture import AudioFrame
 
         provider = OpenWakeWordProvider(
@@ -120,6 +121,7 @@ class TestCandidateEvaluationAndSafety:
 
     def test_candidate_holdout_positive_recall_improvement(self):
         """Verify candidate achieves higher recall than active baseline on locked holdout."""
+        pytest.importorskip("openwakeword")
         from openwakeword.model import Model
 
         with open(HOLDOUT_MANIFEST_PATH, "r", encoding="utf-8") as f:
