@@ -467,6 +467,11 @@ class EVEventType(str, Enum):
     ACTION_ACCEPTED = "ACTION_ACCEPTED"
     ACTION_VERIFYING = "ACTION_VERIFYING"
     ACTION_UNKNOWN = "ACTION_UNKNOWN"
+    DIAGNOSIS_CREATED = "DIAGNOSIS_CREATED"
+    DIAGNOSIS_UPDATED = "DIAGNOSIS_UPDATED"
+    RECOVERY_PROPOSED = "RECOVERY_PROPOSED"
+    RECOVERY_ACCEPTED = "RECOVERY_ACCEPTED"
+    RECOVERY_REJECTED = "RECOVERY_REJECTED"
 
 
 class EVEventSeverity(str, Enum):
@@ -518,6 +523,8 @@ class TaskHistoryEventType(str, Enum):
     RESTORE_RESULT = "RESTORE_RESULT"
     RECOVERY_RESULT = "RECOVERY_RESULT"
     NOTE = "NOTE"
+    DIAGNOSIS_RECORD = "DIAGNOSIS_RECORD"
+    RECOVERY_PROPOSAL = "RECOVERY_PROPOSAL"
 
 
 class TaskHistoryRecord(BaseModel):
@@ -541,4 +548,163 @@ class TaskHistoryEventRecord(BaseModel):
     event_type: TaskHistoryEventType
     payload: dict
     created_at: datetime
+
+
+# Contextual Diagnosis & Recovery Intelligence Models (Task 017)
+class ActionReversibility(str, Enum):
+    REVERSIBLE = "REVERSIBLE"
+    NON_REVERSIBLE = "NON_REVERSIBLE"
+
+
+class DiagnosisCategory(str, Enum):
+    RESOURCE_PRESSURE = "RESOURCE_PRESSURE"
+    PROCESS_FAILURE = "PROCESS_FAILURE"
+    FILE_FAILURE = "FILE_FAILURE"
+    SERVICE_FAILURE = "SERVICE_FAILURE"
+    NETWORK_FAILURE = "NETWORK_FAILURE"
+    PERMISSION_FAILURE = "PERMISSION_FAILURE"
+    TIMEOUT = "TIMEOUT"
+    VERIFICATION_FAILURE = "VERIFICATION_FAILURE"
+    UNKNOWN_FAILURE = "UNKNOWN_FAILURE"
+
+
+class DiagnosisStatus(str, Enum):
+    DETECTED = "DETECTED"
+    ANALYZING = "ANALYZING"
+    CONFIRMED = "CONFIRMED"
+    RESOLVED = "RESOLVED"
+    DISMISSED = "DISMISSED"
+
+
+class EpistemicType(str, Enum):
+    FACT = "FACT"
+    INFERENCE = "INFERENCE"
+    SPECULATION = "SPECULATION"
+
+
+class EvidenceType(str, Enum):
+    METRIC = "METRIC"
+    OBSERVATION = "OBSERVATION"
+    EXECUTION_RESULT = "EXECUTION_RESULT"
+    VERIFICATION_RESULT = "VERIFICATION_RESULT"
+    SYSTEM_ALERT = "SYSTEM_ALERT"
+    PROCESS_STATE = "PROCESS_STATE"
+    SERVICE_STATE = "SERVICE_STATE"
+    FILE_STATE = "FILE_STATE"
+    NETWORK_STATE = "NETWORK_STATE"
+
+
+class EvidenceItem(BaseModel):
+    """
+    Authoritative, structured evidence item supporting a diagnosis.
+    Strictly differentiates between measured FACTS, deterministic INFERENCES, and untrusted SPECULATION.
+    """
+    evidence_id: str
+    evidence_type: EvidenceType
+    description: str
+    source: str
+    timestamp: datetime = Field(default_factory=datetime.now)
+    confidence: float = 1.0
+    epistemic_type: EpistemicType = EpistemicType.FACT
+    data: Dict[str, Any] = Field(default_factory=dict)
+
+    @field_validator("data", mode="before")
+    @classmethod
+    def _sanitize_data(cls, val: Any) -> Dict[str, Any]:
+        return sanitize_metadata(val if isinstance(val, dict) else {})
+
+
+class Hypothesis(BaseModel):
+    """
+    Root-cause hypothesis explaining an observed system or action failure condition.
+    Hypotheses are either deterministic INFERENCES or untrusted SPECULATION. They are NEVER facts.
+    """
+    hypothesis_id: str
+    description: str
+    confidence: float = 1.0  # 0.0 to 1.0
+    epistemic_type: EpistemicType = EpistemicType.INFERENCE
+    supporting_evidence_ids: List[str] = Field(default_factory=list)
+    is_primary: bool = False
+
+    @field_validator("epistemic_type")
+    @classmethod
+    def _validate_not_fact(cls, val: EpistemicType) -> EpistemicType:
+        if val == EpistemicType.FACT:
+            raise ValueError("Hypotheses cannot be classified as FACT; they must be INFERENCE or SPECULATION")
+        return val
+
+
+class Diagnosis(BaseModel):
+    """
+    Structured, evidence-backed diagnostic finding representing a system or task failure.
+    Contains strictly audited evidence, ranked probable causes, affected resources, and severity.
+    """
+    diagnosis_id: str
+    condition_id: str
+    category: DiagnosisCategory
+    severity: EVEventSeverity = EVEventSeverity.WARNING
+    confidence: float = 1.0
+    evidence: List[EvidenceItem] = Field(default_factory=list)
+    probable_causes: List[Hypothesis] = Field(default_factory=list)
+    affected_resources: List[str] = Field(default_factory=list)
+    detected_at: datetime = Field(default_factory=datetime.now)
+    status: DiagnosisStatus = DiagnosisStatus.DETECTED
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+
+    @field_validator("metadata", mode="before")
+    @classmethod
+    def _sanitize_meta(cls, val: Any) -> Dict[str, Any]:
+        return sanitize_metadata(val if isinstance(val, dict) else {})
+
+
+class FailureClassification(str, Enum):
+    """Deterministic taxonomy of execution and verification failure modes."""
+    EXECUTION_FAILED = "EXECUTION_FAILED"
+    VERIFICATION_FAILED = "VERIFICATION_FAILED"
+    TIMEOUT = "TIMEOUT"
+    UNKNOWN_OUTCOME = "UNKNOWN_OUTCOME"
+    PERMISSION_DENIED = "PERMISSION_DENIED"
+    RESOURCE_UNAVAILABLE = "RESOURCE_UNAVAILABLE"
+    INVALID_PARAMETERS = "INVALID_PARAMETERS"
+    DEPENDENCY_FAILURE = "DEPENDENCY_FAILURE"
+    CANCELLED = "CANCELLED"
+
+
+class RecoveryStage(str, Enum):
+    """Safe-first ranking stages for recovery options (lowest to highest impact)."""
+    OBSERVE = "OBSERVE"                             # Safe rank 1: Non-intrusive observation
+    COLLECT_EVIDENCE = "COLLECT_EVIDENCE"           # Safe rank 2: Query additional system telemetry
+    EXPLAIN = "EXPLAIN"                             # Safe rank 3: Inform and explain condition
+    NON_MUTATING_ACTION = "NON_MUTATING_ACTION"     # Safe rank 4: Safe read-only action
+    REVERSIBLE_MUTATION = "REVERSIBLE_MUTATION"     # Safe rank 5: Action with backup/compensation
+    IRREVERSIBLE_MUTATION = "IRREVERSIBLE_MUTATION" # Safe rank 6: Non-reversible action
+
+
+class RecoveryOption(BaseModel):
+    """
+    Structured, proposal-only recovery option generated for a Diagnosis.
+    Mutating options strictly require human approval and transaction wrapping.
+    """
+    option_id: str
+    diagnosis_id: str
+    description: str
+    stage: RecoveryStage
+    safe_order_rank: int
+    action: Optional[AgentAction] = None
+    parameters: Dict[str, Any] = Field(default_factory=dict)
+    expected_effect: str = ""
+    risk_level: RiskLevel = RiskLevel.NONE
+    reversible: bool = True
+    reversibility: ActionReversibility = ActionReversibility.REVERSIBLE
+    verification_type: Optional[VerificationType] = None
+    confidence: float = 1.0
+    requires_approval: bool = False
+    plan_id: Optional[str] = None
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+
+    @field_validator("metadata", "parameters", mode="before")
+    @classmethod
+    def _sanitize_dict(cls, val: Any) -> Dict[str, Any]:
+        return sanitize_metadata(val if isinstance(val, dict) else {})
+
 

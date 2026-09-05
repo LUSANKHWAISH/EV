@@ -26,7 +26,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from .backup import EVBackupManager
-from .models import AgentAction, AgentTask
+from .models import ActionReversibility, AgentAction, AgentTask
 
 logger = logging.getLogger("ev.transaction")
 
@@ -48,11 +48,6 @@ class CompensationStatus(str, Enum):
     COMPENSATION_FAILED = "COMPENSATION_FAILED"
     COMPENSATION_NOT_AVAILABLE = "COMPENSATION_NOT_AVAILABLE"
 
-
-class ActionReversibility(str, Enum):
-    """Action reversibility classification for transaction rollback capability."""
-    REVERSIBLE = "REVERSIBLE"
-    NON_REVERSIBLE = "NON_REVERSIBLE"
 
 
 @dataclass

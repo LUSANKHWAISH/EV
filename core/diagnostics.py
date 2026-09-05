@@ -591,3 +591,8 @@ def create_repair_plan(diagnostic: DiagnosticResult) -> RepairPlan:
         privilege_requirement=diagnostic.privilege_requirement,
         reversibility_summary=reversibility_map.get(diagnostic.rollback_capability, "Unknown"),
     )
+
+
+# Task 017 Contextual Diagnosis & Recovery re-exports
+from core.recovery import EVDiagnosticEngine, EVRecoveryPlanner
+
