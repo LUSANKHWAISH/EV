@@ -157,19 +157,20 @@ class TestMockWakeVerifier:
         assert mock.verify_phrase(dummy).reason == "OK1"
 
 
+@pytest.fixture(scope="module")
+def verifier():
+    v = FasterWhisperWakeVerifier(
+        model_size_or_path="tiny.en",
+        device="cpu",
+        compute_type="int8",
+        cpu_threads=2,
+        download_root=r"D:\EV\models\asr",
+    )
+    return v
+
+
 class TestFasterWhisperWakeVerifier:
     """Test suite for FasterWhisperWakeVerifier decision rules and transcript evaluation."""
-
-    @pytest.fixture(scope="class")
-    def verifier(self):
-        v = FasterWhisperWakeVerifier(
-            model_size_or_path="tiny.en",
-            device="cpu",
-            compute_type="int8",
-            cpu_threads=2,
-            download_root=r"D:\EV\models\asr",
-        )
-        return v
 
     def test_normalize_text(self, verifier):
         assert verifier._normalize("Hey, E.V.!") == "hey e v"

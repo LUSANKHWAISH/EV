@@ -42,8 +42,10 @@ from core.voice_wakeword import (
 logger = logging.getLogger("ev.voice.wakeword.openwakeword")
 
 DEFAULT_WAKEWORD_MODEL_DIR: str = r"D:\EV\models\wakeword"
-DEFAULT_DETECTION_THRESHOLD: float = 0.5
-DEFAULT_INFERENCE_FRAMEWORK: str = "tflite"
+DEFAULT_DETECTION_THRESHOLD: float = 0.50
+DEFAULT_INFERENCE_FRAMEWORK: str = "onnx"
+DEFAULT_STAGE1_CANDIDATE_MODEL: str = r"D:\EV\models\wakeword\candidates\hey_ev_human_v2.onnx"
+DEFAULT_PRODUCTION_BASELINE_MODEL: str = r"D:\EV\models\wakeword\hey_ev.onnx"
 
 
 class OpenWakeWordProvider(EVWakeWordProvider):
@@ -142,7 +144,14 @@ class OpenWakeWordProvider(EVWakeWordProvider):
         try:
             # Build models list: resolve model names / paths against model_dir if necessary
             models_to_load: List[str] = []
-            for mdl in self._wakeword_models:
+            raw_models = list(self._wakeword_models)
+            if not raw_models:
+                if os.path.exists(DEFAULT_STAGE1_CANDIDATE_MODEL):
+                    raw_models.append(DEFAULT_STAGE1_CANDIDATE_MODEL)
+                elif os.path.exists(DEFAULT_PRODUCTION_BASELINE_MODEL):
+                    raw_models.append(DEFAULT_PRODUCTION_BASELINE_MODEL)
+
+            for mdl in raw_models:
                 if os.path.isabs(mdl) or os.path.exists(mdl):
                     models_to_load.append(mdl)
                 else:

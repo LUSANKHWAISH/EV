@@ -45,16 +45,24 @@ from core.voice_capture import (
 )
 from core.voice_vad import EVVADProvider, VADResult
 from core.voice_wakeword import EVBargeInStopDetector, EVWakeWordProvider, WakeWordResult
+from core.wake_verifier import EVWakeVerifier, WakeVerificationResult
 
 logger = logging.getLogger(__name__)
 
-# Canonical timing constants
+# Canonical timing & configuration constants
 DEFAULT_PRE_ROLL_SECONDS: float = 0.75  # ~750 ms default pre-roll
 DEFAULT_SILENCE_TIMEOUT_SECONDS: float = 1.1  # ~1.1 s silence terminates utterance
 DEFAULT_MAX_UTTERANCE_SECONDS: float = 8.0  # 8.0 s max utterance window
 DEFAULT_MIN_SPEECH_SECONDS: float = 0.3  # ~300 ms minimum speech floor
 DEFAULT_INITIAL_SILENCE_TIMEOUT_SECONDS: float = 3.0  # Max silence waiting for speech
 DEFAULT_WAKE_PHRASE: str = "Hey EV"
+
+# Stage-2 Two-Stage Wake Verification Configuration
+ENABLE_STAGE2_WAKE_VERIFICATION: bool = True
+DEFAULT_STAGE1_WAKEWORD_MODEL: str = r"D:\EV\models\wakeword\candidates\hey_ev_human_v2.onnx"
+DEFAULT_STAGE1_THRESHOLD: float = 0.50
+DEFAULT_STAGE2_VERIFICATION_BUFFER_SECONDS: float = 2.0  # ~2.0s rolling audio for Stage-2 phrase check
+DEFAULT_STAGE2_TIMEOUT_SECONDS: float = 2.5
 
 
 # ============================================================================
@@ -63,6 +71,7 @@ DEFAULT_WAKE_PHRASE: str = "Hey EV"
 class VoiceState(str, Enum):
     """Voice runtime local state machine."""
     IDLE = "IDLE"
+    VERIFYING_WAKE = "VERIFYING_WAKE"
     LISTENING = "LISTENING"
     TRANSCRIBING = "TRANSCRIBING"
     PAUSED = "PAUSED"
@@ -271,6 +280,10 @@ class EVVoiceManager:
         barge_in_detector: Optional[EVBargeInStopDetector] = None,
         event_bus: Optional[Any] = None,
         ring_buffer: Optional[AudioRingBuffer] = None,
+        wake_verifier: Optional[EVWakeVerifier] = None,
+        enable_stage2_verification: bool = ENABLE_STAGE2_WAKE_VERIFICATION,
+        stage2_verification_buffer_seconds: float = DEFAULT_STAGE2_VERIFICATION_BUFFER_SECONDS,
+        stage2_timeout_seconds: float = DEFAULT_STAGE2_TIMEOUT_SECONDS,
         wake_phrases: Sequence[str] = (DEFAULT_WAKE_PHRASE,),
         pre_roll_seconds: float = DEFAULT_PRE_ROLL_SECONDS,
         silence_timeout_seconds: float = DEFAULT_SILENCE_TIMEOUT_SECONDS,
@@ -300,6 +313,18 @@ class EVVoiceManager:
         self._tts_manager = tts_manager
         self._barge_in_detector = barge_in_detector
         self._event_bus = event_bus
+
+        # Stage-2 Two-Stage Phrase Verification
+        self._wake_verifier = wake_verifier
+        self._enable_stage2_verification = enable_stage2_verification
+        self._stage2_verification_buffer_seconds = max(0.1, stage2_verification_buffer_seconds)
+        self._stage2_timeout_seconds = max(0.1, stage2_timeout_seconds)
+        self._verification_epoch: int = 0
+        self._active_verification_worker: Optional[threading.Thread] = None
+        self._last_verification_result: Optional[WakeVerificationResult] = None
+        self._total_verifications_attempted: int = 0
+        self._total_verifications_passed: int = 0
+        self._total_verifications_rejected: int = 0
 
         # Timing configurations
         self._wake_phrases = list(wake_phrases) if wake_phrases else [DEFAULT_WAKE_PHRASE]
@@ -385,6 +410,34 @@ class EVVoiceManager:
         return self._wake_word_provider
 
     @property
+    def wake_verifier(self) -> Optional[EVWakeVerifier]:
+        return self._wake_verifier
+
+    @property
+    def enable_stage2_verification(self) -> bool:
+        return self._enable_stage2_verification
+
+    @property
+    def last_verification_result(self) -> Optional[WakeVerificationResult]:
+        with self._lock:
+            return self._last_verification_result
+
+    @property
+    def total_verifications_attempted(self) -> int:
+        with self._lock:
+            return self._total_verifications_attempted
+
+    @property
+    def total_verifications_passed(self) -> int:
+        with self._lock:
+            return self._total_verifications_passed
+
+    @property
+    def total_verifications_rejected(self) -> int:
+        with self._lock:
+            return self._total_verifications_rejected
+
+    @property
     def vad_provider(self) -> EVVADProvider:
         return self._vad_provider
 
@@ -434,10 +487,7 @@ class EVVoiceManager:
     def stop(self, timeout: float = 2.0) -> None:
         """Stop voice capture, terminate worker loop, and clean up buffers. Idempotent."""
         with self._lock:
-            if not self._is_running:
-                logger.debug("EVVoiceManager: already stopped, stop() is no-op")
-                return
-
+            was_running = self._is_running
             self._is_running = False
             self._stop_event.set()
 
@@ -455,10 +505,16 @@ class EVVoiceManager:
             self._worker_thread = None
 
         with self._lock:
+            self._verification_epoch += 1
             self._active_utterance_frames.clear()
             self._ring_buffer.clear()
             self._wake_word_provider.reset()
             self._vad_provider.reset()
+            if self._wake_verifier is not None:
+                try:
+                    self._wake_verifier.reset()
+                except Exception:
+                    pass
             if self._barge_in_detector:
                 self._barge_in_detector.reset()
             self._set_state(VoiceState.IDLE)
@@ -470,6 +526,7 @@ class EVVoiceManager:
         with self._lock:
             if not self._is_running or self._paused_event.is_set():
                 return
+            self._verification_epoch += 1
             self._paused_event.set()
             self._active_utterance_frames.clear()
             self._set_state(VoiceState.PAUSED)
@@ -577,6 +634,10 @@ class EVVoiceManager:
             # Step 3: State-dependent processing
             if self._state == VoiceState.IDLE:
                 self._handle_idle_frame(frame)
+            elif self._state == VoiceState.VERIFYING_WAKE:
+                # Frame continues buffering in ring buffer; Stage 1 wake word evaluation is
+                # suppressed to prevent duplicate candidate triggers for the same acoustic event.
+                pass
             elif self._state == VoiceState.LISTENING:
                 self._handle_listening_frame(frame)
             elif self._state == VoiceState.TRANSCRIBING:
@@ -593,12 +654,88 @@ class EVVoiceManager:
             return
 
         if wake_res is not None and wake_res.detected:
-            logger.info("EVVoiceManager: wake word '%s' detected (conf=%.2f)",
-                        wake_res.keyword, wake_res.confidence)
-            self._transition_to_listening()
+            if self._enable_stage2_verification and self._wake_verifier is not None:
+                logger.info(
+                    "EVVoiceManager: Stage 1 candidate detected '%s' (conf=%.2f) -> VERIFYING_WAKE",
+                    wake_res.keyword, wake_res.confidence
+                )
+                # Extract verification audio window (~2.0s rolling buffer)
+                buffer_frame_count = int(math.ceil(self._stage2_verification_buffer_seconds / 0.030))
+                verification_frames = self._ring_buffer.peek_recent(buffer_frame_count)
+                if not verification_frames:
+                    verification_frames = [frame]
+
+                self._set_state(VoiceState.VERIFYING_WAKE)
+                self._verification_epoch += 1
+                epoch = self._verification_epoch
+                self._total_verifications_attempted += 1
+
+                t = threading.Thread(
+                    target=self._run_stage2_verification,
+                    args=(list(verification_frames), epoch),
+                    name="EVVoiceVerificationWorker",
+                    daemon=True,
+                )
+                self._active_verification_worker = t
+                t.start()
+            else:
+                logger.info("EVVoiceManager: wake word '%s' detected (conf=%.2f) -> LISTENING",
+                            wake_res.keyword, wake_res.confidence)
+                self._transition_to_listening()
+
+    def _run_stage2_verification(self, frames: List[AudioFrame], epoch: int) -> None:
+        """
+        Background worker executing Stage-2 phrase verification on candidate wake frames.
+        Zero execution authority. Only produces an immutable WakeVerificationResult.
+        """
+        t0 = time.monotonic()
+        try:
+            res: WakeVerificationResult = self._wake_verifier.verify_phrase(frames)
+        except Exception as exc:
+            logger.error("EVVoiceManager: Stage-2 verifier exception: %s", exc)
+            res = WakeVerificationResult(
+                verified=False,
+                confidence=0.0,
+                reason=f"VERIFIER_EXCEPTION_{type(exc).__name__}",
+                raw_transcript="",
+                latency_ms=(time.monotonic() - t0) * 1000.0,
+                provider=getattr(self._wake_verifier, "provider_name", "unknown"),
+                timestamp=time.monotonic(),
+            )
+
+        with self._lock:
+            # Check epoch & state validity (cancellation / stale result protection)
+            if (
+                self._stop_event.is_set()
+                or self._paused_event.is_set()
+                or self._verification_epoch != epoch
+                or self._state != VoiceState.VERIFYING_WAKE
+            ):
+                logger.debug(
+                    "EVVoiceManager: Discarding stale Stage-2 result (epoch=%d, current=%d, state=%s)",
+                    epoch, self._verification_epoch, self._state.value
+                )
+                return
+
+            self._last_verification_result = res
+
+            if res.verified:
+                self._total_verifications_passed += 1
+                logger.info(
+                    "EVVoiceManager: Stage-2 VERIFIED '%s' (conf=%.2f, reason='%s', lat=%.1fms) -> LISTENING",
+                    res.raw_transcript, res.confidence, res.reason, res.latency_ms
+                )
+                self._transition_to_listening()
+            else:
+                self._total_verifications_rejected += 1
+                logger.info(
+                    "EVVoiceManager: Stage-2 REJECTED '%s' (conf=%.2f, reason='%s', lat=%.1fms) -> IDLE",
+                    res.raw_transcript, res.confidence, res.reason, res.latency_ms
+                )
+                self._set_state(VoiceState.IDLE)
 
     def _transition_to_listening(self) -> None:
-        """Transition from IDLE to LISTENING and assemble pre-roll audio."""
+        """Transition from IDLE/VERIFYING_WAKE to LISTENING and assemble pre-roll audio."""
         pre_roll_count = int(math.ceil(self._pre_roll_seconds / 0.030))
         recent_frames = self._ring_buffer.peek_recent(pre_roll_count)
 
@@ -671,12 +808,13 @@ class EVVoiceManager:
             return
 
     def _abort_utterance(self) -> None:
-        """Abort listening, discard frames, and return to IDLE."""
+        """Abort listening/verification, discard frames, and return to IDLE."""
+        self._verification_epoch += 1
         self._active_utterance_frames.clear()
         self._set_state(VoiceState.IDLE)
         if self._event_bus is not None:
             try:
-                if getattr(self._event_bus, "current_state", None) == EVState.LISTENING:
+                if getattr(self._event_bus, "current_state", None) in (EVState.LISTENING, EVState.PROCESSING):
                     self._event_bus.set_state(EVState.IDLE)
             except Exception as exc:
                 logger.debug("EVVoiceManager: event_bus reset error: %s", exc)
