@@ -76,6 +76,8 @@ class GuiBridge(QObject):
                 EVEventType.VERIFICATION_RESULT,
                 EVEventType.APPROVAL_REQUIRED,
                 EVEventType.STATUS,
+                EVEventType.SYSTEM_ALERT,
+                EVEventType.SYSTEM_ALERT_RECOVERED,
             ],
         )
         self._subscription_tokens.append(token)
@@ -109,6 +111,9 @@ class GuiBridge(QObject):
             reason = str(event.data.get("reason") if event.data else event.message or "")
             self._approvalRequestQueued.emit(task_id, action, risk_level, reason)
         elif event.event_type == EVEventType.STATUS:
+            if event.message:
+                self._latestObservationChangeRequested.emit(event.message)
+        elif event.event_type in (EVEventType.SYSTEM_ALERT, EVEventType.SYSTEM_ALERT_RECOVERED):
             if event.message:
                 self._latestObservationChangeRequested.emit(event.message)
 
