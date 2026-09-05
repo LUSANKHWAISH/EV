@@ -423,6 +423,12 @@ class EVTTSManager:
     def is_silent(self) -> bool:
         return self._provider is None
 
+    @property
+    def is_speaking(self) -> bool:
+        """Return True if an utterance is actively being spoken or pending in queue."""
+        with self._lock:
+            return self._active_priority is not None or len(self._audio_queue) > 0
+
     def speak(self, text: str, priority: AudioPriority = AudioPriority.INTERACTIVE,
               utterance_id: Optional[str] = None,
               cancellation_token: Optional[CancellationToken] = None) -> Optional[str]:

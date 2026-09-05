@@ -74,6 +74,8 @@ class VoiceState(str, Enum):
     VERIFYING_WAKE = "VERIFYING_WAKE"
     LISTENING = "LISTENING"
     TRANSCRIBING = "TRANSCRIBING"
+    PROCESSING = "PROCESSING"
+    SPEAKING = "SPEAKING"
     PAUSED = "PAUSED"
     ERROR = "ERROR"
 
@@ -320,6 +322,7 @@ class EVVoiceManager:
         self._stage2_verification_buffer_seconds = max(0.1, stage2_verification_buffer_seconds)
         self._stage2_timeout_seconds = max(0.1, stage2_timeout_seconds)
         self._verification_epoch: int = 0
+        self._interaction_epoch: int = 0
         self._active_verification_worker: Optional[threading.Thread] = None
         self._last_verification_result: Optional[WakeVerificationResult] = None
         self._total_verifications_attempted: int = 0
@@ -506,6 +509,7 @@ class EVVoiceManager:
 
         with self._lock:
             self._verification_epoch += 1
+            self._interaction_epoch += 1
             self._active_utterance_frames.clear()
             self._ring_buffer.clear()
             self._wake_word_provider.reset()
@@ -527,6 +531,7 @@ class EVVoiceManager:
             if not self._is_running or self._paused_event.is_set():
                 return
             self._verification_epoch += 1
+            self._interaction_epoch += 1
             self._paused_event.set()
             self._active_utterance_frames.clear()
             self._set_state(VoiceState.PAUSED)
@@ -631,6 +636,10 @@ class EVVoiceManager:
             # Step 2: Push frame to rolling history ring buffer
             self._ring_buffer.write(frame)
 
+            # Step 2.5: Acoustic self-trigger protection: suppress wake detection and command capture while TTS is speaking
+            if self._tts_manager is not None and getattr(self._tts_manager, "is_speaking", False):
+                return
+
             # Step 3: State-dependent processing
             if self._state == VoiceState.IDLE:
                 self._handle_idle_frame(frame)
@@ -640,8 +649,8 @@ class EVVoiceManager:
                 pass
             elif self._state == VoiceState.LISTENING:
                 self._handle_listening_frame(frame)
-            elif self._state == VoiceState.TRANSCRIBING:
-                # Audio continues buffering in ring buffer during ASR inference
+            elif self._state in (VoiceState.TRANSCRIBING, VoiceState.PROCESSING, VoiceState.SPEAKING):
+                # Audio continues buffering in ring buffer during ASR inference and response output
                 pass
 
     def _handle_idle_frame(self, frame: AudioFrame) -> None:
@@ -741,6 +750,7 @@ class EVVoiceManager:
 
         # Seed utterance collection with rolling history pre-roll
         self._active_utterance_frames = list(recent_frames)
+
         self._speech_frames_count = 0
         self._consecutive_silence_frames = 0
         self._initial_silence_frames = 0
@@ -810,6 +820,7 @@ class EVVoiceManager:
     def _abort_utterance(self) -> None:
         """Abort listening/verification, discard frames, and return to IDLE."""
         self._verification_epoch += 1
+        self._interaction_epoch += 1
         self._active_utterance_frames.clear()
         self._set_state(VoiceState.IDLE)
         if self._event_bus is not None:
@@ -833,16 +844,17 @@ class EVVoiceManager:
         self._active_utterance_frames.clear()
 
         self._set_state(VoiceState.TRANSCRIBING)
+        epoch = self._interaction_epoch
 
         # Dispatch transcription in a background thread so audio ingestion remains non-blocking
         threading.Thread(
             target=self._transcribe_and_submit,
-            args=(utterance_snapshot,),
+            args=(utterance_snapshot, epoch),
             name="EVVoiceTranscribeWorker",
             daemon=True,
         ).start()
 
-    def _transcribe_and_submit(self, utterance_frames: List[AudioFrame]) -> None:
+    def _transcribe_and_submit(self, utterance_frames: List[AudioFrame], epoch: int) -> None:
         """Run ASR on captured utterance, strip wake phrase, and submit untrusted text to orchestrator."""
         raw_text = ""
         try:
@@ -859,6 +871,18 @@ class EVVoiceManager:
             # Memory & privacy guarantee: clear raw audio frames immediately
             utterance_frames.clear()
 
+        with self._lock:
+            # Stale result & cancellation check:
+            if (
+                self._stop_event.is_set()
+                or self._paused_event.is_set()
+                or self._interaction_epoch != epoch
+                or self._state != VoiceState.TRANSCRIBING
+            ):
+                logger.debug("EVVoiceManager: Discarding stale ASR result (epoch=%d, current=%d)",
+                             epoch, self._interaction_epoch)
+                return
+
         # Step 4: Conservative wake phrase removal
         cleaned_command = strip_wake_phrase(raw_text, self._wake_phrases)
 
@@ -869,6 +893,8 @@ class EVVoiceManager:
         # Step 5: Submission to EVOrchestrator strictly through submit_command(...)
         if cleaned_command:
             logger.info("EVVoiceManager: submitting voice command: '%s'", cleaned_command)
+            with self._lock:
+                self._set_state(VoiceState.PROCESSING)
             try:
                 self._orchestrator.submit_command(cleaned_command)
                 with self._lock:
@@ -888,13 +914,37 @@ class EVVoiceManager:
         else:
             logger.debug("EVVoiceManager: empty or whitespace-only transcript after stripping, nothing submitted")
 
-        # Step 6: Return to IDLE
+        # Step 6: Wait for active response speech if TTS manager is speaking
+        if cleaned_command and self._tts_manager is not None:
+            # Allow speech subsystem up to 150ms to enqueue/start speech if initiated asynchronously
+            t_check = time.monotonic()
+            while time.monotonic() - t_check < 0.20:
+                if getattr(self._tts_manager, "is_speaking", False):
+                    break
+                time.sleep(0.02)
+
+            if getattr(self._tts_manager, "is_speaking", False):
+                with self._lock:
+                    if self._interaction_epoch == epoch and not self._stop_event.is_set():
+                        self._set_state(VoiceState.SPEAKING)
+
+                # Wait for TTS to finish speaking or be cancelled
+                t_speak_start = time.monotonic()
+                max_wait = 15.0
+                while time.monotonic() - t_speak_start < max_wait:
+                    if not getattr(self._tts_manager, "is_speaking", False):
+                        break
+                    if self._stop_event.is_set() or self._interaction_epoch != epoch:
+                        break
+                    time.sleep(0.04)
+
+        # Step 7: Return to IDLE
         with self._lock:
-            if self._state == VoiceState.TRANSCRIBING:
+            if self._interaction_epoch == epoch and not self._stop_event.is_set():
                 self._set_state(VoiceState.IDLE)
                 if self._event_bus is not None:
                     try:
-                        if getattr(self._event_bus, "current_state", None) == EVState.LISTENING:
+                        if getattr(self._event_bus, "current_state", None) in (EVState.LISTENING, EVState.PROCESSING):
                             self._event_bus.set_state(EVState.IDLE)
                     except Exception as exc:
                         logger.debug("EVVoiceManager: event_bus set_state error: %s", exc)

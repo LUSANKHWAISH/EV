@@ -752,6 +752,10 @@ class EVOrchestrator:
                     "transaction_id": tx.transaction_id,
                 },
             )
+            self._speak_if_enabled(
+                f"Approval required for {first_task.action.value}: {risk_result.reason}",
+                priority_name="APPROVAL",
+            )
             return None
 
         else:
@@ -772,6 +776,10 @@ class EVOrchestrator:
                     "risk_level": risk_result.risk_level.value,
                     "reason": risk_result.reason,
                 },
+            )
+            self._speak_if_enabled(
+                f"Action denied by security policy: {risk_result.reason}",
+                priority_name="INTERACTIVE",
             )
             return None
 
@@ -1087,6 +1095,7 @@ class EVOrchestrator:
                 try:
                     self.event_bus.set_state(EVState.EXECUTING)
                     all_completed = True
+                    completed_summaries: List[str] = []
                     for idx, task in enumerate(tasks):
                         # 1. Check for cooperative cancellation before beginning step
                         if token.is_cancelled():
@@ -1165,6 +1174,9 @@ class EVOrchestrator:
 
                         result = self.agent.run(task)
                         if result.status == AgentStatus.COMPLETED:
+                            summary = self.agent._format_result_summary(task.action, result.step.result if result.step else None)
+                            if summary:
+                                completed_summaries.append(summary)
                             mutation_info = self.agent.get_task_mutation(task.task_id)
                             if mutation_info:
                                 tx.record_mutation_step(
@@ -1187,8 +1199,12 @@ class EVOrchestrator:
                     if all_completed:
                         tx.commit()
                         self.event_bus.set_state(EVState.SUCCESS)
+                        if completed_summaries:
+                            self._speak_if_enabled(" ".join(completed_summaries), priority_name="INTERACTIVE")
                     else:
                         self.event_bus.set_state(EVState.FAILED)
+                        fail_reason = result.error if 'result' in locals() and result and result.error else "Task execution failed"
+                        self._speak_if_enabled(f"Command failed: {fail_reason}", priority_name="INTERACTIVE")
                 except Exception as e:
                     logger.exception(f"Unexpected error in agent execution for tasks batch: {e}")
                     tx.rollback(
