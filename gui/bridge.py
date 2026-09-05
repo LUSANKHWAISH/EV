@@ -29,6 +29,9 @@ class GuiBridge(QObject):
     experienceModeChanged = Signal(str)
     stylePresetChanged = Signal(str)
     systemAlertChanged = Signal(str)
+    awarenessEventChanged = Signal(str, str, str)  # awareness_id, title, message
+    latestAwarenessTitleChanged = Signal(str)
+    latestAwarenessMessageChanged = Signal(str)
 
     # Internal signal for safe cross-thread queued handoff
     _stateChangeRequested = Signal(object)
@@ -39,6 +42,7 @@ class GuiBridge(QObject):
     _experienceModeChangeRequested = Signal(str)
     _stylePresetChangeRequested = Signal(str)
     _systemAlertChangeRequested = Signal(str)
+    _awarenessEventQueued = Signal(str, str, str)
 
     def __init__(
         self,
@@ -59,6 +63,8 @@ class GuiBridge(QObject):
             experience_manager.current_preset.value if experience_manager else "EV_CORE"
         )
         self._system_alert_message: str = ""
+        self._latest_awareness_title: str = ""
+        self._latest_awareness_message: str = ""
         self._subscription_tokens: List[str] = []
         self._setup_subscriptions()
 
@@ -103,6 +109,10 @@ class GuiBridge(QObject):
             self._on_system_alert_changed_internal,
             type=Qt.ConnectionType.QueuedConnection,
         )
+        self._awarenessEventQueued.connect(
+            self._on_awareness_event_internal,
+            type=Qt.ConnectionType.QueuedConnection,
+        )
 
         token = self._event_bus.subscribe(
             self._on_event_received,
@@ -118,6 +128,8 @@ class GuiBridge(QObject):
                 EVEventType.SYSTEM_ALERT_RECOVERED,
                 EVEventType.EXPERIENCE_MODE_CHANGED,
                 EVEventType.STYLE_PRESET_CHANGED,
+                EVEventType.AWARENESS_EVENT,
+                EVEventType.AWARENESS_RESOLVED,
             ],
         )
         self._subscription_tokens.append(token)
@@ -165,6 +177,18 @@ class GuiBridge(QObject):
             preset = str(event.data.get("current_preset", "")) if event.data else ""
             if preset:
                 self._stylePresetChangeRequested.emit(preset)
+        elif event.event_type == EVEventType.AWARENESS_EVENT:
+            title = str(event.data.get("title", "")) if event.data else ""
+            msg = str(event.data.get("message", event.message or "")) if event.data else str(event.message or "")
+            aid = str(event.data.get("awareness_id", "")) if event.data else ""
+            combined = f"{title}: {msg}" if title and msg else (title or msg)
+            if combined:
+                self._latestObservationChangeRequested.emit(combined)
+                self._systemAlertChangeRequested.emit(combined)
+            self._awarenessEventQueued.emit(aid, title, msg)
+        elif event.event_type == EVEventType.AWARENESS_RESOLVED:
+            self._systemAlertChangeRequested.emit("")
+            self._awarenessEventQueued.emit("", "", "")
 
     @Slot(object)
     def _on_state_changed_internal(self, new_state: EVState) -> None:
@@ -321,6 +345,24 @@ class GuiBridge(QObject):
     def systemAlertMessage(self) -> str:
         """Latest system alert message for QML binding."""
         return self._system_alert_message
+
+    @Slot(str, str, str)
+    def _on_awareness_event_internal(self, aid: str, title: str, message: str) -> None:
+        self._latest_awareness_title = title
+        self._latest_awareness_message = message
+        self.latestAwarenessTitleChanged.emit(title)
+        self.latestAwarenessMessageChanged.emit(message)
+        self.awarenessEventChanged.emit(aid, title, message)
+
+    @Property(str, notify=latestAwarenessTitleChanged)
+    def latestAwarenessTitle(self) -> str:
+        """Latest proactive awareness title for QML binding."""
+        return self._latest_awareness_title
+
+    @Property(str, notify=latestAwarenessMessageChanged)
+    def latestAwarenessMessage(self) -> str:
+        """Latest proactive awareness message for QML binding."""
+        return self._latest_awareness_message
 
     @Property(str, notify=experienceModeChanged)
     def experienceModeDescription(self) -> str:
