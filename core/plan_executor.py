@@ -449,6 +449,10 @@ class EVPlanExecutor:
                 failure_reason=failure_reason,
             )
 
+            plan.metadata["rolled_back"] = True
+            plan.metadata["rollback_clean"] = rollback_clean
+            plan.metadata["transaction_status"] = tx.status.value
+
             if not rollback_clean:
                 plan.error = f"{failure_reason} (WARNING: Rollback encountered uncompensated or non-reversible steps)"
 

@@ -114,10 +114,16 @@ class CommandResolver:
             )
 
         # LIST_DIRECTORY
-        if lower_command.startswith("list dir ") or lower_command == "list dir":
-            path = command[len("list dir"):].strip()
+        if (
+            lower_command.startswith("list dir ")
+            or lower_command == "list dir"
+            or lower_command.startswith("list directory ")
+            or lower_command == "list directory"
+        ):
+            prefix = "list directory" if lower_command.startswith("list directory") else "list dir"
+            path = command[len(prefix):].strip()
             if not path:
-                raise ValueError("list dir requires a path")
+                raise ValueError(f"{prefix} requires a path")
             return self._build_task(AgentAction.LIST_DIRECTORY, {"path": path})
             
         # GET_FILE_INFO

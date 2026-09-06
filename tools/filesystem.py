@@ -17,6 +17,7 @@ DEFAULT_ALLOWED_ROOTS = [
     Path(r"D:\EV\workspace"),
     Path(r"D:\EV\sandbox"),
     Path(r"D:\EV\backups"),
+    Path(r"D:\EV\test_runtime"),
 ]
 
 # DOS reserved device names

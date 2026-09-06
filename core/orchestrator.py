@@ -24,9 +24,15 @@ from core.models import (
     EVEventType,
     EVState,
     PermissionDecision,
+    RecoveryOption,
     RiskAssessmentRequest,
     RiskAssessmentResult,
     RiskLevel,
+)
+from core.action_pipeline import (
+    ActionPipelineContext,
+    ActionPipelineResult,
+    EVActionPipeline,
 )
 from core.resolver import CommandResolver
 from core.risk import EVRiskEngine
@@ -103,6 +109,7 @@ class EVOrchestrator:
         task_queue: Optional[EVTaskQueue] = None,
         enable_queue: bool = False,
         tts_manager=None,
+        action_pipeline: Optional[EVActionPipeline] = None,
     ):
         self.event_bus = event_bus
         self.history_store = EVTaskHistoryStore()
@@ -142,6 +149,17 @@ class EVOrchestrator:
         # Default is None — E.V. operates in text-only mode when not provided.
         # TTS is output presentation only; it cannot authorize actions or alter state.
         self._tts_manager = tts_manager
+
+        # Canonical End-to-End Intelligent Action Pipeline
+        self.action_pipeline: EVActionPipeline = action_pipeline or EVActionPipeline(
+            event_bus=self.event_bus,
+            router=self.router,
+            risk_engine=self.risk_engine,
+            history_store=self.history_store,
+            memory_store=self.memory_store,
+            agent=self.agent,
+            tts_manager=self._tts_manager,
+        )
 
     def start_queue_worker(self) -> None:
         """Start the dedicated queue worker daemon thread if not already active."""
@@ -912,11 +930,17 @@ class EVOrchestrator:
         """
         with self._pending_lock:
             if self._pending_approval is None:
+                if hasattr(self, "action_pipeline") and task_id in self.action_pipeline._pending_pipeline_contexts:
+                    self.action_pipeline.resolve_approval(task_id, approved=approved)
+                    return True
                 logger.warning("resolve_approval called but no task is pending approval")
                 return False
 
             pending_task = self._pending_approval.get("task")
             if pending_task is None or pending_task.task_id != task_id:
+                if hasattr(self, "action_pipeline") and task_id in self.action_pipeline._pending_pipeline_contexts:
+                    self.action_pipeline.resolve_approval(task_id, approved=approved)
+                    return True
                 logger.warning(
                     "resolve_approval task_id mismatch: expected '%s', got '%s'",
                     pending_task.task_id if pending_task else "None",
@@ -1052,6 +1076,43 @@ class EVOrchestrator:
             self.event_bus.set_state(EVState.FAILED)
             self.event_bus.set_state(EVState.IDLE)
             return True
+
+    def execute_pipeline(
+        self,
+        raw_text: str,
+        context: Optional[ActionPipelineContext] = None,
+    ) -> ActionPipelineResult:
+        """
+        Execute an end-to-end request through the canonical EVActionPipeline.
+        Provides the full: Input -> Fast/Slow Resolution -> Plan -> Validation ->
+        Risk -> Approval Gate -> CompoundTransaction -> EVAgent -> EVVerifier ->
+        Sanitized Events/History -> HUD/TTS pipeline.
+        """
+        return self.action_pipeline.execute_request(raw_text=raw_text, context=context)
+
+    def resolve_pipeline_approval(
+        self,
+        plan_id: str,
+        approved: bool,
+    ) -> ActionPipelineResult:
+        """
+        Resolve human approval for a pending plan in the canonical EVActionPipeline.
+        """
+        return self.action_pipeline.resolve_approval(plan_id=plan_id, approved=approved)
+
+    def submit_recovery_proposal(
+        self,
+        recovery_option: RecoveryOption,
+        context: Optional[ActionPipelineContext] = None,
+    ) -> ActionPipelineResult:
+        """
+        Submit a diagnosis-generated recovery proposal to the canonical action pipeline.
+        Enforces plan validation, risk assessment, and approval for any mutating action.
+        """
+        return self.action_pipeline.execute_recovery_proposal(
+            recovery_option=recovery_option,
+            context=context,
+        )
 
     def execute_task(
         self,
