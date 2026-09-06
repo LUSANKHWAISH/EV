@@ -11,7 +11,7 @@ from PySide6.QtGui import QGuiApplication
 from core.events import EVEventBus
 from core.models import EVState
 from core.orchestrator import EVOrchestrator
-from gui.app import _parse_args, build_production_router, main
+from gui.app import _format_pipeline_result, _parse_args, build_production_router, main
 from gui.bridge import GuiBridge
 
 # --- Argument parsing ------------------------------------------------------
@@ -325,3 +325,105 @@ def test_task_submission_executes_canonical_pipeline(mock_gui_env):
         ctx = call_args[0][1]
         assert ctx.source == "GUI"
         assert ctx.command_text == "find process python"
+
+        # Worker must have notified bridge
+        mock_bridge.notifyTaskResult.assert_called_once()
+
+
+def test_task_submission_worker_handles_unexpected_exception(mock_gui_env):
+    """Verify worker catches unhandled exceptions and notifies bridge with safe FAILED status."""
+    import time
+    mock_app, mock_engine, mock_exit = mock_gui_env
+
+    with patch("gui.app.GuiBridge") as mock_bridge_cls, \
+         patch("gui.app.EVOrchestrator") as mock_orch_cls:
+
+        mock_bridge = MagicMock()
+        mock_bridge_cls.return_value = mock_bridge
+        mock_orch = MagicMock()
+        mock_orch.execute_pipeline.side_effect = RuntimeError("Fatal hardware failure")
+        mock_orch_cls.return_value = mock_orch
+
+        main()
+
+        connect_call = mock_bridge.taskSubmitted.connect.call_args
+        callback = connect_call[0][0]
+        callback("check status")
+        time.sleep(0.1)
+
+        mock_bridge.notifyTaskResult.assert_called_once()
+        args = mock_bridge.notifyTaskResult.call_args[0]
+        assert "Execution failed: RuntimeError" in args[0]
+        assert args[1] == "FAILED"
+        assert args[2] is False
+
+
+def test_format_pipeline_result_none():
+    """Verify None input produces safe FAILED result."""
+    summary, status, success = _format_pipeline_result(None)
+    assert "Execution completed" in summary
+    assert status == "FAILED"
+    assert success is False
+
+
+def test_format_pipeline_result_cancellation():
+    """Verify cancelled result produces CANCELLED status."""
+    mock_res = MagicMock()
+    mock_res.status.value = "CANCELLED"
+    mock_res.error = "Cancelled by user"
+    mock_res.approved = None
+    summary, status, success = _format_pipeline_result(mock_res)
+    assert summary == "Cancelled by user"
+    assert status == "CANCELLED"
+    assert success is False
+
+
+def test_format_pipeline_result_failure():
+    """Verify failed result produces FAILED status with error message."""
+    mock_res = MagicMock()
+    mock_res.status.value = "FAILED"
+    mock_res.overall_success = False
+    mock_res.error = "Path does not exist"
+    mock_res.approved = True
+    summary, status, success = _format_pipeline_result(mock_res)
+    assert "Task failed: Path does not exist" in summary
+    assert status == "FAILED"
+    assert success is False
+
+
+def test_format_pipeline_result_success_list_directory():
+    """Verify list_directory result is summarized cleanly."""
+    mock_item1 = MagicMock()
+    mock_item1.name = "doc.txt"
+    mock_item2 = MagicMock()
+    mock_item2.name = "image.png"
+
+    mock_step = MagicMock()
+    mock_step.action.value = "list_directory"
+    mock_step.parameters = {"path": "C:\\test"}
+    mock_step.result = [mock_item1, mock_item2]
+
+    mock_res = MagicMock()
+    mock_res.status.value = "COMPLETED"
+    mock_res.overall_success = True
+    mock_res.error = None
+    mock_res.approved = True
+    mock_res.plan.steps = [mock_step]
+    mock_res.plan.goal = "list C:\\test"
+
+    summary, status, success = _format_pipeline_result(mock_res)
+    assert "Found 2 item(s) in 'C:\\test':" in summary
+    assert "doc.txt, image.png" in summary
+    assert status == "SUCCESS"
+    assert success is True
+
+
+def test_format_pipeline_result_sanitizes_credentials():
+    """Verify API keys and sensitive tokens are redacted in result text."""
+    mock_res = MagicMock()
+    mock_res.status.value = "FAILED"
+    mock_res.overall_success = False
+    mock_res.error = "Authentication failed for sk-1234567890123456789012345678"
+    summary, status, success = _format_pipeline_result(mock_res)
+    assert "[REDACTED]" in summary
+    assert "sk-1234567890123456789012345678" not in summary

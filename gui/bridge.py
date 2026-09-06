@@ -60,6 +60,7 @@ class GuiBridge(QObject):
     awarenessEventChanged = Signal(str, str, str)  # awareness_id, title, message
     latestAwarenessTitleChanged = Signal(str)
     latestAwarenessMessageChanged = Signal(str)
+    taskResultChanged = Signal()
 
     # Internal signal for safe cross-thread queued handoff
     _stateChangeRequested = Signal(object)
@@ -73,6 +74,7 @@ class GuiBridge(QObject):
     _stylePresetChangeRequested = Signal(str)
     _systemAlertChangeRequested = Signal(str)
     _awarenessEventQueued = Signal(str, str, str)
+    _taskResultQueued = Signal(str, str, bool)
 
     def __init__(
         self,
@@ -118,6 +120,10 @@ class GuiBridge(QObject):
         self._system_alert_message: str = ""
         self._latest_awareness_title: str = ""
         self._latest_awareness_message: str = ""
+        self._task_result: str = ""
+        self._task_result_status: str = "IDLE"
+        self._task_result_success: bool = False
+        self._task_result_available: bool = False
         self._subscription_tokens: List[str] = []
         self._setup_subscriptions()
 
@@ -172,6 +178,10 @@ class GuiBridge(QObject):
         )
         self._telemetryUpdated.connect(
             self._on_telemetry_updated_internal,
+            type=Qt.ConnectionType.QueuedConnection,
+        )
+        self._taskResultQueued.connect(
+            self._on_task_result_internal,
             type=Qt.ConnectionType.QueuedConnection,
         )
 
@@ -472,7 +482,54 @@ class GuiBridge(QObject):
     @Slot(str)
     def submitTask(self, command: str) -> None:
         """Called by QML to submit a user task."""
+        self._task_result = ""
+        self._task_result_status = "RUNNING"
+        self._task_result_success = False
+        self._task_result_available = False
+        self.taskResultChanged.emit()
         self.taskSubmitted.emit(command)
+
+    @Slot(str, str, bool)
+    def _on_task_result_internal(self, result_text: str, status: str, success: bool) -> None:
+        """Slot executed in Qt thread when task result arrives from a worker."""
+        self._task_result = result_text
+        self._task_result_status = status
+        self._task_result_success = success
+        self._task_result_available = (status in ("SUCCESS", "FAILED", "CANCELLED"))
+        self.taskResultChanged.emit()
+
+    def notifyTaskResult(self, result_text: str, status: str = "SUCCESS", success: bool = True) -> None:
+        """Thread-safe method called by workers to publish task results to Qt GUI."""
+        self._taskResultQueued.emit(result_text, status, success)
+
+    @Slot()
+    def clearTaskResult(self) -> None:
+        """Restore task result state to IDLE defaults."""
+        self._task_result = ""
+        self._task_result_status = "IDLE"
+        self._task_result_success = False
+        self._task_result_available = False
+        self.taskResultChanged.emit()
+
+    @Property(str, notify=taskResultChanged)
+    def taskResult(self) -> str:
+        """Human-readable result or response text of the latest task execution."""
+        return self._task_result
+
+    @Property(str, notify=taskResultChanged)
+    def taskResultStatus(self) -> str:
+        """Lifecycle status of the latest task ('IDLE', 'RUNNING', 'SUCCESS', 'FAILED', 'CANCELLED')."""
+        return self._task_result_status
+
+    @Property(bool, notify=taskResultChanged)
+    def taskResultSuccess(self) -> bool:
+        """Whether the latest task finished with overall success."""
+        return self._task_result_success
+
+    @Property(bool, notify=taskResultChanged)
+    def taskResultAvailable(self) -> bool:
+        """Whether a completed task result is ready to display."""
+        return self._task_result_available
 
     @Slot(str, bool)
     def submitApproval(self, task_id: str, approved: bool) -> None:
@@ -926,6 +983,7 @@ class GuiBridge(QObject):
 
     def shutdown(self) -> None:
         """Unsubscribe from the event bus. Idempotent."""
+        self.clearTaskResult()
         self.clearTelemetry()
         for token in self._subscription_tokens:
             self._event_bus.unsubscribe(token)

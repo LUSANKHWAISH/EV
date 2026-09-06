@@ -57,7 +57,7 @@ ApplicationWindow {
             anchors.top: topBar.bottom
             anchors.left: parent.left
             anchors.right: parent.right
-            anchors.bottom: commandInput.top
+            anchors.bottom: resultSurface.top
 
             anchors.topMargin: Theme.spacingXXXS
             anchors.leftMargin: Theme.spacingXS
@@ -73,6 +73,16 @@ ApplicationWindow {
                           : "EV_CORE"
         }
 
+        EVResultSurface {
+            id: resultSurface
+            anchors.bottom: commandInput.top
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.leftMargin: Theme.spacingXS
+            anchors.rightMargin: Theme.spacingXS
+            anchors.bottomMargin: isVisible ? Theme.spacingXS : 0
+        }
+
         EVCommandInput {
             id: commandInput
             anchors.bottom: parent.bottom
@@ -85,6 +95,7 @@ ApplicationWindow {
 
         EVApprovalOverlay {
             id: approvalOverlay
+            objectName: "approvalOverlay"
             anchors.fill: parent
             z: 100
         }

@@ -89,6 +89,7 @@ def test_qml_components_importable(qml_engine):
         "EVTelemetryRail.qml",
         "EVExperienceModeIndicator.qml",
         "EVSystemAlertBanner.qml",
+        "EVResultSurface.qml",
     ]
 
     failures = []
@@ -170,6 +171,7 @@ def test_qmldir_registers_all_components():
         "EVExperienceModeIndicator 1.0 EVExperienceModeIndicator.qml",
         "EVSystemAlertBanner 1.0 EVSystemAlertBanner.qml",
         "EVApprovalOverlay 1.0 EVApprovalOverlay.qml",
+        "EVResultSurface 1.0 EVResultSurface.qml",
     }
 
     actual = {
@@ -260,3 +262,27 @@ def test_flagship_components_instantiate_with_state(qml_engine):
     if app:
         app.processEvents()
     stage_instance.deleteLater()
+
+
+def test_result_surface_instantiates(qml_engine):
+    """Test that EVResultSurface instantiates correctly with GuiBridge in context."""
+    from core.events import EVEventBus
+    from gui.bridge import GuiBridge
+
+    event_bus = EVEventBus()
+    bridge = GuiBridge(event_bus=event_bus)
+    ctx = qml_engine.rootContext()
+    ctx.setContextProperty("guiBridge", bridge)
+
+    component = QQmlComponent(
+        qml_engine,
+        QUrl.fromLocalFile(str(COMPONENT_ROOT / "EVResultSurface.qml")),
+    )
+    assert not component.isError(), component.errors()
+    instance = component.create(ctx)
+    assert instance is not None, "EVResultSurface failed to instantiate"
+
+    app = QGuiApplication.instance()
+    if app:
+        app.processEvents()
+    instance.deleteLater()

@@ -32,6 +32,7 @@ QtObject {
 
     // Luminous system (rare, purposeful emission)
     readonly property color luminousPrimary: "#00ff88"     // primary accent (green-cyan)
+    readonly property color brandPrimary: luminousPrimary  // brand primary alias (resolves EVCommandInput.qml:26)
     readonly property color luminousSecondary: "#88ff00"   // secondary accent (yellow-green)
     readonly property color luminousWarning: "#ffb300"     // warning (amber)
     readonly property color luminousCritical: "#ff3333"    // critical (red)

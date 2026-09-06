@@ -4,9 +4,10 @@ import argparse
 import logging
 import os
 from pathlib import Path
+import re
 import sys
 import threading
-from typing import List, Optional
+from typing import Any, List, Optional, Tuple
 import uuid
 
 from PySide6.QtCore import QTimer, QUrl
@@ -31,6 +32,136 @@ from providers.openai_compatible_provider import (
 )
 
 logger = logging.getLogger(__name__)
+
+_MAX_RESULT_LENGTH: int = 500
+
+_SENSITIVE_PATTERNS = [
+    re.compile(r"sk-[a-zA-Z0-9_\-]{20,}", re.IGNORECASE),
+    re.compile(r"AIzaSy[a-zA-Z0-9_\-]{30,}", re.IGNORECASE),
+    re.compile(r"bearer\s+[a-zA-Z0-9_\-\.]{20,}", re.IGNORECASE),
+    re.compile(r"ghp_[a-zA-Z0-9]{36,}", re.IGNORECASE),
+]
+
+
+def _sanitize_result_text(text: str) -> str:
+    """Sanitize and clamp string to prevent secret exposure or GUI overflow."""
+    if not text:
+        return ""
+    sanitized = text
+    for pat in _SENSITIVE_PATTERNS:
+        sanitized = pat.sub("[REDACTED]", sanitized)
+    if len(sanitized) > _MAX_RESULT_LENGTH:
+        sanitized = sanitized[:_MAX_RESULT_LENGTH].rstrip() + "..."
+    return sanitized
+
+
+def _format_pipeline_result(result: Any) -> Tuple[str, str, bool]:
+    """
+    Deterministically format an ActionPipelineResult into a concise, safe,
+    human-readable summary for the GUI presentation surface.
+    Returns: (summary_text, status_str, success_bool)
+    """
+    if result is None:
+        return ("Execution completed, but no result reference was returned.", "FAILED", False)
+
+    try:
+        # Check cancellation or user denial
+        status_val = getattr(result.status, "value", str(getattr(result, "status", "") or ""))
+        if status_val == "CANCELLED" or getattr(result, "approved", None) is False:
+            err = getattr(result, "error", None) or "Task cancelled."
+            return (_sanitize_result_text(err), "CANCELLED", False)
+
+        # Check awaiting approval
+        if status_val == "AWAITING_APPROVAL":
+            goal = getattr(result.plan, "goal", "") if getattr(result, "plan", None) else getattr(result, "command_text", "")
+            msg = f"Awaiting approval for: {goal}" if goal else "Awaiting human approval."
+            return (_sanitize_result_text(msg), "AWAITING_APPROVAL", False)
+
+        # Check failure
+        overall_success = bool(getattr(result, "overall_success", False))
+        if not overall_success or status_val in ("FAILED", "REJECTED"):
+            raw_err = getattr(result, "error", None)
+            if not raw_err and getattr(result, "plan", None):
+                raw_err = getattr(result.plan, "error", None)
+            err_text = raw_err or "Task execution failed."
+            return (_sanitize_result_text(f"Task failed: {err_text}"), "FAILED", False)
+
+        # Overall success
+        plan = getattr(result, "plan", None)
+        if plan is None:
+            cmd = getattr(result, "command_text", "")
+            return (_sanitize_result_text(f"Task completed successfully: {cmd}" if cmd else "Task completed successfully."), "SUCCESS", True)
+
+        steps = getattr(plan, "steps", None) or []
+        if not steps:
+            goal = getattr(plan, "goal", "") or getattr(result, "command_text", "")
+            return (_sanitize_result_text(f"Task completed: {goal}" if goal else "Task completed successfully."), "SUCCESS", True)
+
+        # If single step, produce specific concise summary
+        if len(steps) == 1:
+            step = steps[0]
+            action_name = getattr(step.action, "value", str(getattr(step, "action", "")))
+            params = getattr(step, "parameters", {}) or {}
+            step_result = getattr(step, "result", None)
+
+            if action_name == "list_directory":
+                path = params.get("path", "directory")
+                if isinstance(step_result, list):
+                    count = len(step_result)
+                    if count == 0:
+                        return (_sanitize_result_text(f"Directory '{path}' is empty (0 items)."), "SUCCESS", True)
+                    names = [getattr(item, "name", str(item)) for item in step_result[:5]]
+                    items_str = ", ".join(names)
+                    more = f" (+{count - 5} more)" if count > 5 else ""
+                    return (_sanitize_result_text(f"Found {count} item(s) in '{path}':\n{items_str}{more}"), "SUCCESS", True)
+
+            elif action_name == "find_process":
+                proc_name = params.get("name") or params.get("process_name") or ""
+                if isinstance(step_result, list):
+                    count = len(step_result)
+                    if count == 0:
+                        msg = f"No processes found matching '{proc_name}'." if proc_name else "No matching processes found."
+                        return (_sanitize_result_text(msg), "SUCCESS", True)
+                    procs = [f"{getattr(p, 'name', str(p))} (PID {getattr(p, 'pid', '?')})" for p in step_result[:3]]
+                    procs_str = ", ".join(procs)
+                    more = f" (+{count - 3} more)" if count > 3 else ""
+                    return (_sanitize_result_text(f"Found {count} process(es):\n{procs_str}{more}"), "SUCCESS", True)
+
+            elif action_name == "read_text_file":
+                path = params.get("path", "file")
+                content = getattr(step_result, "content", "") if step_result else ""
+                size = getattr(step_result, "size_bytes", len(content)) if step_result else 0
+                if content:
+                    snippet = content.strip()[:200] + ("..." if len(content.strip()) > 200 else "")
+                    return (_sanitize_result_text(f"Read '{path}' ({size} bytes):\n{snippet}"), "SUCCESS", True)
+                return (_sanitize_result_text(f"File '{path}' is empty."), "SUCCESS", True)
+
+            elif action_name == "get_file_info":
+                name = getattr(step_result, "name", params.get("path", "file")) if step_result else params.get("path", "file")
+                size = getattr(step_result, "size_bytes", 0) if step_result else 0
+                is_dir = getattr(step_result, "is_directory", False) if step_result else False
+                type_str = "Directory" if is_dir else "File"
+                return (_sanitize_result_text(f"{type_str} '{name}' ({size} bytes)."), "SUCCESS", True)
+
+            elif action_name == "powershell_command":
+                stdout = getattr(step_result, "stdout", "") if step_result else ""
+                if stdout and stdout.strip():
+                    snippet = stdout.strip()[:250] + ("..." if len(stdout.strip()) > 250 else "")
+                    return (_sanitize_result_text(f"Command output:\n{snippet}"), "SUCCESS", True)
+                return (_sanitize_result_text("PowerShell command executed successfully."), "SUCCESS", True)
+
+        # Multi-step or general fallback
+        goal = getattr(plan, "goal", "") or getattr(result, "command_text", "Task")
+        return (_sanitize_result_text(f"Task completed successfully: {goal}\n({len(steps)} step(s) completed and verified)"), "SUCCESS", True)
+
+    except Exception as exc:
+        logger.warning("Error formatting pipeline result: %s", exc)
+        fallback_success = bool(getattr(result, "overall_success", False))
+        return (
+            "Execution completed, but the result could not be displayed.",
+            "SUCCESS" if fallback_success else "FAILED",
+            fallback_success,
+        )
 
 
 def build_production_router() -> BrainRouter:
@@ -143,9 +274,19 @@ def main() -> None:
             source="GUI",
             command_text=cleaned,
         )
+
+        def _pipeline_worker() -> None:
+            try:
+                result = orchestrator.execute_pipeline(cleaned, ctx)
+                summary, status, success = _format_pipeline_result(result)
+                bridge.notifyTaskResult(summary, status, success)
+            except Exception as exc:
+                logger.exception("Pipeline execution failed unexpectedly: %s", exc)
+                safe_err = f"Execution failed: {type(exc).__name__}"
+                bridge.notifyTaskResult(safe_err, "FAILED", False)
+
         worker = threading.Thread(
-            target=orchestrator.execute_pipeline,
-            args=(cleaned, ctx),
+            target=_pipeline_worker,
             name=f"EV-GuiPipelineWorker-{ctx.pipeline_id}",
             daemon=True,
         )
