@@ -5,13 +5,16 @@ import logging
 import os
 from pathlib import Path
 import sys
+import threading
 from typing import List, Optional
+import uuid
 
 from PySide6.QtCore import QTimer, QUrl
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtQuickControls2 import QQuickStyle
 
+from core.action_pipeline import ActionPipelineContext
 from core.brain_provider import EVBrainProvider
 from core.brain_provider_manager import EVBrainProviderManager
 from core.brain_router import BrainRouter
@@ -132,14 +135,64 @@ def main() -> None:
         orchestrator = EVOrchestrator(event_bus=event_bus, router=router)
 
     def handle_task_submission(command: str) -> None:
-        if not command.strip():
+        cleaned = command.strip()
+        if not cleaned:
             return
-        orchestrator.submit_command(command.strip())
+        ctx = ActionPipelineContext(
+            pipeline_id=f"gui-{uuid.uuid4().hex[:8]}",
+            source="GUI",
+            command_text=cleaned,
+        )
+        worker = threading.Thread(
+            target=orchestrator.execute_pipeline,
+            args=(cleaned, ctx),
+            name=f"EV-GuiPipelineWorker-{ctx.pipeline_id}",
+            daemon=True,
+        )
+        worker.start()
 
     bridge.taskSubmitted.connect(handle_task_submission)
 
     def handle_approval_submission(task_id: str, approved: bool) -> None:
-        orchestrator.resolve_approval(task_id, approved)
+        def _resolve_worker() -> None:
+            err_msg = "Backend authorization failed or task ID mismatched."
+            success = False
+            try:
+                result = orchestrator.resolve_pipeline_approval(
+                    plan_id=task_id, approved=approved
+                )
+                if result is not None:
+                    if approved:
+                        success = bool(result.overall_success)
+                        if not success:
+                            err_msg = result.error or "Pipeline execution or verification failed."
+                    else:
+                        if result.approved is False and result.plan is not None:
+                            success = True
+                        else:
+                            err_msg = result.error or "Plan ID mismatch or no plan awaiting approval."
+            except Exception as exc:
+                logger.exception(
+                    "Exception during approval resolution for plan %s: %s", task_id, exc
+                )
+                success = False
+                err_msg = str(exc)
+
+            if not success:
+                logger.warning(
+                    "Approval resolution failed or was rejected by backend for plan %s: %s",
+                    task_id,
+                    err_msg,
+                )
+                if hasattr(bridge, "notifyApprovalFailed"):
+                    bridge.notifyApprovalFailed(task_id, err_msg)
+
+        worker = threading.Thread(
+            target=_resolve_worker,
+            name=f"EV-GuiApprovalWorker-{task_id}",
+            daemon=True,
+        )
+        worker.start()
 
     bridge.approvalSubmitted.connect(handle_approval_submission)
 

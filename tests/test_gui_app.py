@@ -234,7 +234,7 @@ def test_main_executes_and_exits(mock_gui_env):
 
 
 def test_main_connects_approval_submission(mock_gui_env):
-    """Verify main() connects bridge.approvalSubmitted to orchestrator.resolve_approval."""
+    """Verify main() connects bridge.approvalSubmitted to orchestrator.resolve_pipeline_approval."""
     mock_app, mock_engine, mock_exit = mock_gui_env
 
     with patch("gui.app.GuiBridge") as mock_bridge_cls, \
@@ -248,3 +248,80 @@ def test_main_connects_approval_submission(mock_gui_env):
         main()
 
         mock_bridge.approvalSubmitted.connect.assert_called_once()
+
+
+def test_approval_submission_executes_canonical_pipeline_approval(mock_gui_env):
+    """Verify handle_approval_submission invokes orchestrator.resolve_pipeline_approval in worker thread."""
+    import time
+    mock_app, mock_engine, mock_exit = mock_gui_env
+
+    with patch("gui.app.GuiBridge") as mock_bridge_cls, \
+         patch("gui.app.EVOrchestrator") as mock_orch_cls:
+
+        mock_bridge = MagicMock()
+        mock_bridge_cls.return_value = mock_bridge
+        mock_orch = MagicMock()
+        mock_orch_cls.return_value = mock_orch
+
+        main()
+
+        connect_call = mock_bridge.approvalSubmitted.connect.call_args
+        assert connect_call is not None
+        callback = connect_call[0][0]
+
+        callback("plan-test-123", True)
+        time.sleep(0.1)
+
+        mock_orch.resolve_pipeline_approval.assert_called_once_with(
+            plan_id="plan-test-123", approved=True
+        )
+
+
+def test_main_connects_task_submission(mock_gui_env):
+    """Verify main() connects bridge.taskSubmitted to handle_task_submission."""
+    mock_app, mock_engine, mock_exit = mock_gui_env
+
+    with patch("gui.app.GuiBridge") as mock_bridge_cls, \
+         patch("gui.app.EVOrchestrator") as mock_orch_cls:
+
+        mock_bridge = MagicMock()
+        mock_bridge_cls.return_value = mock_bridge
+        mock_orch = MagicMock()
+        mock_orch_cls.return_value = mock_orch
+
+        main()
+
+        mock_bridge.taskSubmitted.connect.assert_called_once()
+
+
+def test_task_submission_executes_canonical_pipeline(mock_gui_env):
+    """Verify handle_task_submission invokes orchestrator.execute_pipeline in worker thread."""
+    import time
+    mock_app, mock_engine, mock_exit = mock_gui_env
+
+    with patch("gui.app.GuiBridge") as mock_bridge_cls, \
+         patch("gui.app.EVOrchestrator") as mock_orch_cls:
+
+        mock_bridge = MagicMock()
+        mock_bridge_cls.return_value = mock_bridge
+        mock_orch = MagicMock()
+        mock_orch_cls.return_value = mock_orch
+
+        main()
+
+        # Extract the connected callback from taskSubmitted.connect
+        connect_call = mock_bridge.taskSubmitted.connect.call_args
+        assert connect_call is not None
+        callback = connect_call[0][0]
+
+        # Call with command
+        callback("find process python")
+        # Allow daemon worker thread to execute
+        time.sleep(0.1)
+
+        mock_orch.execute_pipeline.assert_called_once()
+        call_args = mock_orch.execute_pipeline.call_args
+        assert call_args[0][0] == "find process python"
+        ctx = call_args[0][1]
+        assert ctx.source == "GUI"
+        assert ctx.command_text == "find process python"

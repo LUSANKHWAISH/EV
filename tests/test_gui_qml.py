@@ -169,6 +169,7 @@ def test_qmldir_registers_all_components():
         "EVIntelligenceTaskRail 1.0 EVIntelligenceTaskRail.qml",
         "EVExperienceModeIndicator 1.0 EVExperienceModeIndicator.qml",
         "EVSystemAlertBanner 1.0 EVSystemAlertBanner.qml",
+        "EVApprovalOverlay 1.0 EVApprovalOverlay.qml",
     }
 
     actual = {

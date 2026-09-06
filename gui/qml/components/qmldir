@@ -18,3 +18,4 @@ EVTelemetryRail 1.0 EVTelemetryRail.qml
 EVIntelligenceTaskRail 1.0 EVIntelligenceTaskRail.qml
 EVExperienceModeIndicator 1.0 EVExperienceModeIndicator.qml
 EVSystemAlertBanner 1.0 EVSystemAlertBanner.qml
+EVApprovalOverlay 1.0 EVApprovalOverlay.qml

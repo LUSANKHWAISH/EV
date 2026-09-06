@@ -83,6 +83,11 @@ ApplicationWindow {
             anchors.bottomMargin: Theme.spacingXS
         }
 
+        EVApprovalOverlay {
+            id: approvalOverlay
+            anchors.fill: parent
+            z: 100
+        }
     }
     // Frameless edge and corner resize handlers using startSystemResize
     MouseArea {

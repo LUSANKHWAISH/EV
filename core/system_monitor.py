@@ -776,10 +776,14 @@ class EVSystemMonitor:
         if self._event_bus is None:
             return
 
+        with self._lock:
+            snapshot = copy.deepcopy(self._last_snapshot)
+
         summary_data = {
             "observation_count": len(observations),
             "domains": [obs.domain.value for obs in observations],
             "metrics": {f"{obs.domain.value}:{obs.metric}": obs.value for obs in observations},
+            "snapshot": snapshot,
         }
 
         self._event_bus.publish(

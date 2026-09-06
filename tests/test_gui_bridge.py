@@ -369,3 +369,410 @@ def test_orchestrator_end_to_end(app):
     assert len(obs_emissions) >= 2
     assert any(t.startswith("FIND_PROCESS") for t in task_emissions)
     assert any(obs != "" for obs in obs_emissions)
+
+
+def test_bridge_approval_contract_defaults(bridge):
+    """Verify default initial values for approval presentation properties."""
+    assert bridge.approvalPending is False
+    assert bridge.approvalTaskId == ""
+    assert bridge.approvalPlanId == ""
+    assert bridge.approvalAction == ""
+    assert bridge.approvalDescription == ""
+    assert bridge.approvalResource == ""
+    assert bridge.approvalRiskLevel == ""
+    assert bridge.approvalReason == ""
+    assert bridge.approvalReversible is True
+    assert bridge.approvalRollbackAvailable is True
+
+
+def test_bridge_approval_required_populates_presentation_properties(bridge, event_bus, app):
+    """Verify APPROVAL_REQUIRED event populates all presentation properties and emits signals."""
+    spy_pending = QSignalSpy(bridge.approvalPendingChanged)
+    spy_task = QSignalSpy(bridge.approvalTaskIdChanged)
+    spy_action = QSignalSpy(bridge.approvalActionChanged)
+    spy_desc = QSignalSpy(bridge.approvalDescriptionChanged)
+    spy_resource = QSignalSpy(bridge.approvalResourceChanged)
+    spy_risk = QSignalSpy(bridge.approvalRiskLevelChanged)
+    spy_reason = QSignalSpy(bridge.approvalReasonChanged)
+    spy_req = QSignalSpy(bridge.approvalRequested)
+
+    event_bus.publish(
+        event_type=EVEventType.APPROVAL_REQUIRED,
+        source="action_pipeline",
+        correlation_id="plan-test-001",
+        message="Approval required for write file",
+        data={
+            "plan_id": "plan-test-001",
+            "task_id": "plan-test-001",
+            "action": "WRITE_FILE",
+            "goal": "Write configuration file",
+            "description": "Write configuration file to disk",
+            "resource": "C:\\config\\settings.json",
+            "risk_level": "HIGH",
+            "reason": "Dangerous file write operation",
+            "reversible": True,
+            "rollback_available": True,
+        },
+    )
+    QCoreApplication.processEvents()
+
+    assert bridge.approvalPending is True
+    assert bridge.approvalTaskId == "plan-test-001"
+    assert bridge.approvalPlanId == "plan-test-001"
+    assert bridge.approvalAction == "WRITE_FILE"
+    assert bridge.approvalDescription == "Write configuration file to disk"
+    assert bridge.approvalResource == "C:\\config\\settings.json"
+    assert bridge.approvalRiskLevel == "HIGH"
+    assert bridge.approvalReason == "Dangerous file write operation"
+    assert bridge.approvalReversible is True
+    assert bridge.approvalRollbackAvailable is True
+
+    assert spy_pending.count() == 1
+    assert spy_pending.at(0)[0] is True
+    assert spy_task.count() == 1
+    assert spy_task.at(0)[0] == "plan-test-001"
+    assert spy_action.count() == 1
+    assert spy_action.at(0)[0] == "WRITE_FILE"
+    assert spy_desc.count() == 1
+    assert spy_desc.at(0)[0] == "Write configuration file to disk"
+    assert spy_resource.count() == 1
+    assert spy_resource.at(0)[0] == "C:\\config\\settings.json"
+    assert spy_risk.count() == 1
+    assert spy_risk.at(0)[0] == "HIGH"
+    assert spy_reason.count() == 1
+    assert spy_reason.at(0)[0] == "Dangerous file write operation"
+    assert spy_req.count() == 1
+    assert spy_req.at(0) == ["plan-test-001", "WRITE_FILE", "HIGH", "Dangerous file write operation"]
+
+
+def test_bridge_submit_approval_clears_presentation_properties(bridge, event_bus, app):
+    """Verify submitApproval with matching ID clears state and emits approvalSubmitted."""
+    event_bus.publish(
+        event_type=EVEventType.APPROVAL_REQUIRED,
+        source="action_pipeline",
+        correlation_id="plan-test-002",
+        data={
+            "task_id": "plan-test-002",
+            "action": "DELETE_FILE",
+            "reason": "File deletion",
+            "risk_level": "CRITICAL",
+        },
+    )
+    QCoreApplication.processEvents()
+    assert bridge.approvalPending is True
+
+    spy_submitted = QSignalSpy(bridge.approvalSubmitted)
+    spy_resolved = QSignalSpy(bridge.approvalResolved)
+    spy_pending = QSignalSpy(bridge.approvalPendingChanged)
+
+    bridge.submitApproval("plan-test-002", True)
+    QCoreApplication.processEvents()
+
+    assert bridge.approvalPending is False
+    assert bridge.approvalTaskId == ""
+    assert bridge.approvalAction == ""
+    assert spy_submitted.count() == 1
+    assert spy_submitted.at(0) == ["plan-test-002", True]
+    assert spy_resolved.count() == 1
+    assert spy_resolved.at(0) == ["plan-test-002", True]
+    assert spy_pending.count() == 1
+    assert spy_pending.at(0)[0] is False
+
+
+def test_bridge_submit_approval_mismatched_id_rejected(bridge, event_bus, app):
+    """Verify submitApproval with mismatched task_id is rejected when pending."""
+    event_bus.publish(
+        event_type=EVEventType.APPROVAL_REQUIRED,
+        source="action_pipeline",
+        correlation_id="plan-active",
+        data={
+            "task_id": "plan-active",
+            "action": "WRITE_FILE",
+            "risk_level": "HIGH",
+        },
+    )
+    QCoreApplication.processEvents()
+    assert bridge.approvalPending is True
+    assert bridge.approvalTaskId == "plan-active"
+
+    spy_submitted = QSignalSpy(bridge.approvalSubmitted)
+
+    # Stale/mismatched ID submitted
+    bridge.submitApproval("plan-stale-wrong", True)
+    QCoreApplication.processEvents()
+
+    assert spy_submitted.count() == 0, "Mismatched approval submission must be rejected"
+    assert bridge.approvalPending is True
+    assert bridge.approvalTaskId == "plan-active"
+
+
+def test_bridge_state_change_out_of_approval_clears_properties(bridge, event_bus, app):
+    """Verify that transitioning state away from AWAITING_APPROVAL clears approval."""
+    event_bus.set_state(EVState.AWAITING_APPROVAL)
+    event_bus.publish(
+        event_type=EVEventType.APPROVAL_REQUIRED,
+        source="action_pipeline",
+        correlation_id="plan-active",
+        data={
+            "task_id": "plan-active",
+            "action": "WRITE_FILE",
+            "risk_level": "HIGH",
+        },
+    )
+    QCoreApplication.processEvents()
+    assert bridge.approvalPending is True
+
+    event_bus.set_state(EVState.IDLE)
+    QCoreApplication.processEvents()
+
+    assert bridge.approvalPending is False
+    assert bridge.approvalTaskId == ""
+
+
+# -----------------------------------------------------------------------------
+# Telemetry Contract Tests (Task 018-B)
+# -----------------------------------------------------------------------------
+
+def test_bridge_telemetry_default_state(bridge):
+    """Verify default initial state: telemetry is explicitly unavailable with safe zeros."""
+    assert bridge.telemetryAvailable is False
+    assert bridge.telemetryTimestamp == ""
+    assert bridge.telemetryAgeMs == -1
+    assert bridge.telemetryCpuPercent == 0.0
+    assert bridge.telemetryMemoryPercent == 0.0
+    assert bridge.telemetryMemoryUsedMb == 0
+    assert bridge.telemetryMemoryTotalMb == 0
+    assert bridge.telemetryDiskFreePercent == 0.0
+    assert bridge.telemetryDiskFreeGb == 0.0
+    assert bridge.telemetryProcessCount == 0
+    assert bridge.telemetryTopProcessName == ""
+    assert bridge.telemetryTopProcessCpuPercent == 0.0
+    assert bridge.telemetryTopProcessMemoryMb == 0
+    assert bridge.telemetryNetworkConnected is False
+
+
+def test_bridge_telemetry_population_from_system_observation(bridge, event_bus, app):
+    """Verify SYSTEM_OBSERVATION event populates all telemetry properties and emits signals."""
+    spy_avail = QSignalSpy(bridge.telemetryAvailableChanged)
+    spy_cpu = QSignalSpy(bridge.telemetryCpuPercentChanged)
+    spy_mem = QSignalSpy(bridge.telemetryMemoryPercentChanged)
+    spy_mem_used = QSignalSpy(bridge.telemetryMemoryUsedMbChanged)
+    spy_mem_total = QSignalSpy(bridge.telemetryMemoryTotalMbChanged)
+    spy_disk_pct = QSignalSpy(bridge.telemetryDiskFreePercentChanged)
+    spy_disk_gb = QSignalSpy(bridge.telemetryDiskFreeGbChanged)
+    spy_procs = QSignalSpy(bridge.telemetryProcessCountChanged)
+    spy_top_name = QSignalSpy(bridge.telemetryTopProcessNameChanged)
+    spy_top_cpu = QSignalSpy(bridge.telemetryTopProcessCpuPercentChanged)
+    spy_top_mem = QSignalSpy(bridge.telemetryTopProcessMemoryMbChanged)
+    spy_net = QSignalSpy(bridge.telemetryNetworkConnectedChanged)
+    spy_updated = QSignalSpy(bridge.telemetryUpdated)
+
+    sample_snapshot = {
+        "cpu_percent": 18.5,
+        "memory_used_percent": 62.4,
+        "memory_available_bytes": 6 * 1024**3,
+        "memory_total_bytes": 16 * 1024**3,
+        "disk_free_percent": 42.1,
+        "disk_free_bytes": 128 * 1024**3,
+        "disk_total_bytes": 512 * 1024**3,
+        "process_count": 210,
+        "top_cpu_process": "code.exe",
+        "top_cpu_percent": 14.2,
+        "top_cpu_list": [
+            {"pid": 1234, "name": "code.exe", "cpu_percent": 14.2, "memory_percent": 4.5}
+        ],
+        "top_mem_list": [
+            {"pid": 1234, "name": "code.exe", "cpu_percent": 14.2, "memory_percent": 4.5}
+        ],
+        "network_connected": True,
+        "uptime_seconds": 3600.0,
+    }
+
+    event_bus.publish(
+        event_type=EVEventType.SYSTEM_OBSERVATION,
+        source="system_monitor",
+        message="Captured 6 system observations",
+        data={"snapshot": sample_snapshot},
+    )
+    QCoreApplication.processEvents()
+
+    assert bridge.telemetryAvailable is True
+    assert bridge.telemetryTimestamp != ""
+    assert bridge.telemetryAgeMs >= 0
+    assert bridge.telemetryCpuPercent == 18.5
+    assert bridge.telemetryMemoryPercent == 62.4
+    assert bridge.telemetryMemoryTotalMb == 16384
+    assert bridge.telemetryMemoryUsedMb == 10240  # 16GB - 6GB available = 10GB = 10240MB
+    assert bridge.telemetryDiskFreePercent == 42.1
+    assert bridge.telemetryDiskFreeGb == 128.0
+    assert bridge.telemetryProcessCount == 210
+    assert bridge.telemetryTopProcessName == "code.exe"
+    assert bridge.telemetryTopProcessCpuPercent == 14.2
+    assert bridge.telemetryTopProcessMemoryMb > 0
+    assert bridge.telemetryNetworkConnected is True
+
+    # Check signal emissions
+    assert spy_avail.count() == 1
+    assert spy_avail.at(0)[0] is True
+    assert spy_cpu.count() == 1
+    assert spy_cpu.at(0)[0] == 18.5
+    assert spy_mem.count() == 1
+    assert spy_mem.at(0)[0] == 62.4
+    assert spy_mem_used.count() == 1
+    assert spy_mem_used.at(0)[0] == 10240
+    assert spy_mem_total.count() == 1
+    assert spy_mem_total.at(0)[0] == 16384
+    assert spy_disk_pct.count() == 1
+    assert spy_disk_pct.at(0)[0] == 42.1
+    assert spy_disk_gb.count() == 1
+    assert spy_disk_gb.at(0)[0] == 128.0
+    assert spy_procs.count() == 1
+    assert spy_procs.at(0)[0] == 210
+    assert spy_top_name.count() == 1
+    assert spy_top_name.at(0)[0] == "code.exe"
+    assert spy_top_cpu.count() == 1
+    assert spy_top_cpu.at(0)[0] == 14.2
+    assert spy_net.count() == 1
+    assert spy_net.at(0)[0] is True
+    assert spy_updated.count() == 1
+
+
+def test_bridge_telemetry_metrics_fallback(bridge, event_bus, app):
+    """Verify fallback parsing when event payload contains only metrics map."""
+    event_bus.publish(
+        event_type=EVEventType.SYSTEM_OBSERVATION,
+        source="system_monitor",
+        data={
+            "metrics": {
+                "cpu:utilization": 22.0,
+                "memory:used_percent": 55.5,
+                "disk:free_percent": 18.0,
+                "process:aggregate_processes": 195,
+                "network:link_status": False,
+            }
+        },
+    )
+    QCoreApplication.processEvents()
+
+    assert bridge.telemetryAvailable is True
+    assert bridge.telemetryCpuPercent == 22.0
+    assert bridge.telemetryMemoryPercent == 55.5
+    assert bridge.telemetryDiskFreePercent == 18.0
+    assert bridge.telemetryProcessCount == 195
+    assert bridge.telemetryNetworkConnected is False
+
+
+def test_bridge_telemetry_malformed_and_bounded(bridge, event_bus, app):
+    """Verify that corrupt or out-of-range values are bounded and never crash."""
+    event_bus.publish(
+        event_type=EVEventType.SYSTEM_OBSERVATION,
+        source="system_monitor",
+        data={
+            "snapshot": {
+                "cpu_percent": 999.0,         # Should clamp to 100.0
+                "memory_used_percent": -50.0,  # Should clamp to 0.0
+                "disk_free_percent": "invalid",# Should fallback to 0.0
+                "process_count": "not_an_int", # Should fallback to 0
+                "top_cpu_process": "None",     # Sanitized to ""
+                "network_connected": "yes",    # Cast to bool
+            }
+        },
+    )
+    QCoreApplication.processEvents()
+
+    assert bridge.telemetryAvailable is True
+    assert bridge.telemetryCpuPercent == 100.0
+    assert bridge.telemetryMemoryPercent == 0.0
+    assert bridge.telemetryDiskFreePercent == 0.0
+    assert bridge.telemetryProcessCount == 0
+    assert bridge.telemetryTopProcessName == ""
+    assert bridge.telemetryNetworkConnected is True
+
+
+def test_bridge_clear_telemetry(bridge, event_bus, app):
+    """Verify clearTelemetry resets available flag and restores safe defaults."""
+    event_bus.publish(
+        event_type=EVEventType.SYSTEM_OBSERVATION,
+        source="system_monitor",
+        data={"snapshot": {"cpu_percent": 50.0, "memory_used_percent": 70.0}},
+    )
+    QCoreApplication.processEvents()
+    assert bridge.telemetryAvailable is True
+
+    spy_avail = QSignalSpy(bridge.telemetryAvailableChanged)
+    bridge.clearTelemetry()
+    QCoreApplication.processEvents()
+
+    assert bridge.telemetryAvailable is False
+    assert bridge.telemetryTimestamp == ""
+    assert bridge.telemetryAgeMs == -1
+    assert bridge.telemetryCpuPercent == 0.0
+    assert bridge.telemetryMemoryPercent == 0.0
+    assert spy_avail.count() == 1
+    assert spy_avail.at(0)[0] is False
+
+
+def test_bridge_telemetry_worker_thread_queued_handoff(bridge, event_bus, app):
+    """Verify background worker thread event reaches Qt state via queued handoff."""
+    spy = QSignalSpy(bridge.telemetryCpuPercentChanged)
+    assert spy.isValid()
+
+    class TelemetryPublisherWorker(threading.Thread):
+        def run(self):
+            event_bus.publish(
+                event_type=EVEventType.SYSTEM_OBSERVATION,
+                source="system_monitor_worker",
+                data={"snapshot": {"cpu_percent": 33.3}},
+            )
+
+    worker = TelemetryPublisherWorker()
+    worker.start()
+    worker.join(timeout=3.0)
+    assert not worker.is_alive()
+
+    QCoreApplication.processEvents()
+    if spy.count() == 0:
+        assert spy.wait(3000)
+
+    assert spy.count() == 1
+    assert spy.at(0)[0] == 33.3
+    assert bridge.telemetryCpuPercent == 33.3
+
+
+def test_bridge_telemetry_has_no_execution_authority(bridge):
+    """Verify telemetry contract has zero execution or mutation authority."""
+    forbidden = [
+        "execute_command", "run_subprocess", "kill_process",
+        "write_file", "delete_file", "setTelemetryCpuPercent",
+        "setTelemetryMemoryPercent", "god_mode", "bypass_risk"
+    ]
+    for method in forbidden:
+        assert not hasattr(bridge, method), f"Bridge must not expose {method}"
+
+
+def test_bridge_telemetry_preserves_approval_and_voice_contracts(bridge, event_bus, app):
+    """Verify telemetry updates do NOT alter or overwrite approval or voice state."""
+    # Set approval pending
+    event_bus.publish(
+        event_type=EVEventType.APPROVAL_REQUIRED,
+        source="action_pipeline",
+        correlation_id="plan-keep",
+        data={"task_id": "plan-keep", "action": "WRITE_FILE", "risk_level": "HIGH"},
+    )
+    QCoreApplication.processEvents()
+    assert bridge.approvalPending is True
+    assert bridge.approvalTaskId == "plan-keep"
+
+    # Now receive routine telemetry observation
+    event_bus.publish(
+        event_type=EVEventType.SYSTEM_OBSERVATION,
+        source="system_monitor",
+        data={"snapshot": {"cpu_percent": 25.0}},
+    )
+    QCoreApplication.processEvents()
+
+    # Telemetry updated, approval pending UNCHANGED
+    assert bridge.telemetryAvailable is True
+    assert bridge.telemetryCpuPercent == 25.0
+    assert bridge.approvalPending is True
+    assert bridge.approvalTaskId == "plan-keep"
