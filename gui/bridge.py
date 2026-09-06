@@ -2,7 +2,7 @@
 # Thread-safe bridge between EVEventBus and Qt/QML.
 # Uses queued Qt signal to update Qt state from any thread.
 
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import logging
 from typing import Any, Dict, List, Optional
 
@@ -60,6 +60,7 @@ class GuiBridge(QObject):
     awarenessEventChanged = Signal(str, str, str)  # awareness_id, title, message
     latestAwarenessTitleChanged = Signal(str)
     latestAwarenessMessageChanged = Signal(str)
+    latestAwarenessSeverityChanged = Signal(str)
     taskResultChanged = Signal()
 
     # Internal signal for safe cross-thread queued handoff
@@ -73,7 +74,7 @@ class GuiBridge(QObject):
     _experienceModeChangeRequested = Signal(str)
     _stylePresetChangeRequested = Signal(str)
     _systemAlertChangeRequested = Signal(str)
-    _awarenessEventQueued = Signal(str, str, str)
+    _awarenessEventQueued = Signal(str, str, str, str)
     _taskResultQueued = Signal(str, str, bool)
 
     def __init__(
@@ -120,6 +121,7 @@ class GuiBridge(QObject):
         self._system_alert_message: str = ""
         self._latest_awareness_title: str = ""
         self._latest_awareness_message: str = ""
+        self._latest_awareness_severity: str = "INFO"
         self._task_result: str = ""
         self._task_result_status: str = "IDLE"
         self._task_result_success: bool = False
@@ -276,11 +278,17 @@ class GuiBridge(QObject):
             data: Dict[str, Any] = event.data or {}
             payload = self._parse_telemetry_data(data)
             if payload:
+                if "timestamp" not in payload and event.timestamp:
+                    payload["timestamp"] = event.timestamp
                 self._telemetryUpdated.emit(payload)
-        elif event.event_type in (EVEventType.SYSTEM_ALERT, EVEventType.SYSTEM_ALERT_RECOVERED):
+        elif event.event_type == EVEventType.SYSTEM_ALERT:
             if event.message:
                 self._latestObservationChangeRequested.emit(event.message)
                 self._systemAlertChangeRequested.emit(event.message)
+        elif event.event_type == EVEventType.SYSTEM_ALERT_RECOVERED:
+            if event.message:
+                self._latestObservationChangeRequested.emit(event.message)
+            self._systemAlertChangeRequested.emit("")
         elif event.event_type == EVEventType.EXPERIENCE_MODE_CHANGED:
             mode = str(event.data.get("current_mode", "")) if event.data else ""
             if mode:
@@ -293,14 +301,18 @@ class GuiBridge(QObject):
             title = str(event.data.get("title", "")) if event.data else ""
             msg = str(event.data.get("message", event.message or "")) if event.data else str(event.message or "")
             aid = str(event.data.get("awareness_id", "")) if event.data else ""
-            combined = f"{title}: {msg}" if title and msg else (title or msg)
+            raw_sev = str(event.data.get("severity", "INFO")).upper() if event.data else "INFO"
+            sev = raw_sev if raw_sev in ("INFO", "NOTICE", "WARNING", "CRITICAL") else "INFO"
+            clean_title = title.strip()[:100]
+            clean_msg = msg.strip()[:500]
+            combined = f"{clean_title}: {clean_msg}" if clean_title and clean_msg else (clean_title or clean_msg)
             if combined:
                 self._latestObservationChangeRequested.emit(combined)
                 self._systemAlertChangeRequested.emit(combined)
-            self._awarenessEventQueued.emit(aid, title, msg)
+            self._awarenessEventQueued.emit(aid, clean_title, clean_msg, sev)
         elif event.event_type == EVEventType.AWARENESS_RESOLVED:
             self._systemAlertChangeRequested.emit("")
-            self._awarenessEventQueued.emit("", "", "")
+            self._awarenessEventQueued.emit("", "", "", "INFO")
 
     @Slot(object)
     def _on_state_changed_internal(self, new_state: EVState) -> None:
@@ -649,12 +661,14 @@ class GuiBridge(QObject):
         """Latest system alert message for QML binding."""
         return self._system_alert_message
 
-    @Slot(str, str, str)
-    def _on_awareness_event_internal(self, aid: str, title: str, message: str) -> None:
+    @Slot(str, str, str, str)
+    def _on_awareness_event_internal(self, aid: str, title: str, message: str, severity: str) -> None:
         self._latest_awareness_title = title
         self._latest_awareness_message = message
+        self._latest_awareness_severity = severity
         self.latestAwarenessTitleChanged.emit(title)
         self.latestAwarenessMessageChanged.emit(message)
+        self.latestAwarenessSeverityChanged.emit(severity)
         self.awarenessEventChanged.emit(aid, title, message)
 
     @Property(str, notify=latestAwarenessTitleChanged)
@@ -666,6 +680,25 @@ class GuiBridge(QObject):
     def latestAwarenessMessage(self) -> str:
         """Latest proactive awareness message for QML binding."""
         return self._latest_awareness_message
+
+    @Property(str, notify=latestAwarenessSeverityChanged)
+    def latestAwarenessSeverity(self) -> str:
+        """Latest proactive awareness severity ('INFO', 'NOTICE', 'WARNING', 'CRITICAL') for QML binding."""
+        return self._latest_awareness_severity
+
+    @Slot()
+    def clearAwareness(self) -> None:
+        """Clear GUI awareness presentation state only (presentation-only, no backend impact)."""
+        if not self._latest_awareness_title and not self._latest_awareness_message and not self._system_alert_message:
+            return
+        self._latest_awareness_title = ""
+        self._latest_awareness_message = ""
+        self._latest_awareness_severity = "INFO"
+        self._system_alert_message = ""
+        self.latestAwarenessTitleChanged.emit("")
+        self.latestAwarenessMessageChanged.emit("")
+        self.latestAwarenessSeverityChanged.emit("INFO")
+        self.systemAlertChanged.emit("")
 
     @Property(str, notify=experienceModeChanged)
     def experienceModeDescription(self) -> str:
@@ -846,7 +879,22 @@ class GuiBridge(QObject):
     def _on_telemetry_updated_internal(self, payload: dict) -> None:
         """Slot executed in Qt thread when telemetry observation arrives."""
         self._telemetry_available = True
-        self._telemetry_timestamp = datetime.now(timezone.utc)
+        ts = payload.get("timestamp")
+        if isinstance(ts, datetime):
+            self._telemetry_timestamp = ts if ts.tzinfo else ts.replace(tzinfo=timezone.utc)
+        elif isinstance(ts, str):
+            try:
+                self._telemetry_timestamp = datetime.fromisoformat(ts)
+            except Exception:
+                self._telemetry_timestamp = datetime.now(timezone.utc)
+        elif "age_ms" in payload:
+            try:
+                age_s = max(0.0, float(payload["age_ms"]) / 1000.0)
+                self._telemetry_timestamp = datetime.now(timezone.utc) - timedelta(seconds=age_s)
+            except Exception:
+                self._telemetry_timestamp = datetime.now(timezone.utc)
+        else:
+            self._telemetry_timestamp = datetime.now(timezone.utc)
         self._telemetry_cpu_percent = float(payload.get("cpu_percent", 0.0))
         self._telemetry_memory_percent = float(payload.get("memory_percent", 0.0))
         self._telemetry_memory_used_mb = int(payload.get("memory_used_mb", 0))
@@ -985,6 +1033,7 @@ class GuiBridge(QObject):
         """Unsubscribe from the event bus. Idempotent."""
         self.clearTaskResult()
         self.clearTelemetry()
+        self.clearAwareness()
         for token in self._subscription_tokens:
             self._event_bus.unsubscribe(token)
         self._subscription_tokens.clear()

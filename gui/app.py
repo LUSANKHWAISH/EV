@@ -23,6 +23,8 @@ from core.events import EVEventBus
 from core.experience import EVExperienceManager
 from core.models import EVState
 from core.orchestrator import EVOrchestrator
+from core.proactive_awareness import EVProactiveAwarenessEngine
+from core.system_monitor import EVSystemMonitor
 from gui.bridge import GuiBridge
 from gui.windows_chrome import install_windows_native_chrome
 from providers.gemini_provider import GeminiProvider
@@ -265,6 +267,19 @@ def main() -> None:
     else:
         orchestrator = EVOrchestrator(event_bus=event_bus, router=router)
 
+    # Task 018-D: Observational subsystems (System Monitor & Proactive Awareness)
+    # Zero execution authority: monitoring and awareness are presentation-only.
+    system_monitor = EVSystemMonitor(event_bus=event_bus)
+    system_monitor.start()
+
+    awareness_engine = EVProactiveAwarenessEngine(
+        event_bus=event_bus,
+        system_monitor=system_monitor,
+        experience_manager=experience_manager,
+        tts_manager=tts_manager,
+    )
+    awareness_engine.start()
+
     def handle_task_submission(command: str) -> None:
         cleaned = command.strip()
         if not cleaned:
@@ -356,11 +371,27 @@ def main() -> None:
     # lifetime. QAbstractNativeEventFilter must not be garbage-collected.
     setattr(app, "_ev_windows_native_chrome", native_chrome)
 
-    # Store orchestrator and experience manager on app to prevent garbage collection
+    # Store subsystems on app to prevent premature garbage collection
     setattr(app, "_ev_orchestrator", orchestrator)
     setattr(app, "_ev_experience_manager", experience_manager)
+    setattr(app, "_ev_system_monitor", system_monitor)
+    setattr(app, "_ev_awareness_engine", awareness_engine)
 
-    app.aboutToQuit.connect(bridge.shutdown)
+    def _clean_shutdown() -> None:
+        try:
+            awareness_engine.stop()
+        except Exception as _e:
+            logger.debug("Error stopping awareness engine: %s", _e)
+        try:
+            system_monitor.stop()
+        except Exception as _e:
+            logger.debug("Error stopping system monitor: %s", _e)
+        try:
+            bridge.shutdown()
+        except Exception as _e:
+            logger.debug("Error shutting down bridge: %s", _e)
+
+    app.aboutToQuit.connect(_clean_shutdown)
     sys.exit(app.exec())
 
 

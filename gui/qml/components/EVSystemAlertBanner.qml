@@ -3,21 +3,37 @@ import "../theme"
 
 // EVSystemAlertBanner.qml
 //
-// Non-intrusive system alert display.
-// Binds to guiBridge.systemAlertMessage.
-// Informational only — no action buttons, no mutation authority.
+// Proactive Awareness & System Alert Presentation Surface (Task 018-D).
+// Binds to GuiBridge awareness and system alert properties.
+// Informational only — zero execution authority, zero commands, zero mutations.
 Item {
     id: root
+    objectName: "systemAlertBanner"
 
-    property string alertMessage:
-        typeof guiBridge !== "undefined" && guiBridge !== null
-        ? guiBridge.systemAlertMessage
-        : ""
+    readonly property bool isBridgeValid: typeof guiBridge !== "undefined" && guiBridge !== null
 
-    property bool hasAlert: alertMessage.length > 0
+    readonly property string awarenessTitle: isBridgeValid ? guiBridge.latestAwarenessTitle : ""
+    readonly property string awarenessMessage: isBridgeValid ? guiBridge.latestAwarenessMessage : ""
+    readonly property string alertMessage: isBridgeValid ? guiBridge.systemAlertMessage : ""
+    readonly property string severity: (isBridgeValid && typeof guiBridge.latestAwarenessSeverity !== "undefined" && guiBridge.latestAwarenessSeverity !== "")
+                                      ? guiBridge.latestAwarenessSeverity
+                                      : "INFO"
 
-    implicitWidth: parent ? parent.width : 200
-    implicitHeight: hasAlert ? alertContent.implicitHeight + Theme.spacingXXS * 2 : 0
+    readonly property bool hasContent: awarenessTitle.length > 0 || awarenessMessage.length > 0 || alertMessage.length > 0
+
+    readonly property string displayTitle: awarenessTitle.length > 0 ? awarenessTitle : (alertMessage.length > 0 ? "SYSTEM ALERT" : "")
+    readonly property string displayMessage: awarenessMessage.length > 0 ? awarenessMessage : alertMessage
+
+    // Theme color mapping based on awareness severity
+    readonly property color toneColor: {
+        if (severity === "CRITICAL") return Theme.luminousCritical;
+        if (severity === "WARNING") return Theme.luminousWarning;
+        if (severity === "NOTICE") return Theme.luminousPrimary;
+        return Theme.textSecondary;
+    }
+
+    implicitWidth: parent ? parent.width : 400
+    implicitHeight: hasContent ? Math.max(34, contentRow.implicitHeight + Theme.spacingXXS * 2) : 0
 
     clip: true
 
@@ -28,15 +44,15 @@ Item {
         }
     }
 
-    // Alert background
+    // Banner background container
     Rectangle {
         anchors.fill: parent
-        visible: root.hasAlert
+        visible: root.hasContent
         color: Theme.surfaceLowest
         radius: Theme.radiusXS
         border.width: Theme.hairline
-        border.color: Theme.luminousWarning
-        opacity: root.hasAlert ? 0.92 : 0.0
+        border.color: root.toneColor
+        opacity: root.hasContent ? 0.95 : 0.0
 
         Behavior on opacity {
             NumberAnimation {
@@ -45,14 +61,17 @@ Item {
         }
     }
 
-    // Alert content
+    // Banner content layout
     Row {
-        id: alertContent
+        id: contentRow
         anchors.fill: parent
-        anchors.margins: Theme.spacingXXS
-        spacing: Theme.spacingXXS
-        visible: root.hasAlert
-        opacity: root.hasAlert ? 1.0 : 0.0
+        anchors.leftMargin: Theme.spacingXS
+        anchors.rightMargin: Theme.spacingXS
+        anchors.topMargin: Theme.spacingXXS
+        anchors.bottomMargin: Theme.spacingXXS
+        spacing: Theme.spacingXS
+        visible: root.hasContent
+        opacity: root.hasContent ? 1.0 : 0.0
 
         Behavior on opacity {
             NumberAnimation {
@@ -60,46 +79,103 @@ Item {
             }
         }
 
-        // Warning indicator dot
+        // Severity indicator dot (pulses on CRITICAL/WARNING)
         Rectangle {
             anchors.verticalCenter: parent.verticalCenter
             width: Math.max(6, Theme.spacingXXS)
             height: width
             radius: width / 2
-            color: Theme.luminousWarning
+            color: root.toneColor
 
-            // Subtle pulse when alert is active
             SequentialAnimation on opacity {
-                running: root.hasAlert
+                running: root.hasContent && (root.severity === "CRITICAL" || root.severity === "WARNING")
                 loops: Animation.Infinite
                 NumberAnimation {
-                    from: 1.0; to: 0.4
+                    from: 1.0; to: 0.35
                     duration: Theme.motionCinematic
                     easing.type: Easing.InOutSine
                 }
                 NumberAnimation {
-                    from: 0.4; to: 1.0
+                    from: 0.35; to: 1.0
                     duration: Theme.motionCinematic
                     easing.type: Easing.InOutSine
                 }
             }
         }
 
-        // Alert text
-        Text {
+        // Textual content: Title + Severity Tag and Message
+        Column {
             width: parent.width
-                   - Theme.spacingXXS      // dot width
-                   - parent.spacing
+                   - Math.max(6, Theme.spacingXXS) // dot width
+                   - dismissBtn.width
+                   - (parent.spacing * 2)
             anchors.verticalCenter: parent.verticalCenter
+            spacing: 2
 
-            text: root.alertMessage
-            color: Theme.textSecondary
-            font.family: Theme.fontFamily
-            font.pointSize: Theme.fontSizeLabelSmall
-            font.weight: Theme.fontWeightRegular
-            wrapMode: Text.Wrap
-            elide: Text.ElideRight
-            maximumLineCount: 2
+            Row {
+                spacing: Theme.spacingXXS
+                visible: root.displayTitle.length > 0
+
+                Text {
+                    text: root.displayTitle
+                    color: Theme.textPrimary
+                    font.family: Theme.fontFamily
+                    font.pointSize: Theme.fontSizeLabelSmall
+                    font.weight: Theme.fontWeightSemibold
+                    elide: Text.ElideRight
+                }
+
+                Text {
+                    text: "[" + root.severity + "]"
+                    color: root.toneColor
+                    font.family: Theme.fontFamily
+                    font.pointSize: Theme.fontSizeLabelSmall
+                    font.weight: Theme.fontWeightMedium
+                }
+            }
+
+            Text {
+                width: parent.width
+                text: root.displayMessage
+                color: Theme.textSecondary
+                font.family: Theme.fontFamily
+                font.pointSize: Theme.fontSizeLabelSmall
+                font.weight: Theme.fontWeightRegular
+                wrapMode: Text.Wrap
+                elide: Text.ElideRight
+                maximumLineCount: 2
+            }
+        }
+
+        // Dismissal control: presentation-only dismiss
+        Rectangle {
+            id: dismissBtn
+            anchors.verticalCenter: parent.verticalCenter
+            width: 22
+            height: 22
+            radius: Theme.radiusXS
+            color: dismissMouseArea.containsMouse ? Theme.surfaceRaised : "transparent"
+
+            Text {
+                anchors.centerIn: parent
+                text: "×"
+                color: dismissMouseArea.containsMouse ? Theme.textPrimary : Theme.textTertiary
+                font.family: Theme.fontFamily
+                font.pointSize: 13
+                font.weight: Theme.fontWeightMedium
+            }
+
+            MouseArea {
+                id: dismissMouseArea
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: {
+                    if (root.isBridgeValid && typeof guiBridge.clearAwareness === "function") {
+                        guiBridge.clearAwareness();
+                    }
+                }
+            }
         }
     }
 }

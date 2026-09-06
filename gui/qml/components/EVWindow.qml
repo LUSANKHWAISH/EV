@@ -51,10 +51,22 @@ ApplicationWindow {
             height: Theme.topBarHeight
         }
 
+        EVSystemAlertBanner {
+            id: systemAlertBanner
+            objectName: "systemAlertBanner"
+            anchors.top: topBar.bottom
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.leftMargin: Theme.spacingXS
+            anchors.rightMargin: Theme.spacingXS
+            anchors.topMargin: hasContent ? Theme.spacingXXXS : 0
+            z: 10
+        }
+
         EVFlagshipStage {
             id: flagshipStage
 
-            anchors.top: topBar.bottom
+            anchors.top: systemAlertBanner.bottom
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.bottom: resultSurface.top

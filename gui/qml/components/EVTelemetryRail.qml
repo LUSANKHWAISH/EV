@@ -1,205 +1,254 @@
 import QtQuick 2.15
 import "../theme"
 
-// Contextual E.V. information rail.
+// EVTelemetryRail.qml
 //
-// This is not a permanent flagship-stage element. It stays registered for
-// future diagnostics/settings/inspection surfaces without inventing telemetry
-// that the current bridge does not expose.
+// Precision telemetry rail for E.V. flagship workspace (Task 018-D).
+// Designed to fit within the 72px right-column boundary of EVFlagshipStage.
+// Pure presentation surface: read-only bindings to GuiBridge telemetry properties.
+// Zero execution authority, zero commands, zero subprocess calls, zero polling timers.
 Item {
     id: root
+    objectName: "telemetryRail"
 
+    // Preserved stage interface properties for seamless compatibility
     property var state: null
     property string visualMode: "STANDARD"
     property string themeProfile: "EV_CORE"
 
-    // Explicit caller-controlled disclosure.
-    property bool expanded: false
+    // Read-only bridge bindings
+    readonly property bool isBridgeValid: typeof guiBridge !== "undefined" && guiBridge !== null
+    readonly property bool telemetryAvailable: isBridgeValid ? guiBridge.telemetryAvailable : false
+    readonly property int telemetryAgeMs: isBridgeValid ? guiBridge.telemetryAgeMs : -1
+    readonly property real cpuPercent: isBridgeValid ? guiBridge.telemetryCpuPercent : 0.0
+    readonly property real memPercent: isBridgeValid ? guiBridge.telemetryMemoryPercent : 0.0
+    readonly property real diskPercent: isBridgeValid ? guiBridge.telemetryDiskFreePercent : 0.0
+    readonly property bool netConnected: isBridgeValid ? guiBridge.telemetryNetworkConnected : false
+    readonly property int processCount: isBridgeValid ? guiBridge.telemetryProcessCount : 0
+    readonly property string topProcessName: isBridgeValid ? guiBridge.telemetryTopProcessName : ""
 
-    property bool compact:
-        width > 0 &&
-        width < 160
+    // Three lifecycle presentation states (Task 018-D Section 6)
+    readonly property bool isLive: telemetryAvailable && telemetryAgeMs >= 0 && telemetryAgeMs <= 10000
+    readonly property bool isStale: telemetryAvailable && telemetryAgeMs > 10000
+    readonly property bool isStandby: !telemetryAvailable
 
-    property string stateText:
-        state === null ||
-        state === undefined ||
-        String(state).length === 0
-        ? "IDLE"
-        : String(state)
+    implicitWidth: 72
+    implicitHeight: contentColumn.implicitHeight + Theme.spacingS
 
-    implicitWidth:
-        root.expanded
-        ? 220
-        : Theme.spacingS
+    clip: true
 
-    implicitHeight:
-        root.expanded
-        ? 210
-        : Theme.spacingS
-
-    opacity:
-        root.expanded
-        ? 1.0
-        : Theme.opacityMuted
-
-    // Collapsed form: one truthful state signal only.
-    Rectangle {
-        visible: !root.expanded
-        anchors.centerIn: parent
-
-        width: Math.max(7, Theme.spacingXS)
-        height: width
-        radius: width / 2
-
-        color: Theme.stateColor(root.stateText)
-        opacity: Theme.opacitySignal
-
-        Behavior on color {
-            ColorAnimation {
-                duration: Theme.motionStandard
-            }
-        }
-    }
-
-    // Expanded form: explicit contextual inspection.
     Column {
-        visible:
-            root.expanded &&
-            !root.compact
-
+        id: contentColumn
         anchors.fill: parent
-        anchors.margins: Theme.spacingXXS
+        anchors.leftMargin: Theme.spacingXXS
+        anchors.rightMargin: Theme.spacingXXS
+        anchors.topMargin: Theme.spacingXXS
         spacing: Theme.spacingXS
 
-        Text {
-            text: "CONTEXT"
-            color: Theme.textTertiary
-
-            font.family: Theme.fontFamily
-            font.pointSize: Theme.fontSizeLabelSmall
-            font.weight: Theme.fontWeightMedium
-            font.letterSpacing: Theme.letterSpacingWide
-        }
-
-        Rectangle {
+        // -------------------------------------------------------------
+        // Header: System Telemetry Identity & Status Badge
+        // -------------------------------------------------------------
+        Column {
             width: parent.width
-            height: Theme.hairline
-            color: Theme.edgeSubtle
-        }
-
-        Text {
-            text: "STATE"
-            color: Theme.textTertiary
-
-            font.family: Theme.fontFamily
-            font.pointSize: Theme.fontSizeLabelSmall
-            font.weight: Theme.fontWeightMedium
-        }
-
-        Row {
-            spacing: Theme.spacingXXS
-
-            Rectangle {
-                anchors.verticalCenter: parent.verticalCenter
-                width: Math.max(6, Theme.spacingXXS)
-                height: width
-                radius: width / 2
-                color: Theme.stateColor(root.stateText)
-                opacity: Theme.opacitySignal
-            }
+            spacing: 2
 
             Text {
-                text: root.stateText
-                color: Theme.textPrimary
-
+                text: "TELEMETRY"
+                color: Theme.textTertiary
                 font.family: Theme.fontFamily
-                font.pointSize: Theme.fontSizeLabel
-                font.weight: Theme.fontWeightSemibold
+                font.pointSize: Theme.fontSizeLabelSmall
+                font.weight: Theme.fontWeightMedium
+                font.letterSpacing: Theme.letterSpacingWide
+            }
+
+            Row {
+                spacing: Theme.spacingXXXS
+
+                Rectangle {
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: 5
+                    height: 5
+                    radius: 2.5
+                    color: root.isStandby
+                           ? Theme.textTertiary
+                           : (root.isStale ? Theme.luminousWarning : Theme.luminousPrimary)
+                }
+
+                Text {
+                    text: root.isStandby ? "STANDBY" : (root.isStale ? "STALE" : "LIVE")
+                    color: root.isStandby
+                           ? Theme.textTertiary
+                           : (root.isStale ? Theme.luminousWarning : Theme.luminousPrimary)
+                    font.family: Theme.fontFamily
+                    font.pointSize: Theme.fontSizeLabelSmall
+                    font.weight: Theme.fontWeightMedium
+                }
+            }
+
+            Rectangle {
+                width: parent.width
+                height: Theme.hairline
+                color: Theme.edgeSubtle
             }
         }
 
-        Rectangle {
+        // -------------------------------------------------------------
+        // Metrics Stack (Muted when Stale or Standby)
+        // -------------------------------------------------------------
+        Column {
+            id: metricsGroup
             width: parent.width
-            height: Theme.hairline
-            color: Theme.edgeSubtle
+            spacing: Theme.spacingXS
+            opacity: root.isLive ? 1.0 : Theme.opacityMuted
+
+            Behavior on opacity {
+                NumberAnimation {
+                    duration: Theme.motionStandard
+                }
+            }
+
+            // CPU Block
+            Column {
+                width: parent.width
+                spacing: 1
+
+                Text {
+                    text: "CPU"
+                    color: Theme.textTertiary
+                    font.family: Theme.fontFamily
+                    font.pointSize: Theme.fontSizeLabelSmall
+                    font.weight: Theme.fontWeightMedium
+                }
+
+                Text {
+                    text: root.isStandby ? "--" : root.cpuPercent.toFixed(0) + "%"
+                    color: (root.isLive && root.cpuPercent >= 90)
+                           ? Theme.luminousWarning
+                           : Theme.textPrimary
+                    font.family: Theme.fontFamily
+                    font.pointSize: Theme.fontSizeLabel
+                    font.weight: Theme.fontWeightSemibold
+                }
+            }
+
+            // RAM Block
+            Column {
+                width: parent.width
+                spacing: 1
+
+                Text {
+                    text: "RAM"
+                    color: Theme.textTertiary
+                    font.family: Theme.fontFamily
+                    font.pointSize: Theme.fontSizeLabelSmall
+                    font.weight: Theme.fontWeightMedium
+                }
+
+                Text {
+                    text: root.isStandby ? "--" : root.memPercent.toFixed(0) + "%"
+                    color: (root.isLive && root.memPercent >= 90)
+                           ? Theme.luminousWarning
+                           : Theme.textPrimary
+                    font.family: Theme.fontFamily
+                    font.pointSize: Theme.fontSizeLabel
+                    font.weight: Theme.fontWeightSemibold
+                }
+            }
+
+            // DISK Block
+            Column {
+                width: parent.width
+                spacing: 1
+
+                Text {
+                    text: "DISK"
+                    color: Theme.textTertiary
+                    font.family: Theme.fontFamily
+                    font.pointSize: Theme.fontSizeLabelSmall
+                    font.weight: Theme.fontWeightMedium
+                }
+
+                Text {
+                    text: root.isStandby ? "--" : root.diskPercent.toFixed(0) + "%"
+                    color: (root.isLive && root.diskPercent <= 10)
+                           ? Theme.luminousWarning
+                           : Theme.textPrimary
+                    font.family: Theme.fontFamily
+                    font.pointSize: Theme.fontSizeLabel
+                    font.weight: Theme.fontWeightSemibold
+                }
+            }
+
+            // NET Block
+            Column {
+                width: parent.width
+                spacing: 1
+
+                Text {
+                    text: "NET"
+                    color: Theme.textTertiary
+                    font.family: Theme.fontFamily
+                    font.pointSize: Theme.fontSizeLabelSmall
+                    font.weight: Theme.fontWeightMedium
+                }
+
+                Text {
+                    text: root.isStandby ? "--" : (root.netConnected ? "ON" : "OFF")
+                    color: root.isStandby
+                           ? Theme.textTertiary
+                           : (root.netConnected ? Theme.luminousPrimary : Theme.luminousWarning)
+                    font.family: Theme.fontFamily
+                    font.pointSize: Theme.fontSizeLabel
+                    font.weight: Theme.fontWeightSemibold
+                }
+            }
+
+            // PROC Block
+            Column {
+                width: parent.width
+                spacing: 1
+
+                Text {
+                    text: "PROC"
+                    color: Theme.textTertiary
+                    font.family: Theme.fontFamily
+                    font.pointSize: Theme.fontSizeLabelSmall
+                    font.weight: Theme.fontWeightMedium
+                }
+
+                Text {
+                    text: root.isStandby ? "--" : String(root.processCount)
+                    color: Theme.textPrimary
+                    font.family: Theme.fontFamily
+                    font.pointSize: Theme.fontSizeLabel
+                    font.weight: Theme.fontWeightSemibold
+                }
+            }
+
+            // Contextual Top Process (if available)
+            Column {
+                width: parent.width
+                spacing: 1
+                visible: root.isLive && root.topProcessName.length > 0
+
+                Text {
+                    text: "TOP"
+                    color: Theme.textTertiary
+                    font.family: Theme.fontFamily
+                    font.pointSize: Theme.fontSizeLabelSmall
+                    font.weight: Theme.fontWeightMedium
+                }
+
+                Text {
+                    width: parent.width
+                    text: root.topProcessName
+                    color: Theme.textSecondary
+                    font.family: Theme.fontFamily
+                    font.pointSize: Theme.fontSizeLabelSmall
+                    font.weight: Theme.fontWeightRegular
+                    elide: Text.ElideRight
+                }
+            }
         }
-
-        Text {
-            text: "MODE"
-            color: Theme.textTertiary
-
-            font.family: Theme.fontFamily
-            font.pointSize: Theme.fontSizeLabelSmall
-            font.weight: Theme.fontWeightMedium
-        }
-
-        Text {
-            text: root.visualMode
-            color: Theme.textSecondary
-
-            font.family: Theme.fontFamily
-            font.pointSize: Theme.fontSizeLabel
-            font.weight: Theme.fontWeightRegular
-        }
-
-        Text {
-            text: "PROFILE"
-            color: Theme.textTertiary
-
-            font.family: Theme.fontFamily
-            font.pointSize: Theme.fontSizeLabelSmall
-            font.weight: Theme.fontWeightMedium
-        }
-
-        Text {
-            text: root.themeProfile.replace("_", " ")
-            color: Theme.textSecondary
-
-            font.family: Theme.fontFamily
-            font.pointSize: Theme.fontSizeLabel
-            font.weight: Theme.fontWeightRegular
-        }
-
-        Rectangle {
-            width: parent.width
-            height: Theme.hairline
-            color: Theme.edgeSubtle
-        }
-
-        Text {
-            text: "OBSERVATION"
-            color: Theme.textTertiary
-
-            font.family: Theme.fontFamily
-            font.pointSize: Theme.fontSizeLabelSmall
-            font.weight: Theme.fontWeightMedium
-        }
-
-        Text {
-            text: (typeof guiBridge !== "undefined" && guiBridge.latestObservation !== "") ? guiBridge.latestObservation : "None"
-            color: Theme.textSecondary
-
-            font.family: Theme.fontFamily
-            font.pointSize: Theme.fontSizeLabel
-            font.weight: Theme.fontWeightRegular
-            wrapMode: Text.Wrap
-            width: parent.width
-        }
-    }
-
-    // Expanded but narrow: collapse visually instead of stacking unreadably.
-    Rectangle {
-        visible:
-            root.expanded &&
-            root.compact
-
-        anchors.centerIn: parent
-
-        width: Math.max(7, Theme.spacingXS)
-        height: width
-        radius: width / 2
-
-        color: Theme.stateColor(root.stateText)
-        opacity: Theme.opacitySignal
     }
 }
