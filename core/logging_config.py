@@ -2,13 +2,14 @@ import logging
 import os
 from pathlib import Path
 from config.settings import settings
+from core.paths import ensure_dir, get_log_dir, get_log_file_path
 
 def setup_logging(name: str = "ev") -> logging.Logger:
     """
     Set up logging for E.V.
     Returns a logger configured with:
       - Console handler
-      - File handler at D:\EV\logs\ev.log
+      - File handler at %LOCALAPPDATA%\\EV\\logs\\ev.log (or configured log path)
     Respects EV_LOG_LEVEL from settings.
     Avoids adding duplicate handlers if called multiple times.
     """
@@ -33,9 +34,8 @@ def setup_logging(name: str = "ev") -> logging.Logger:
     logger.addHandler(console_handler)
 
     # File handler
-    log_dir = Path(__file__).parent.parent / "logs"
-    log_dir.mkdir(exist_ok=True)
-    log_file = log_dir / "ev.log"
+    log_dir = ensure_dir(get_log_dir())
+    log_file = get_log_file_path()
     file_handler = logging.FileHandler(log_file, encoding='utf-8')
     file_handler.setFormatter(formatter)
     logger.addHandler(file_handler)

@@ -28,6 +28,7 @@ import numpy as np
 
 from core.voice_capture import AudioFrame
 from core.asr import frames_to_pcm, calculate_utterance_duration
+from core.paths import get_asr_model_dir
 
 logger = logging.getLogger("ev.voice.wake_verifier")
 
@@ -197,7 +198,7 @@ class FasterWhisperWakeVerifier(EVWakeVerifier):
         device: str = "cpu",
         compute_type: str = "int8",
         cpu_threads: int = 4,
-        download_root: str = r"D:\EV\models\asr",
+        download_root: Optional[str] = None,
         confidence_threshold: float = 0.50,
         rejected_keywords: Optional[Sequence[str]] = None,
     ) -> None:
@@ -205,7 +206,7 @@ class FasterWhisperWakeVerifier(EVWakeVerifier):
         self.device = device
         self.compute_type = compute_type
         self.cpu_threads = cpu_threads
-        self.download_root = download_root
+        self.download_root = download_root if download_root is not None else str(get_asr_model_dir())
         self.confidence_threshold = confidence_threshold
         self.rejected_keywords = tuple(
             k.lower().strip() for k in (rejected_keywords or self.DEFAULT_REJECTED_KEYWORDS)

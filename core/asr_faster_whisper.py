@@ -28,9 +28,11 @@ from core.asr import (
 )
 from core.voice_capture import AudioFrame
 
+from core.paths import get_asr_model_dir
+
 logger = logging.getLogger("ev.asr.faster_whisper")
 
-DEFAULT_MODEL_DIR = r"D:\EV\models\asr"
+DEFAULT_MODEL_DIR = str(get_asr_model_dir())
 
 
 class FasterWhisperASRProvider(EVASRProvider):

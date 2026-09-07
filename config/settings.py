@@ -2,10 +2,16 @@ import os
 from dotenv import load_dotenv
 from pathlib import Path
 
+from core.paths import get_config_dir, get_resource_root, get_user_data_root
+
 # Load .env file if it exists, without overriding existing environment variables
-env_path = Path(__file__).parent.parent / '.env'
-if env_path.exists():
-    load_dotenv(dotenv_path=env_path, override=False)
+for candidate in (
+    get_resource_root() / '.env',
+    get_user_data_root() / '.env',
+    get_config_dir() / '.env',
+):
+    if candidate.exists():
+        load_dotenv(dotenv_path=candidate, override=False)
 
 class Settings:
     """

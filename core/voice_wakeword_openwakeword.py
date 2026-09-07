@@ -39,13 +39,15 @@ from core.voice_wakeword import (
     WakeWordResult,
 )
 
+from core.paths import get_wakeword_model_dir
+
 logger = logging.getLogger("ev.voice.wakeword.openwakeword")
 
-DEFAULT_WAKEWORD_MODEL_DIR: str = r"D:\EV\models\wakeword"
+DEFAULT_WAKEWORD_MODEL_DIR: str = str(get_wakeword_model_dir())
 DEFAULT_DETECTION_THRESHOLD: float = 0.50
 DEFAULT_INFERENCE_FRAMEWORK: str = "onnx"
-DEFAULT_STAGE1_CANDIDATE_MODEL: str = r"D:\EV\models\wakeword\candidates\hey_ev_human_v2.onnx"
-DEFAULT_PRODUCTION_BASELINE_MODEL: str = r"D:\EV\models\wakeword\hey_ev.onnx"
+DEFAULT_STAGE1_CANDIDATE_MODEL: str = str(get_wakeword_model_dir() / "candidates" / "hey_ev_human_v2.onnx")
+DEFAULT_PRODUCTION_BASELINE_MODEL: str = str(get_wakeword_model_dir() / "hey_ev.onnx")
 
 
 class OpenWakeWordProvider(EVWakeWordProvider):

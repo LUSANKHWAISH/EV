@@ -33,9 +33,10 @@ from .models import (
 )
 
 
-DEFAULT_HISTORY_DB_PATH = (
-    Path(__file__).resolve().parent.parent / "data" / "ev_history.sqlite3"
-)
+from core.paths import get_history_db_path
+
+
+DEFAULT_HISTORY_DB_PATH = get_history_db_path()
 
 _SCHEMA_VERSION = 1
 
@@ -105,7 +106,7 @@ class EVTaskHistoryStore:
     """Thread-safe SQLite-backed persistent task history."""
 
     def __init__(self, db_path: Optional[str | Path] = None) -> None:
-        self.db_path = Path(db_path) if db_path is not None else DEFAULT_HISTORY_DB_PATH
+        self.db_path = Path(db_path) if db_path is not None else get_history_db_path()
         self.db_path = self.db_path.expanduser().resolve()
         self._lock = threading.RLock()
         self._initialize()

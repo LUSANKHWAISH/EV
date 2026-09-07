@@ -27,11 +27,11 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple
 
+from core.paths import get_memory_db_path
+
 logger = logging.getLogger("ev.memory")
 
-DEFAULT_MEMORY_DB_PATH = (
-    Path(__file__).resolve().parent.parent / "data" / "ev_memory.sqlite3"
-)
+DEFAULT_MEMORY_DB_PATH = get_memory_db_path()
 
 _SCHEMA_VERSION = 1
 
@@ -124,7 +124,7 @@ class EVConversationMemoryStore:
     """
 
     def __init__(self, db_path: Optional[str | Path] = None) -> None:
-        self.db_path = Path(db_path) if db_path is not None else DEFAULT_MEMORY_DB_PATH
+        self.db_path = Path(db_path) if db_path is not None else get_memory_db_path()
         self.db_path = self.db_path.expanduser().resolve()
         self._lock = threading.RLock()
         self._initialize()

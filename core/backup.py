@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Optional, Union
 
 from .models import BackupResult, RestoreResult, BackupStatus, FileBackupRecord
+from .paths import get_backup_dir
 
 
 class EVBackupManager:
@@ -22,11 +23,10 @@ class EVBackupManager:
         Initialize the backup manager.
 
         Args:
-            backup_root: Root directory for backups. If None, uses D:\\EV\\backups
+            backup_root: Root directory for backups. If None, uses default user backup directory.
         """
         if backup_root is None:
-            # Default backup directory under EV project
-            self.backup_root = Path(r"D:\EV\backups")
+            self.backup_root = get_backup_dir()
         else:
             self.backup_root = Path(backup_root)
         # Do not create backup root here; create lazily when needed

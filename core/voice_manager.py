@@ -57,9 +57,11 @@ DEFAULT_MIN_SPEECH_SECONDS: float = 0.3  # ~300 ms minimum speech floor
 DEFAULT_INITIAL_SILENCE_TIMEOUT_SECONDS: float = 3.0  # Max silence waiting for speech
 DEFAULT_WAKE_PHRASE: str = "Hey EV"
 
+from core.paths import get_wakeword_model_dir
+
 # Stage-2 Two-Stage Wake Verification Configuration
 ENABLE_STAGE2_WAKE_VERIFICATION: bool = True
-DEFAULT_STAGE1_WAKEWORD_MODEL: str = r"D:\EV\models\wakeword\candidates\hey_ev_human_v2.onnx"
+DEFAULT_STAGE1_WAKEWORD_MODEL: str = str(get_wakeword_model_dir() / "candidates" / "hey_ev_human_v2.onnx")
 DEFAULT_STAGE1_THRESHOLD: float = 0.50
 DEFAULT_STAGE2_VERIFICATION_BUFFER_SECONDS: float = 2.0  # ~2.0s rolling audio for Stage-2 phrase check
 DEFAULT_STAGE2_TIMEOUT_SECONDS: float = 2.5
