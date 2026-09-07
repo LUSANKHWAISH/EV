@@ -101,4 +101,8 @@ Item {
     onWidthChanged: ambientCanvas.requestPaint()
     onHeightChanged: ambientCanvas.requestPaint()
     onDisplayToneChanged: ambientCanvas.requestPaint()
+    onStateTextChanged: ambientCanvas.requestPaint()
+    onVisualModeChanged: ambientCanvas.requestPaint()
+
+    Component.onCompleted: ambientCanvas.requestPaint()
 }

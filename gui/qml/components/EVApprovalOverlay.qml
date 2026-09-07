@@ -15,17 +15,17 @@ Item {
     property string resolutionError: ""
 
     // Presentation properties bound to GuiBridge
-    property bool approvalPending: (typeof guiBridge !== "undefined" && guiBridge !== null) ? guiBridge.approvalPending : false
-    property string taskId: (typeof guiBridge !== "undefined" && guiBridge !== null) ? guiBridge.approvalTaskId : ""
-    property string planId: (typeof guiBridge !== "undefined" && guiBridge !== null) ? guiBridge.approvalPlanId : ""
-    property string actionName: (typeof guiBridge !== "undefined" && guiBridge !== null) ? guiBridge.approvalAction : ""
-    property string descriptionText: (typeof guiBridge !== "undefined" && guiBridge !== null) ? guiBridge.approvalDescription : ""
-    property string resourcePath: (typeof guiBridge !== "undefined" && guiBridge !== null) ? guiBridge.approvalResource : ""
-    property string riskLevel: (typeof guiBridge !== "undefined" && guiBridge !== null) ? guiBridge.approvalRiskLevel : ""
-    property string reasonText: (typeof guiBridge !== "undefined" && guiBridge !== null) ? guiBridge.approvalReason : ""
-    property bool reversible: (typeof guiBridge !== "undefined" && guiBridge !== null) ? guiBridge.approvalReversible : true
-    property bool rollbackAvailable: (typeof guiBridge !== "undefined" && guiBridge !== null) ? guiBridge.approvalRollbackAvailable : true
-    property string currentState: (typeof guiBridge !== "undefined" && guiBridge !== null) ? guiBridge.currentState : ""
+    readonly property bool approvalPending: (typeof guiBridge !== "undefined" && guiBridge !== null) ? guiBridge.approvalPending : false
+    readonly property string taskId: (typeof guiBridge !== "undefined" && guiBridge !== null) ? guiBridge.approvalTaskId : ""
+    readonly property string planId: (typeof guiBridge !== "undefined" && guiBridge !== null) ? guiBridge.approvalPlanId : ""
+    readonly property string actionName: (typeof guiBridge !== "undefined" && guiBridge !== null) ? guiBridge.approvalAction : ""
+    readonly property string descriptionText: (typeof guiBridge !== "undefined" && guiBridge !== null) ? guiBridge.approvalDescription : ""
+    readonly property string resourcePath: (typeof guiBridge !== "undefined" && guiBridge !== null) ? guiBridge.approvalResource : ""
+    readonly property string riskLevel: (typeof guiBridge !== "undefined" && guiBridge !== null) ? guiBridge.approvalRiskLevel : ""
+    readonly property string reasonText: (typeof guiBridge !== "undefined" && guiBridge !== null) ? guiBridge.approvalReason : ""
+    readonly property bool reversible: (typeof guiBridge !== "undefined" && guiBridge !== null) ? guiBridge.approvalReversible : true
+    readonly property bool rollbackAvailable: (typeof guiBridge !== "undefined" && guiBridge !== null) ? guiBridge.approvalRollbackAvailable : true
+    readonly property string currentState: (typeof guiBridge !== "undefined" && guiBridge !== null) ? guiBridge.currentState : ""
 
     // Overlay is visible when approval is pending OR while resolving OR when resolution failed
     property bool overlayVisible: (typeof guiBridge !== "undefined" && guiBridge !== null)
@@ -46,7 +46,6 @@ Item {
         ignoreUnknownSignals: true
 
         function onApprovalPendingChanged(pending) {
-            root.approvalPending = pending;
             if (pending) {
                 root.isResolving = false;
                 root.resolutionError = "";
@@ -55,41 +54,7 @@ Item {
             }
         }
 
-        function onApprovalTaskIdChanged(id) {
-            root.taskId = id;
-            root.planId = id;
-        }
-
-        function onApprovalActionChanged(action) {
-            root.actionName = action;
-        }
-
-        function onApprovalDescriptionChanged(desc) {
-            root.descriptionText = desc;
-        }
-
-        function onApprovalResourceChanged(res) {
-            root.resourcePath = res;
-        }
-
-        function onApprovalRiskLevelChanged(risk) {
-            root.riskLevel = risk;
-        }
-
-        function onApprovalReasonChanged(reason) {
-            root.reasonText = reason;
-        }
-
-        function onApprovalReversibleChanged(rev) {
-            root.reversible = rev;
-        }
-
-        function onApprovalRollbackAvailableChanged(avail) {
-            root.rollbackAvailable = avail;
-        }
-
         function onStateChanged(state) {
-            root.currentState = state;
             // When backend transitions out of AWAITING_APPROVAL, resolution is complete
             if (state !== "AWAITING_APPROVAL") {
                 root.isResolving = false;

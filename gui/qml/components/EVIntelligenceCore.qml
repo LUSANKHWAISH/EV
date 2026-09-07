@@ -80,13 +80,14 @@ Item {
 
     // Master Phase Driver (single clock for all loaded visual presets)
     NumberAnimation {
+        id: masterPhaseAnimation
         target: root
         property: "phase"
         from: 0.0
         to: Math.PI * 2.0
         duration: root.motionCycle
         loops: Animation.Infinite
-        running: root.visible && !root.stopped
+        running: root.visible && !root.stopped && root.visualMode !== "SLEEP"
     }
 
     readonly property color displayTone:

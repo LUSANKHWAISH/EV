@@ -787,10 +787,11 @@ Item {
 
     // Synchronize canvas repaints on property triggers
     onPhaseChanged: {
-        auraCanvas.requestPaint()
         rearOrbitCanvas.requestPaint()
-        glassCanvas.requestPaint()
         frontOrbitCanvas.requestPaint()
+        if (root.listening || root.speaking || root.verifying) {
+            auraCanvas.requestPaint()
+        }
     }
 
     onWidthChanged: {
@@ -814,6 +815,30 @@ Item {
         frontOrbitCanvas.requestPaint()
     }
 
+    onStateTextChanged: {
+        auraCanvas.requestPaint()
+        glassCanvas.requestPaint()
+        rearOrbitCanvas.requestPaint()
+        frontOrbitCanvas.requestPaint()
+    }
+
+    onVisualModeChanged: {
+        auraCanvas.requestPaint()
+        glassCanvas.requestPaint()
+        rearOrbitCanvas.requestPaint()
+        frontOrbitCanvas.requestPaint()
+    }
+
+    onGlowDriveChanged: {
+        auraCanvas.requestPaint()
+        glassCanvas.requestPaint()
+    }
+
+    onAuraRadiusChanged: {
+        auraCanvas.requestPaint()
+        glassCanvas.requestPaint()
+    }
+
     onEffectiveListenLevelChanged: {
         auraCanvas.requestPaint()
         glassCanvas.requestPaint()
@@ -822,5 +847,12 @@ Item {
     onEffectiveSpeechLevelChanged: {
         auraCanvas.requestPaint()
         glassCanvas.requestPaint()
+    }
+
+    Component.onCompleted: {
+        auraCanvas.requestPaint()
+        glassCanvas.requestPaint()
+        rearOrbitCanvas.requestPaint()
+        frontOrbitCanvas.requestPaint()
     }
 }

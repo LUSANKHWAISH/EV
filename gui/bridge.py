@@ -1101,7 +1101,9 @@ class GuiBridge(QObject):
     @Slot(dict)
     def _on_telemetry_updated_internal(self, payload: dict) -> None:
         """Slot executed in Qt thread when telemetry observation arrives."""
+        is_initial = not self._telemetry_available
         self._telemetry_available = True
+
         ts = payload.get("timestamp")
         if isinstance(ts, datetime):
             self._telemetry_timestamp = ts if ts.tzinfo else ts.replace(tzinfo=timezone.utc)
@@ -1118,30 +1120,66 @@ class GuiBridge(QObject):
                 self._telemetry_timestamp = datetime.now(timezone.utc)
         else:
             self._telemetry_timestamp = datetime.now(timezone.utc)
-        self._telemetry_cpu_percent = float(payload.get("cpu_percent", 0.0))
-        self._telemetry_memory_percent = float(payload.get("memory_percent", 0.0))
-        self._telemetry_memory_used_mb = int(payload.get("memory_used_mb", 0))
-        self._telemetry_memory_total_mb = int(payload.get("memory_total_mb", 0))
-        self._telemetry_disk_free_percent = float(payload.get("disk_free_percent", 0.0))
-        self._telemetry_disk_free_gb = float(payload.get("disk_free_gb", 0.0))
-        self._telemetry_process_count = int(payload.get("process_count", 0))
-        self._telemetry_top_process_name = str(payload.get("top_process_name", ""))
-        self._telemetry_top_process_cpu_percent = float(payload.get("top_process_cpu_percent", 0.0))
-        self._telemetry_top_process_memory_mb = int(payload.get("top_process_memory_mb", 0))
-        self._telemetry_network_connected = bool(payload.get("network_connected", False))
 
-        self.telemetryAvailableChanged.emit(True)
-        self.telemetryCpuPercentChanged.emit(self._telemetry_cpu_percent)
-        self.telemetryMemoryPercentChanged.emit(self._telemetry_memory_percent)
-        self.telemetryMemoryUsedMbChanged.emit(self._telemetry_memory_used_mb)
-        self.telemetryMemoryTotalMbChanged.emit(self._telemetry_memory_total_mb)
-        self.telemetryDiskFreePercentChanged.emit(self._telemetry_disk_free_percent)
-        self.telemetryDiskFreeGbChanged.emit(self._telemetry_disk_free_gb)
-        self.telemetryProcessCountChanged.emit(self._telemetry_process_count)
-        self.telemetryTopProcessNameChanged.emit(self._telemetry_top_process_name)
-        self.telemetryTopProcessCpuPercentChanged.emit(self._telemetry_top_process_cpu_percent)
-        self.telemetryTopProcessMemoryMbChanged.emit(self._telemetry_top_process_memory_mb)
-        self.telemetryNetworkConnectedChanged.emit(self._telemetry_network_connected)
+        new_cpu = float(payload.get("cpu_percent", 0.0))
+        new_mem = float(payload.get("memory_percent", 0.0))
+        new_used_mb = int(payload.get("memory_used_mb", 0))
+        new_total_mb = int(payload.get("memory_total_mb", 0))
+        new_disk_pct = float(payload.get("disk_free_percent", 0.0))
+        new_disk_gb = float(payload.get("disk_free_gb", 0.0))
+        new_proc_count = int(payload.get("process_count", 0))
+        new_top_name = str(payload.get("top_process_name", ""))
+        new_top_cpu = float(payload.get("top_process_cpu_percent", 0.0))
+        new_top_mem = int(payload.get("top_process_memory_mb", 0))
+        new_net = bool(payload.get("network_connected", False))
+
+        if is_initial:
+            self.telemetryAvailableChanged.emit(True)
+
+        if is_initial or self._telemetry_cpu_percent != new_cpu:
+            self._telemetry_cpu_percent = new_cpu
+            self.telemetryCpuPercentChanged.emit(new_cpu)
+
+        if is_initial or self._telemetry_memory_percent != new_mem:
+            self._telemetry_memory_percent = new_mem
+            self.telemetryMemoryPercentChanged.emit(new_mem)
+
+        if is_initial or self._telemetry_memory_used_mb != new_used_mb:
+            self._telemetry_memory_used_mb = new_used_mb
+            self.telemetryMemoryUsedMbChanged.emit(new_used_mb)
+
+        if is_initial or self._telemetry_memory_total_mb != new_total_mb:
+            self._telemetry_memory_total_mb = new_total_mb
+            self.telemetryMemoryTotalMbChanged.emit(new_total_mb)
+
+        if is_initial or self._telemetry_disk_free_percent != new_disk_pct:
+            self._telemetry_disk_free_percent = new_disk_pct
+            self.telemetryDiskFreePercentChanged.emit(new_disk_pct)
+
+        if is_initial or self._telemetry_disk_free_gb != new_disk_gb:
+            self._telemetry_disk_free_gb = new_disk_gb
+            self.telemetryDiskFreeGbChanged.emit(new_disk_gb)
+
+        if is_initial or self._telemetry_process_count != new_proc_count:
+            self._telemetry_process_count = new_proc_count
+            self.telemetryProcessCountChanged.emit(new_proc_count)
+
+        if is_initial or self._telemetry_top_process_name != new_top_name:
+            self._telemetry_top_process_name = new_top_name
+            self.telemetryTopProcessNameChanged.emit(new_top_name)
+
+        if is_initial or self._telemetry_top_process_cpu_percent != new_top_cpu:
+            self._telemetry_top_process_cpu_percent = new_top_cpu
+            self.telemetryTopProcessCpuPercentChanged.emit(new_top_cpu)
+
+        if is_initial or self._telemetry_top_process_memory_mb != new_top_mem:
+            self._telemetry_top_process_memory_mb = new_top_mem
+            self.telemetryTopProcessMemoryMbChanged.emit(new_top_mem)
+
+        if is_initial or self._telemetry_network_connected != new_net:
+            self._telemetry_network_connected = new_net
+            self.telemetryNetworkConnectedChanged.emit(new_net)
+
         self.telemetryUpdated.emit()
 
     @Slot()
