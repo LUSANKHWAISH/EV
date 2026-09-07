@@ -119,6 +119,14 @@ def _format_pipeline_result(result: Any) -> Tuple[str, str, bool]:
             msg = f"Awaiting approval for: {goal}" if goal else "Awaiting human approval."
             return (_sanitize_result_text(msg), "AWAITING_APPROVAL", False)
 
+        # Check rollback
+        if getattr(result, "rolled_back", None) is True:
+            raw_err = getattr(result, "error", None)
+            if not raw_err and getattr(result, "plan", None):
+                raw_err = getattr(result.plan, "error", None)
+            err_text = raw_err or "Operation failed and was rolled back."
+            return (_sanitize_result_text(f"Task rolled back: {err_text}"), "ROLLED_BACK", False)
+
         # Check failure
         overall_success = bool(getattr(result, "overall_success", False))
         if not overall_success or status_val in ("FAILED", "REJECTED"):

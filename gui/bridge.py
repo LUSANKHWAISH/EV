@@ -14,6 +14,25 @@ from core.models import EVEventType, EVState
 
 logger = logging.getLogger(__name__)
 
+# Lifecycle stage index mapping and terminal stage set (Phase 018-E)
+_STAGE_INDEX_MAP: Dict[str, int] = {
+    "IDLE": 0,
+    "THINKING": 1,
+    "PLANNING": 2,
+    "VALIDATING": 3,
+    "RISK": 4,
+    "APPROVAL": 5,
+    "EXECUTE": 6,
+    "EXECUTING": 6,
+    "VERIFY": 7,
+    "VERIFYING": 7,
+    "SUCCESS": 8,
+    "FAILED": 8,
+    "ROLLED_BACK": 8,
+    "CANCELLED": 8,
+}
+_TERMINAL_STAGES = {"SUCCESS", "FAILED", "ROLLED_BACK", "CANCELLED"}
+
 
 class GuiBridge(QObject):
     """
@@ -63,6 +82,12 @@ class GuiBridge(QObject):
     latestAwarenessSeverityChanged = Signal(str)
     taskResultChanged = Signal()
 
+    # Lifecycle projection signals (Phase 018-E)
+    lifecycleStageChanged = Signal(str)
+    lifecycleStageIndexChanged = Signal(int)
+    lifecycleActiveChanged = Signal(bool)
+    lifecycleRollbackChanged = Signal(bool)
+
     # Internal signal for safe cross-thread queued handoff
     _stateChangeRequested = Signal(object)
     _voiceStateChangeRequested = Signal(str)
@@ -76,6 +101,7 @@ class GuiBridge(QObject):
     _systemAlertChangeRequested = Signal(str)
     _awarenessEventQueued = Signal(str, str, str, str)
     _taskResultQueued = Signal(str, str, bool)
+    _lifecycleStageQueued = Signal(str, dict)
 
     def __init__(
         self,
@@ -126,6 +152,13 @@ class GuiBridge(QObject):
         self._task_result_status: str = "IDLE"
         self._task_result_success: bool = False
         self._task_result_available: bool = False
+        self._lifecycle_stage: str = "IDLE"
+        self._lifecycle_stage_index: int = 0
+        self._lifecycle_max_stage_index: int = 0
+        self._lifecycle_active: bool = False
+        self._lifecycle_rollback: bool = False
+        self._lifecycle_terminal: bool = False
+        self._lifecycle_approval_required: bool = False
         self._subscription_tokens: List[str] = []
         self._setup_subscriptions()
 
@@ -186,6 +219,10 @@ class GuiBridge(QObject):
             self._on_task_result_internal,
             type=Qt.ConnectionType.QueuedConnection,
         )
+        self._lifecycleStageQueued.connect(
+            self._on_lifecycle_stage_internal,
+            type=Qt.ConnectionType.QueuedConnection,
+        )
 
         token = self._event_bus.subscribe(
             self._on_event_received,
@@ -194,8 +231,16 @@ class GuiBridge(QObject):
                 EVEventType.VOICE_STATE_CHANGED,
                 EVEventType.ACTION_STARTED,
                 EVEventType.ACTION_COMPLETED,
+                EVEventType.ACTION_VERIFYING,
                 EVEventType.VERIFICATION_RESULT,
                 EVEventType.APPROVAL_REQUIRED,
+                EVEventType.PLAN_STARTED,
+                EVEventType.PLAN_COMPLETED,
+                EVEventType.PLAN_FAILED,
+                EVEventType.PLAN_CANCELLED,
+                EVEventType.PLAN_ROLLED_BACK,
+                EVEventType.PLAN_CREATED,
+                EVEventType.PLAN_VALIDATED,
                 EVEventType.STATUS,
                 EVEventType.SYSTEM_ALERT,
                 EVEventType.SYSTEM_ALERT_RECOVERED,
@@ -216,6 +261,11 @@ class GuiBridge(QObject):
         if event.event_type == EVEventType.STATE_CHANGED:
             if event.state is not None:
                 self._stateChangeRequested.emit(event.state)
+                val = event.state.value if hasattr(event.state, "value") else str(event.state)
+                if val == "AWAITING_APPROVAL":
+                    self._lifecycleStageQueued.emit("APPROVAL", {})
+                elif val == "EXECUTING":
+                    self._lifecycleStageQueued.emit("EXECUTE", {})
         elif event.event_type == EVEventType.VOICE_STATE_CHANGED:
             voice_state = str(event.data.get("voice_state", "")) if event.data else ""
             if voice_state:
@@ -223,13 +273,36 @@ class GuiBridge(QObject):
         elif event.event_type == EVEventType.ACTION_STARTED:
             msg = event.message if event.message else "Active"
             self._currentTaskChangeRequested.emit(msg)
+            self._lifecycleStageQueued.emit("EXECUTE", {})
         elif event.event_type == EVEventType.ACTION_COMPLETED:
             self._currentTaskChangeRequested.emit("")
             if event.message:
                 self._latestObservationChangeRequested.emit(event.message)
+        elif event.event_type == EVEventType.ACTION_VERIFYING:
+            self._lifecycleStageQueued.emit("VERIFY", {})
         elif event.event_type == EVEventType.VERIFICATION_RESULT:
             if event.message:
                 self._latestObservationChangeRequested.emit(event.message)
+        elif event.event_type == EVEventType.PLAN_STARTED:
+            self._lifecycleStageQueued.emit("EXECUTE", {})
+        elif event.event_type == EVEventType.PLAN_CREATED:
+            self._lifecycleStageQueued.emit("PLANNING", {})
+        elif event.event_type == EVEventType.PLAN_VALIDATED:
+            self._lifecycleStageQueued.emit("VALIDATING", {})
+        elif event.event_type == EVEventType.PLAN_ROLLED_BACK:
+            self._lifecycleStageQueued.emit("ROLLED_BACK", {"rollback": True})
+        elif event.event_type == EVEventType.PLAN_COMPLETED:
+            self._lifecycleStageQueued.emit("SUCCESS", {})
+        elif event.event_type == EVEventType.PLAN_FAILED:
+            data_d = event.data or {}
+            meta = data_d.get("metadata") or {}
+            is_rb = bool(meta.get("rolled_back") or data_d.get("rolled_back"))
+            if is_rb:
+                self._lifecycleStageQueued.emit("ROLLED_BACK", {"rollback": True})
+            else:
+                self._lifecycleStageQueued.emit("FAILED", {})
+        elif event.event_type == EVEventType.PLAN_CANCELLED:
+            self._lifecycleStageQueued.emit("CANCELLED", {})
         elif event.event_type == EVEventType.APPROVAL_REQUIRED:
             data: Dict[str, Any] = event.data or {}
             task_id = str(data.get("task_id") or data.get("plan_id") or event.correlation_id or "")
@@ -271,9 +344,17 @@ class GuiBridge(QObject):
                 "rollback_available": rollback_available,
             }
             self._approvalRequestQueued.emit(payload)
+            self._lifecycleStageQueued.emit("APPROVAL", payload)
         elif event.event_type == EVEventType.STATUS:
             if event.message:
                 self._latestObservationChangeRequested.emit(event.message)
+                msg_l = event.message.lower()
+                if "resolving command" in msg_l:
+                    self._lifecycleStageQueued.emit("THINKING", {})
+                elif "planning" in msg_l:
+                    self._lifecycleStageQueued.emit("PLANNING", {})
+                elif "validat" in msg_l:
+                    self._lifecycleStageQueued.emit("VALIDATING", {})
         elif event.event_type == EVEventType.SYSTEM_OBSERVATION:
             data: Dict[str, Any] = event.data or {}
             payload = self._parse_telemetry_data(data)
@@ -491,6 +572,105 @@ class GuiBridge(QObject):
         }
         return descriptions.get(state_str, "Invalid state")
 
+    # ------------------------------------------------------------------
+    # Lifecycle presentation projection (Phase 018-E)
+    # ------------------------------------------------------------------
+
+    @Slot(str, dict)
+    def _on_lifecycle_stage_internal(self, stage: str, data: dict) -> None:
+        """Slot executed in Qt thread when lifecycle stage update arrives."""
+        self._apply_lifecycle_stage(stage, data)
+
+    def _apply_lifecycle_stage(self, stage: str, data: Optional[dict] = None) -> None:
+        """
+        Deterministically update lifecycle projection state on Qt thread.
+        Includes stale event / terminal state protection and monotonic index progression.
+        """
+        data = data or {}
+        norm_stage = stage.upper()
+        if norm_stage == "EXECUTING":
+            norm_stage = "EXECUTE"
+        elif norm_stage == "VERIFYING":
+            norm_stage = "VERIFY"
+
+        # Terminal protection: once terminal, ignore non-terminal stale updates
+        if self._lifecycle_terminal and norm_stage not in _TERMINAL_STAGES and norm_stage != "IDLE":
+            return
+
+        idx = _STAGE_INDEX_MAP.get(norm_stage, self._lifecycle_stage_index)
+
+        if norm_stage in _TERMINAL_STAGES:
+            self._lifecycle_stage = norm_stage
+            self._lifecycle_stage_index = 8
+            self._lifecycle_active = False
+            self._lifecycle_terminal = True
+            if norm_stage == "SUCCESS":
+                self._lifecycle_max_stage_index = max(self._lifecycle_max_stage_index, 7)
+            if norm_stage == "ROLLED_BACK" or bool(data.get("rollback", False)):
+                self._lifecycle_rollback = True
+                self.lifecycleRollbackChanged.emit(True)
+            self.lifecycleStageChanged.emit(norm_stage)
+            self.lifecycleStageIndexChanged.emit(8)
+            self.lifecycleActiveChanged.emit(False)
+            return
+
+        if norm_stage == "APPROVAL":
+            self._lifecycle_approval_required = True
+
+        # Monotonic progression: do not regress stage index during forward execution
+        if idx < self._lifecycle_stage_index and norm_stage != "IDLE":
+            return
+
+        if self._lifecycle_stage == norm_stage and self._lifecycle_stage_index == idx:
+            return
+
+        self._lifecycle_stage = norm_stage
+        self._lifecycle_stage_index = idx
+        self._lifecycle_max_stage_index = max(self._lifecycle_max_stage_index, idx)
+        self._lifecycle_active = (norm_stage != "IDLE")
+
+        self.lifecycleStageChanged.emit(norm_stage)
+        self.lifecycleStageIndexChanged.emit(idx)
+        self.lifecycleActiveChanged.emit(self._lifecycle_active)
+
+    def notifyLifecycleStage(self, stage: str, rollback: bool = False) -> None:
+        """Thread-safe method called to publish lifecycle stage updates to Qt GUI."""
+        self._lifecycleStageQueued.emit(stage, {"rollback": rollback})
+
+    @Property(str, notify=lifecycleStageChanged)
+    def lifecycleStage(self) -> str:
+        """Current execution lifecycle stage projection."""
+        return self._lifecycle_stage
+
+    @Property(int, notify=lifecycleStageIndexChanged)
+    def lifecycleStageIndex(self) -> int:
+        """Numeric index of the current lifecycle stage (0=IDLE .. 8=TERMINAL)."""
+        return self._lifecycle_stage_index
+
+    @Property(int, notify=lifecycleStageIndexChanged)
+    def lifecycleMaxStageIndex(self) -> int:
+        """Maximum non-terminal lifecycle stage index reached."""
+        return self._lifecycle_max_stage_index
+
+    @Property(bool, notify=lifecycleActiveChanged)
+    def lifecycleActive(self) -> bool:
+        """Whether a task execution is actively progressing through lifecycle stages."""
+        return self._lifecycle_active
+
+    @Property(bool, notify=lifecycleRollbackChanged)
+    def lifecycleRollback(self) -> bool:
+        """Whether transaction rollback was performed for the current or latest task."""
+        return self._lifecycle_rollback
+
+    @Property(bool, notify=lifecycleStageChanged)
+    def lifecycleApprovalRequired(self) -> bool:
+        """Whether the current task encountered an approval gate."""
+        return self._lifecycle_approval_required
+
+    # ------------------------------------------------------------------
+    # Task result handlers
+    # ------------------------------------------------------------------
+
     @Slot(str)
     def submitTask(self, command: str) -> None:
         """Called by QML to submit a user task."""
@@ -499,6 +679,20 @@ class GuiBridge(QObject):
         self._task_result_success = False
         self._task_result_available = False
         self.taskResultChanged.emit()
+
+        # Reset lifecycle projection for new task
+        self._lifecycle_terminal = False
+        self._lifecycle_rollback = False
+        self._lifecycle_approval_required = False
+        self._lifecycle_active = True
+        self._lifecycle_stage = "THINKING"
+        self._lifecycle_stage_index = 1
+        self._lifecycle_max_stage_index = 1
+        self.lifecycleStageChanged.emit("THINKING")
+        self.lifecycleStageIndexChanged.emit(1)
+        self.lifecycleActiveChanged.emit(True)
+        self.lifecycleRollbackChanged.emit(False)
+
         self.taskSubmitted.emit(command)
 
     @Slot(str, str, bool)
@@ -507,8 +701,19 @@ class GuiBridge(QObject):
         self._task_result = result_text
         self._task_result_status = status
         self._task_result_success = success
-        self._task_result_available = (status in ("SUCCESS", "FAILED", "CANCELLED"))
+        self._task_result_available = (status in ("SUCCESS", "FAILED", "CANCELLED", "ROLLED_BACK"))
         self.taskResultChanged.emit()
+
+        # Update terminal lifecycle projection based on final authoritative status
+        norm_status = status.upper()
+        if norm_status == "ROLLED_BACK" or (norm_status == "FAILED" and self._lifecycle_rollback):
+            self._apply_lifecycle_stage("ROLLED_BACK", {"rollback": True})
+        elif norm_status == "CANCELLED":
+            self._apply_lifecycle_stage("CANCELLED")
+        elif success or norm_status == "SUCCESS":
+            self._apply_lifecycle_stage("SUCCESS")
+        elif norm_status == "FAILED":
+            self._apply_lifecycle_stage("FAILED")
 
     def notifyTaskResult(self, result_text: str, status: str = "SUCCESS", success: bool = True) -> None:
         """Thread-safe method called by workers to publish task results to Qt GUI."""
@@ -523,6 +728,19 @@ class GuiBridge(QObject):
         self._task_result_available = False
         self.taskResultChanged.emit()
 
+        # Reset lifecycle projection to IDLE
+        self._lifecycle_stage = "IDLE"
+        self._lifecycle_stage_index = 0
+        self._lifecycle_max_stage_index = 0
+        self._lifecycle_active = False
+        self._lifecycle_rollback = False
+        self._lifecycle_terminal = False
+        self._lifecycle_approval_required = False
+        self.lifecycleStageChanged.emit("IDLE")
+        self.lifecycleStageIndexChanged.emit(0)
+        self.lifecycleActiveChanged.emit(False)
+        self.lifecycleRollbackChanged.emit(False)
+
     @Property(str, notify=taskResultChanged)
     def taskResult(self) -> str:
         """Human-readable result or response text of the latest task execution."""
@@ -530,7 +748,7 @@ class GuiBridge(QObject):
 
     @Property(str, notify=taskResultChanged)
     def taskResultStatus(self) -> str:
-        """Lifecycle status of the latest task ('IDLE', 'RUNNING', 'SUCCESS', 'FAILED', 'CANCELLED')."""
+        """Lifecycle status of the latest task ('IDLE', 'RUNNING', 'SUCCESS', 'FAILED', 'CANCELLED', 'ROLLED_BACK')."""
         return self._task_result_status
 
     @Property(bool, notify=taskResultChanged)
@@ -557,6 +775,11 @@ class GuiBridge(QObject):
 
         self._approval_resolving = True
         self.approvalResolvingChanged.emit(True)
+
+        if approved:
+            self._lifecycleStageQueued.emit("EXECUTE", {})
+        else:
+            self._lifecycleStageQueued.emit("CANCELLED", {})
 
         self._clear_approval()
         self.approvalSubmitted.emit(task_id, approved)

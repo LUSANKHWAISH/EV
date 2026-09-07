@@ -90,6 +90,7 @@ def test_qml_components_importable(qml_engine):
         "EVExperienceModeIndicator.qml",
         "EVSystemAlertBanner.qml",
         "EVResultSurface.qml",
+        "EVLifecycleHUD.qml",
     ]
 
     failures = []
@@ -172,6 +173,7 @@ def test_qmldir_registers_all_components():
         "EVSystemAlertBanner 1.0 EVSystemAlertBanner.qml",
         "EVApprovalOverlay 1.0 EVApprovalOverlay.qml",
         "EVResultSurface 1.0 EVResultSurface.qml",
+        "EVLifecycleHUD 1.0 EVLifecycleHUD.qml",
     }
 
     actual = {

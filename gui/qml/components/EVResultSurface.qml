@@ -4,9 +4,10 @@ import "../theme"
 
 // EVResultSurface.qml
 //
-// Borderless HUD result presentation — 018-D.2.
-// Displays task results with smooth typewriter animation directly
-// in the HUD space, with no card, border, or opaque background.
+// Borderless HUD result presentation with lifecycle visualization (Phase 018-E).
+// Displays canonical execution lifecycle HUD together with task results
+// with smooth typewriter animation directly in the HUD space, with no card,
+// border, or opaque background.
 //
 // Presentation-only component:
 // - Zero execution capability
@@ -37,7 +38,11 @@ Item {
         : false
 
     readonly property bool isRunning: resultStatus === "RUNNING"
-    readonly property bool isVisible: resultAvailable || isRunning
+    readonly property bool isLifecycleActive:
+        (typeof guiBridge !== "undefined" && guiBridge !== null)
+        ? (guiBridge.lifecycleActive || (guiBridge.lifecycleStage !== "IDLE" && guiBridge.lifecycleStage !== ""))
+        : false
+    readonly property bool isVisible: resultAvailable || isRunning || isLifecycleActive
 
     // --- Typewriter animation state ---
     property string _fullText: ""
@@ -110,10 +115,7 @@ Item {
 
     onIsRunningChanged: {
         if (isRunning) {
-            _fullText = "Executing through canonical pipeline..."
-            _displayedText = _fullText
-            _charIndex = _fullText.length
-            _animating = false
+            _stopTyping()
         }
     }
 
@@ -139,6 +141,10 @@ Item {
                                            Theme.luminousPrimary.g,
                                            Theme.luminousPrimary.b,
                                            0.90)
+        if (resultStatus === "ROLLED_BACK") return Qt.rgba(Theme.luminousWarning.r,
+                                                            Theme.luminousWarning.g,
+                                                            Theme.luminousWarning.b,
+                                                            0.90)
         if (resultStatus === "CANCELLED") return Qt.rgba(Theme.luminousWarning.r,
                                                           Theme.luminousWarning.g,
                                                           Theme.luminousWarning.b,
@@ -156,35 +162,51 @@ Item {
         anchors.right: parent.right
         anchors.top: parent.top
         anchors.margins: Theme.spacingXS
-        spacing: 0
+        spacing: Theme.spacingXS
 
-        // Subtle dismiss control — top-right aligned
+        // Header: Lifecycle HUD on left, subtle dismiss control on right
         Item {
+            id: hudHeader
             width: parent.width
-            height: dismissText.visible ? Theme.spacingXS : 0
-            visible: root.resultAvailable
+            height: Math.max(lifecycleHUD.implicitHeight, dismissText.implicitHeight)
+            visible: root.isVisible
 
-            Text {
-                id: dismissText
+            EVLifecycleHUD {
+                id: lifecycleHUD
+                anchors.left: parent.left
+                anchors.right: dismissArea.left
+                anchors.rightMargin: Theme.spacingXS
+                anchors.verticalCenter: parent.verticalCenter
+            }
+
+            Item {
+                id: dismissArea
                 anchors.right: parent.right
                 anchors.verticalCenter: parent.verticalCenter
-                text: "✕"
-                color: dismissMouseArea.containsMouse
-                       ? Theme.textSecondary
-                       : Theme.textTertiary
-                font.family: Theme.fontFamily
-                font.pointSize: Theme.fontSizeLabelSmall
-                opacity: dismissMouseArea.containsMouse ? 1.0 : 0.4
+                width: dismissText.implicitWidth + 8
+                height: parent.height
                 visible: root.resultAvailable
 
-                Behavior on opacity {
-                    NumberAnimation { duration: Theme.motionFast }
+                Text {
+                    id: dismissText
+                    anchors.centerIn: parent
+                    text: "✕"
+                    color: dismissMouseArea.containsMouse
+                           ? Theme.textSecondary
+                           : Theme.textTertiary
+                    font.family: Theme.fontFamily
+                    font.pointSize: Theme.fontSizeLabelSmall
+                    opacity: dismissMouseArea.containsMouse ? 1.0 : 0.4
+                    visible: root.resultAvailable
+
+                    Behavior on opacity {
+                        NumberAnimation { duration: Theme.motionFast }
+                    }
                 }
 
                 MouseArea {
                     id: dismissMouseArea
                     anchors.fill: parent
-                    anchors.margins: -4
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
                     onClicked: {
@@ -201,8 +223,11 @@ Item {
         Flickable {
             id: flickableArea
             width: parent.width
-            implicitHeight: Math.min(parent.parent ? parent.parent.height * 0.4 : 160,
-                                      resultMessageText.implicitHeight)
+            visible: resultMessageText.text.length > 0
+            implicitHeight: visible
+                ? Math.min(parent.parent ? parent.parent.height * 0.4 : 160,
+                           resultMessageText.implicitHeight)
+                : 0
             contentWidth: width
             contentHeight: resultMessageText.implicitHeight
             clip: true
@@ -212,11 +237,11 @@ Item {
                 id: resultMessageText
                 width: parent.width
                 text: root.isRunning
-                      ? "Executing through canonical pipeline..."
+                      ? ((typeof guiBridge !== "undefined" && guiBridge && guiBridge.currentTask) ? guiBridge.currentTask : "")
                       : root._displayedText
                 color: root._resultColor
-                font.family: Theme.fontFamily
-                font.pointSize: Theme.fontSizeBodySmall
+                font.family: root.isRunning ? Theme.fontFamilyMono : Theme.fontFamily
+                font.pointSize: root.isRunning ? Theme.fontSizeLabelSmall : Theme.fontSizeBodySmall
                 font.weight: Theme.fontWeightRegular
                 wrapMode: Text.Wrap
                 lineHeight: 1.3

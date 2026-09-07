@@ -20,3 +20,4 @@ EVExperienceModeIndicator 1.0 EVExperienceModeIndicator.qml
 EVSystemAlertBanner 1.0 EVSystemAlertBanner.qml
 EVApprovalOverlay 1.0 EVApprovalOverlay.qml
 EVResultSurface 1.0 EVResultSurface.qml
+EVLifecycleHUD 1.0 EVLifecycleHUD.qml
