@@ -95,6 +95,14 @@ Item {
             Layout.fillWidth: true
         }
 
+        EVExperienceModeIndicator {
+            id: experienceModeIndicator
+            objectName: "experienceModeIndicator"
+
+            Layout.alignment: Qt.AlignVCenter
+            Layout.rightMargin: Theme.spacingXS
+        }
+
         // ====================================================
         // MINIMIZE
         // ====================================================
