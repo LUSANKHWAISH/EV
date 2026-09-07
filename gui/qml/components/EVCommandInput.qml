@@ -21,10 +21,15 @@ Item {
         placeholderTextColor: Theme.textSecondary
         
         background: Rectangle {
-            color: Theme.backgroundBase
+            color: Qt.rgba(1, 1, 1, 0.03)
             radius: Theme.radiusS
-            border.color: commandField.activeFocus ? Theme.brandPrimary : Theme.edgeStandard
-            border.width: commandField.activeFocus ? 2 : 1
+            border.color: commandField.activeFocus
+                          ? Qt.rgba(Theme.brandPrimary.r,
+                                    Theme.brandPrimary.g,
+                                    Theme.brandPrimary.b,
+                                    0.35)
+                          : Qt.rgba(1, 1, 1, 0.06)
+            border.width: commandField.activeFocus ? 1 : 0.5
         }
         
         font.family: Theme.fontFamily

@@ -44,12 +44,52 @@ _SENSITIVE_PATTERNS = [
     re.compile(r"ghp_[a-zA-Z0-9]{36,}", re.IGNORECASE),
 ]
 
+# Patterns that indicate a raw provider/API error dict was leaked into the error string.
+_PROVIDER_ERROR_PATTERN = re.compile(
+    r"\{\s*['\"]error['\"]\s*:\s*\{.*?['\"]code['\"]\s*:\s*(\d{3})",
+    re.DOTALL | re.IGNORECASE,
+)
+
+
+def _sanitize_provider_error(text: str) -> str:
+    """Replace raw provider JSON error dicts with concise user-facing messages."""
+    if not text:
+        return text
+
+    # First check for JSON error dict match
+    match = _PROVIDER_ERROR_PATTERN.search(text)
+    http_code = match.group(1) if match else None
+
+    # If not found via full JSON pattern, check if provider error mentions status codes or keywords
+    if not http_code:
+        if "503" in text or "UNAVAILABLE" in text:
+            http_code = "503"
+        elif "429" in text or "RESOURCE_EXHAUSTED" in text or "rate limit" in text.lower():
+            http_code = "429"
+        elif "401" in text or "403" in text or "unauthenticated" in text.lower() or "permission_denied" in text.lower():
+            http_code = "401"
+
+    # If any raw JSON pattern or provider error dictionary is detected, sanitize
+    if http_code or "Brain provider error" in text or "{'error'" in text or '{"error"' in text:
+        if http_code == "503":
+            return "AI service temporarily unavailable (HTTP 503). Please try again shortly."
+        elif http_code == "429":
+            return "AI service rate limited (HTTP 429). Please wait a moment and try again."
+        elif http_code in ("401", "403"):
+            return "AI service authentication error. Check your API key configuration."
+        elif http_code:
+            return f"AI service error (HTTP {http_code}). Please try again shortly."
+        elif "Brain provider error" in text or "{'error'" in text or '{"error"' in text:
+            return "AI service error. Unable to process command with configured providers."
+
+    return text
+
 
 def _sanitize_result_text(text: str) -> str:
     """Sanitize and clamp string to prevent secret exposure or GUI overflow."""
     if not text:
         return ""
-    sanitized = text
+    sanitized = _sanitize_provider_error(text)
     for pat in _SENSITIVE_PATTERNS:
         sanitized = pat.sub("[REDACTED]", sanitized)
     if len(sanitized) > _MAX_RESULT_LENGTH:
@@ -106,7 +146,7 @@ def _format_pipeline_result(result: Any) -> Tuple[str, str, bool]:
             params = getattr(step, "parameters", {}) or {}
             step_result = getattr(step, "result", None)
 
-            if action_name == "list_directory":
+            if action_name == "LIST_DIRECTORY":
                 path = params.get("path", "directory")
                 if isinstance(step_result, list):
                     count = len(step_result)
@@ -117,7 +157,7 @@ def _format_pipeline_result(result: Any) -> Tuple[str, str, bool]:
                     more = f" (+{count - 5} more)" if count > 5 else ""
                     return (_sanitize_result_text(f"Found {count} item(s) in '{path}':\n{items_str}{more}"), "SUCCESS", True)
 
-            elif action_name == "find_process":
+            elif action_name == "FIND_PROCESS":
                 proc_name = params.get("name") or params.get("process_name") or ""
                 if isinstance(step_result, list):
                     count = len(step_result)
@@ -129,7 +169,7 @@ def _format_pipeline_result(result: Any) -> Tuple[str, str, bool]:
                     more = f" (+{count - 3} more)" if count > 3 else ""
                     return (_sanitize_result_text(f"Found {count} process(es):\n{procs_str}{more}"), "SUCCESS", True)
 
-            elif action_name == "read_text_file":
+            elif action_name == "READ_TEXT_FILE":
                 path = params.get("path", "file")
                 content = getattr(step_result, "content", "") if step_result else ""
                 size = getattr(step_result, "size_bytes", len(content)) if step_result else 0
@@ -138,14 +178,14 @@ def _format_pipeline_result(result: Any) -> Tuple[str, str, bool]:
                     return (_sanitize_result_text(f"Read '{path}' ({size} bytes):\n{snippet}"), "SUCCESS", True)
                 return (_sanitize_result_text(f"File '{path}' is empty."), "SUCCESS", True)
 
-            elif action_name == "get_file_info":
+            elif action_name == "GET_FILE_INFO":
                 name = getattr(step_result, "name", params.get("path", "file")) if step_result else params.get("path", "file")
                 size = getattr(step_result, "size_bytes", 0) if step_result else 0
                 is_dir = getattr(step_result, "is_directory", False) if step_result else False
                 type_str = "Directory" if is_dir else "File"
                 return (_sanitize_result_text(f"{type_str} '{name}' ({size} bytes)."), "SUCCESS", True)
 
-            elif action_name == "powershell_command":
+            elif action_name == "POWERSHELL_COMMAND":
                 stdout = getattr(step_result, "stdout", "") if step_result else ""
                 if stdout and stdout.strip():
                     snippet = stdout.strip()[:250] + ("..." if len(stdout.strip()) > 250 else "")

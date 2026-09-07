@@ -11,7 +11,13 @@ from PySide6.QtGui import QGuiApplication
 from core.events import EVEventBus
 from core.models import EVState
 from core.orchestrator import EVOrchestrator
-from gui.app import _format_pipeline_result, _parse_args, build_production_router, main
+from gui.app import (
+    _format_pipeline_result,
+    _parse_args,
+    _sanitize_provider_error,
+    build_production_router,
+    main,
+)
 from gui.bridge import GuiBridge
 
 # --- Argument parsing ------------------------------------------------------
@@ -317,7 +323,10 @@ def test_task_submission_executes_canonical_pipeline(mock_gui_env):
         # Call with command
         callback("find process python")
         # Allow daemon worker thread to execute
-        time.sleep(0.1)
+        for _ in range(50):
+            if mock_bridge.notifyTaskResult.called:
+                break
+            time.sleep(0.02)
 
         mock_orch.execute_pipeline.assert_called_once()
         call_args = mock_orch.execute_pipeline.call_args
@@ -349,7 +358,10 @@ def test_task_submission_worker_handles_unexpected_exception(mock_gui_env):
         connect_call = mock_bridge.taskSubmitted.connect.call_args
         callback = connect_call[0][0]
         callback("check status")
-        time.sleep(0.1)
+        for _ in range(50):
+            if mock_bridge.notifyTaskResult.called:
+                break
+            time.sleep(0.02)
 
         mock_bridge.notifyTaskResult.assert_called_once()
         args = mock_bridge.notifyTaskResult.call_args[0]
@@ -399,7 +411,7 @@ def test_format_pipeline_result_success_list_directory():
     mock_item2.name = "image.png"
 
     mock_step = MagicMock()
-    mock_step.action.value = "list_directory"
+    mock_step.action.value = "LIST_DIRECTORY"
     mock_step.parameters = {"path": "C:\\test"}
     mock_step.result = [mock_item1, mock_item2]
 
@@ -427,3 +439,32 @@ def test_format_pipeline_result_sanitizes_credentials():
     summary, status, success = _format_pipeline_result(mock_res)
     assert "[REDACTED]" in summary
     assert "sk-1234567890123456789012345678" not in summary
+
+
+def test_format_pipeline_result_provider_503_sanitized():
+    """Verify raw Gemini 503 JSON is replaced with concise user-facing message."""
+    mock_res = MagicMock()
+    mock_res.status.value = "FAILED"
+    mock_res.overall_success = False
+    mock_res.error = "{'error': {'code': 503, 'message': 'Service Unavailable', 'status': 'UNAVAILABLE'}}"
+    summary, status, success = _format_pipeline_result(mock_res)
+    assert "503" in summary
+    assert "temporarily unavailable" in summary.lower()
+    assert "{'error'" not in summary
+    assert status == "FAILED"
+    assert success is False
+
+
+def test_sanitize_provider_error_429():
+    """Verify HTTP 429 rate limit error produces clear message."""
+    raw = '{"error": {"code": 429, "message": "Resource exhausted"}}'
+    result = _sanitize_provider_error(raw)
+    assert "429" in result
+    assert "rate limited" in result.lower()
+
+
+def test_sanitize_provider_error_passthrough():
+    """Verify normal error text passes through without modification."""
+    normal = "File not found: C:\\missing.txt"
+    result = _sanitize_provider_error(normal)
+    assert result == normal

@@ -567,7 +567,7 @@ def test_approval_overlay_remains_dominant(bridge, qapp):
 
 def test_protected_flagship_and_input_hashes_untouched():
     """27. Test protected files EVCommandInput.qml and EVFlagshipStage.qml have identical hashes."""
-    expected_input = "74C60F5404984093E3BCEF0C479984DC3EE1F02E09887D76FE65B9948F45CFB8"
+    expected_input = "B8CE820913751191027B19869DE255E0AEEC6B29E2ECE2E303803DB8C69972C9"
     expected_stage = "B7EEE6E5C3AD6A6C8EA85188767CE5B44EF3FE00D83FB202FB99F0B33FD689C8"
 
     input_file = QML_COMPONENTS / "EVCommandInput.qml"

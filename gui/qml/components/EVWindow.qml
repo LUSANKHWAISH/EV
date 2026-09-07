@@ -76,7 +76,9 @@ ApplicationWindow {
             anchors.rightMargin: Theme.spacingXS
             anchors.bottomMargin: Theme.spacingXS
 
-            state: guiBridge.currentState
+            state: (typeof guiBridge !== "undefined" && guiBridge !== null)
+                   ? guiBridge.currentState
+                   : ""
             visualMode: (typeof guiBridge !== "undefined" && guiBridge !== null && guiBridge.experienceMode !== "")
                         ? guiBridge.experienceMode
                         : "STANDARD"
@@ -92,7 +94,7 @@ ApplicationWindow {
             anchors.right: parent.right
             anchors.leftMargin: Theme.spacingXS
             anchors.rightMargin: Theme.spacingXS
-            anchors.bottomMargin: isVisible ? Theme.spacingXS : 0
+            anchors.bottomMargin: Theme.spacingXXXS
         }
 
         EVCommandInput {
