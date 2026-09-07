@@ -55,12 +55,25 @@ Item {
     // Timer interval in ms — 12ms ≈ 83 ticks/sec for smooth feel
     readonly property int _tickInterval: 12
 
+    // Responsive presentation properties
+    readonly property bool isCompactHeight: (parent && parent.height < Theme.stageCompactHeight)
+                                            || (typeof windowRoot !== "undefined" && windowRoot && windowRoot.isCompactHeight)
+    readonly property bool isCompactWidth: (parent && parent.width < Theme.stageCompactWidth)
+                                           || (typeof windowRoot !== "undefined" && windowRoot && windowRoot.isCompactWidth)
+
+    // Maximum height allocation for the entire result surface:
+    // Standard: at most 35% of parent height up to 240px
+    // Compact: at most 25% of parent height up to 140px
+    readonly property real maxTotalHeight: isCompactHeight
+        ? Math.min(parent ? parent.height * 0.25 : 140, 140)
+        : Math.min(parent ? parent.height * 0.35 : 240, 240)
+
     visible: opacity > 0.001
     opacity: isVisible ? 1.0 : 0.0
 
     implicitWidth: parent ? parent.width : 400
-    implicitHeight: isVisible ? Math.min(parent ? parent.height * 0.45 : 240,
-                                          contentColumn.implicitHeight + Theme.spacingXS * 2) : 0
+    implicitHeight: isVisible ? Math.min(maxTotalHeight,
+                                          contentColumn.implicitHeight + (isCompactHeight ? Theme.spacingXXS * 2 : Theme.spacingXS * 2)) : 0
     height: implicitHeight
 
     clip: true
@@ -161,8 +174,8 @@ Item {
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.top: parent.top
-        anchors.margins: Theme.spacingXS
-        spacing: Theme.spacingXS
+        anchors.margins: root.isCompactHeight ? Theme.spacingXXS : Theme.spacingXS
+        spacing: root.isCompactHeight ? Theme.spacingXXS : Theme.spacingXS
 
         // Header: Lifecycle HUD on left, subtle dismiss control on right
         Item {
@@ -175,7 +188,7 @@ Item {
                 id: lifecycleHUD
                 anchors.left: parent.left
                 anchors.right: dismissArea.left
-                anchors.rightMargin: Theme.spacingXS
+                anchors.rightMargin: root.isCompactWidth ? Theme.spacingXXS : Theme.spacingXS
                 anchors.verticalCenter: parent.verticalCenter
             }
 
@@ -224,9 +237,11 @@ Item {
             id: flickableArea
             width: parent.width
             visible: resultMessageText.text.length > 0
+            readonly property real maxTextHeight: root.isCompactHeight
+                ? Math.min(parent.parent ? parent.parent.height * 0.16 : 80, 80)
+                : Math.min(parent.parent ? parent.parent.height * 0.30 : 160, 160)
             implicitHeight: visible
-                ? Math.min(parent.parent ? parent.parent.height * 0.4 : 160,
-                           resultMessageText.implicitHeight)
+                ? Math.min(maxTextHeight, resultMessageText.implicitHeight)
                 : 0
             contentWidth: width
             contentHeight: resultMessageText.implicitHeight
@@ -241,7 +256,9 @@ Item {
                       : root._displayedText
                 color: root._resultColor
                 font.family: root.isRunning ? Theme.fontFamilyMono : Theme.fontFamily
-                font.pointSize: root.isRunning ? Theme.fontSizeLabelSmall : Theme.fontSizeBodySmall
+                font.pointSize: (root.isCompactHeight || root.width < 850)
+                                ? Theme.fontSizeLabelSmall
+                                : (root.isRunning ? Theme.fontSizeLabelSmall : Theme.fontSizeBodySmall)
                 font.weight: Theme.fontWeightRegular
                 wrapMode: Text.Wrap
                 lineHeight: 1.3

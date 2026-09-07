@@ -147,8 +147,19 @@ Item {
     // Modal Card
     Rectangle {
         id: dialogCard
-        width: Math.min(parent.width - Theme.spacingXL * 2, 580)
-        height: Math.min(parent.height - Theme.spacingXL * 2, cardLayout.implicitHeight + Theme.spacingL * 2)
+        objectName: "dialogCard"
+        readonly property bool isCompact: parent.height < 680 || parent.width < 750
+        readonly property int cardMargin: isCompact ? Theme.spacingM : Theme.spacingL
+
+        // Calculate natural desired height: header + details + bottom + margins
+        readonly property real naturalHeight: headerArea.implicitHeight
+                                              + detailsColumn.implicitHeight
+                                              + bottomArea.implicitHeight
+                                              + cardMargin * 2
+                                              + (isCompact ? Theme.spacingS : Theme.spacingM) * 2
+
+        width: Math.min(parent.width - (isCompact ? Theme.spacingM * 2 : Theme.spacingXL * 2), 580)
+        height: Math.min(parent.height - (isCompact ? Theme.spacingM * 2 : Theme.spacingXL * 2), naturalHeight)
         anchors.centerIn: parent
 
         color: Theme.surfaceBase
@@ -174,11 +185,14 @@ Item {
             color: dialogCard.border.color
         }
 
+        // Header Area (pinned to card top)
         Column {
-            id: cardLayout
-            anchors.fill: parent
-            anchors.margins: Theme.spacingL
-            spacing: Theme.spacingM
+            id: headerArea
+            anchors.top: parent.top
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.margins: dialogCard.cardMargin
+            spacing: dialogCard.isCompact ? Theme.spacingS : Theme.spacingM
 
             // Header Row: Category Badge & Risk Level
             Item {
@@ -241,7 +255,7 @@ Item {
                     text: root.actionName ? root.actionName : "MUTATING_OPERATION"
                     color: Theme.textPrimary
                     font.family: Theme.fontFamilyMono
-                    font.pointSize: Theme.fontSizeSection
+                    font.pointSize: dialogCard.isCompact ? Theme.fontSizeNumeric : Theme.fontSizeSection
                     font.weight: Theme.fontWeightBold
                     elide: Text.ElideRight
                     width: parent.width
@@ -264,11 +278,110 @@ Item {
                 height: 1
                 color: Theme.edgeSubtle
             }
+        }
+
+        // Bottom Area: Status, Error, and Action Buttons (pinned to card bottom)
+        Column {
+            id: bottomArea
+            anchors.bottom: parent.bottom
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.margins: dialogCard.cardMargin
+            spacing: dialogCard.isCompact ? Theme.spacingS : Theme.spacingM
+
+            // Error Message (if resolution failed)
+            Rectangle {
+                width: parent.width
+                height: errorText.implicitHeight + Theme.spacingS
+                color: Qt.rgba(Theme.luminousCritical.r, Theme.luminousCritical.g, Theme.luminousCritical.b, 0.15)
+                radius: Theme.radiusS
+                border.width: Theme.borderThin
+                border.color: Theme.luminousCritical
+                visible: root.resolutionError.length > 0
+
+                Text {
+                    id: errorText
+                    anchors.centerIn: parent
+                    width: parent.width - Theme.spacingS * 2
+                    text: root.resolutionError
+                    color: Theme.luminousCritical
+                    font.family: Theme.fontFamily
+                    font.pointSize: Theme.fontSizeLabelSmall
+                    wrapMode: Text.Wrap
+                }
+            }
+
+            // Status message during resolution
+            Text {
+                id: resolvingStatusText
+                width: parent.width
+                text: "Submitting authorization to backend..."
+                color: Theme.stateColorAwaitingApproval
+                font.family: Theme.fontFamily
+                font.pointSize: Theme.fontSizeLabelSmall
+                font.weight: Theme.fontWeightMedium
+                horizontalAlignment: Text.AlignHCenter
+                visible: root.isResolving
+            }
+
+            // Action Buttons Row
+            Row {
+                width: parent.width
+                spacing: Theme.spacingM
+                layoutDirection: Qt.RightToLeft
+
+                // Approve Button
+                EVButton {
+                    id: approveButton
+                    objectName: "approveButton"
+                    text: root.isResolving ? "AUTHORIZING..." : "APPROVE"
+                    enabled: !root.isResolving && (root.approvalPending || root.taskId !== "")
+                    highlighted: true
+                    horizontalPadding: dialogCard.isCompact ? Theme.spacingM : Theme.spacingL
+                    verticalPadding: dialogCard.isCompact ? Theme.spacingS : Theme.spacingM
+
+                    onClicked: {
+                        root.handleDecision(true);
+                    }
+                }
+
+                // Reject Button
+                EVButton {
+                    id: rejectButton
+                    objectName: "rejectButton"
+                    text: "REJECT"
+                    enabled: !root.isResolving && (root.approvalPending || root.taskId !== "")
+                    horizontalPadding: dialogCard.isCompact ? Theme.spacingM : Theme.spacingL
+                    verticalPadding: dialogCard.isCompact ? Theme.spacingS : Theme.spacingM
+
+                    onClicked: {
+                        root.handleDecision(false);
+                    }
+                }
+            }
+        }
+
+        // Details Middle Area: Scrollable if constrained
+        Flickable {
+            id: detailsFlickable
+            anchors.top: headerArea.bottom
+            anchors.bottom: bottomArea.top
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.topMargin: dialogCard.isCompact ? Theme.spacingS : Theme.spacingM
+            anchors.bottomMargin: dialogCard.isCompact ? Theme.spacingS : Theme.spacingM
+            anchors.leftMargin: dialogCard.cardMargin
+            anchors.rightMargin: dialogCard.cardMargin
+            contentWidth: width
+            contentHeight: detailsColumn.implicitHeight
+            clip: true
+            boundsBehavior: Flickable.StopAtBounds
 
             // Structured Details Grid
             Column {
+                id: detailsColumn
                 width: parent.width
-                spacing: Theme.spacingS
+                spacing: dialogCard.isCompact ? Theme.spacingXS : Theme.spacingS
 
                 // Resource Field
                 Row {
@@ -363,75 +476,6 @@ Item {
                             font.pointSize: Theme.fontSizeLabelSmall
                             font.weight: Theme.fontWeightBold
                         }
-                    }
-                }
-            }
-
-            // Error Message (if resolution failed)
-            Rectangle {
-                width: parent.width
-                height: errorText.implicitHeight + Theme.spacingS
-                color: Qt.rgba(Theme.luminousCritical.r, Theme.luminousCritical.g, Theme.luminousCritical.b, 0.15)
-                radius: Theme.radiusS
-                border.width: Theme.borderThin
-                border.color: Theme.luminousCritical
-                visible: root.resolutionError.length > 0
-
-                Text {
-                    id: errorText
-                    anchors.centerIn: parent
-                    width: parent.width - Theme.spacingS * 2
-                    text: root.resolutionError
-                    color: Theme.luminousCritical
-                    font.family: Theme.fontFamily
-                    font.pointSize: Theme.fontSizeLabelSmall
-                    wrapMode: Text.Wrap
-                }
-            }
-
-            // Status message during resolution
-            Text {
-                id: resolvingStatusText
-                width: parent.width
-                text: "Submitting authorization to backend..."
-                color: Theme.stateColorAwaitingApproval
-                font.family: Theme.fontFamily
-                font.pointSize: Theme.fontSizeLabelSmall
-                font.weight: Theme.fontWeightMedium
-                horizontalAlignment: Text.AlignHCenter
-                visible: root.isResolving
-            }
-
-            // Action Buttons Row
-            Row {
-                width: parent.width
-                spacing: Theme.spacingM
-                layoutDirection: Qt.RightToLeft
-
-                // Approve Button
-                EVButton {
-                    id: approveButton
-                    text: root.isResolving ? "AUTHORIZING..." : "APPROVE"
-                    enabled: !root.isResolving && (root.approvalPending || root.taskId !== "")
-                    highlighted: true
-                    horizontalPadding: Theme.spacingL
-                    verticalPadding: Theme.spacingM
-
-                    onClicked: {
-                        root.handleDecision(true);
-                    }
-                }
-
-                // Reject Button
-                EVButton {
-                    id: rejectButton
-                    text: "REJECT"
-                    enabled: !root.isResolving && (root.approvalPending || root.taskId !== "")
-                    horizontalPadding: Theme.spacingL
-                    verticalPadding: Theme.spacingM
-
-                    onClicked: {
-                        root.handleDecision(false);
                     }
                 }
             }

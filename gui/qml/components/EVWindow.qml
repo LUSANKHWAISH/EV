@@ -19,6 +19,17 @@ ApplicationWindow {
     title: "E.V. - Enhanced Virtual Intelligence"
     color: Theme.backgroundDeep
 
+    // Responsive presentation properties (one-way bindings)
+    readonly property bool isCompactWidth: width < Theme.stageCompactWidth
+    readonly property bool isCompactHeight: height < Theme.stageCompactHeight
+    readonly property bool isVeryCompactWidth: width <= 850
+    readonly property bool isVeryCompactHeight: height <= 650
+
+    // Adaptive spacing metrics
+    readonly property int responsiveMarginH: isCompactWidth ? Theme.spacingXXS : Theme.spacingXS
+    readonly property int responsiveMarginV: isCompactHeight ? Theme.spacingXXS : Theme.spacingXS
+    readonly property int responsiveGap: isCompactHeight ? Theme.spacingXXXS : Theme.spacingXS
+
     // Window flags for custom chrome (frameless)
     flags: Qt.Window
            | Qt.FramelessWindowHint
@@ -42,6 +53,7 @@ ApplicationWindow {
 
         EVTopBar {
             id: topBar
+            objectName: "topBar"
             targetWindow: windowRoot
 
             anchors.top: parent.top
@@ -57,24 +69,26 @@ ApplicationWindow {
             anchors.top: topBar.bottom
             anchors.left: parent.left
             anchors.right: parent.right
-            anchors.leftMargin: Theme.spacingXS
-            anchors.rightMargin: Theme.spacingXS
+            anchors.leftMargin: windowRoot.responsiveMarginH
+            anchors.rightMargin: windowRoot.responsiveMarginH
             anchors.topMargin: hasContent ? Theme.spacingXXXS : 0
+            height: hasContent ? (implicitHeight > 0 ? implicitHeight : 38) : 0
             z: 10
         }
 
         EVFlagshipStage {
             id: flagshipStage
+            objectName: "flagshipStage"
 
             anchors.top: systemAlertBanner.bottom
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.bottom: resultSurface.top
 
-            anchors.topMargin: Theme.spacingXXXS
-            anchors.leftMargin: Theme.spacingXS
-            anchors.rightMargin: Theme.spacingXS
-            anchors.bottomMargin: Theme.spacingXS
+            anchors.topMargin: windowRoot.isCompactHeight ? 0 : Theme.spacingXXXS
+            anchors.leftMargin: windowRoot.responsiveMarginH
+            anchors.rightMargin: windowRoot.responsiveMarginH
+            anchors.bottomMargin: windowRoot.responsiveGap
 
             state: (typeof guiBridge !== "undefined" && guiBridge !== null)
                    ? guiBridge.currentState
@@ -89,22 +103,24 @@ ApplicationWindow {
 
         EVResultSurface {
             id: resultSurface
+            objectName: "resultSurface"
             anchors.bottom: commandInput.top
             anchors.left: parent.left
             anchors.right: parent.right
-            anchors.leftMargin: Theme.spacingXS
-            anchors.rightMargin: Theme.spacingXS
+            anchors.leftMargin: windowRoot.responsiveMarginH
+            anchors.rightMargin: windowRoot.responsiveMarginH
             anchors.bottomMargin: Theme.spacingXXXS
         }
 
         EVCommandInput {
             id: commandInput
+            objectName: "commandInput"
             anchors.bottom: parent.bottom
             anchors.left: parent.left
             anchors.right: parent.right
-            anchors.leftMargin: Theme.spacingXS
-            anchors.rightMargin: Theme.spacingXS
-            anchors.bottomMargin: Theme.spacingXS
+            anchors.leftMargin: windowRoot.responsiveMarginH
+            anchors.rightMargin: windowRoot.responsiveMarginH
+            anchors.bottomMargin: windowRoot.responsiveMarginV
         }
 
         EVApprovalOverlay {

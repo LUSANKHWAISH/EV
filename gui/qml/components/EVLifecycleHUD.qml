@@ -99,11 +99,56 @@ Item {
         return 0.22;
     }
 
-    Row {
-        id: stageRow
-        anchors.left: parent.left
-        anchors.verticalCenter: parent.verticalCenter
-        spacing: Theme.spacingXS
+    // Responsive presentation properties
+    readonly property bool isCompactWidth: width < 720 || (typeof windowRoot !== "undefined" && windowRoot && windowRoot.isCompactWidth)
+    readonly property bool isVeryCompactWidth: width < 580 || (typeof windowRoot !== "undefined" && windowRoot && windowRoot.isVeryCompactWidth)
+    readonly property int rowSpacing: isVeryCompactWidth ? Theme.spacingXXXS : (isCompactWidth ? Theme.spacingXXS : Theme.spacingXS)
+
+    onStageIndexChanged: _ensureCurrentStageVisible()
+    onStageChanged: _ensureCurrentStageVisible()
+
+    function _ensureCurrentStageVisible() {
+        if (stageFlickable.contentWidth <= stageFlickable.width) {
+            stageFlickable.contentX = 0;
+            return;
+        }
+        var targetItem = null;
+        if (stageIndex === 8) {
+            targetItem = stageOutcome;
+        } else {
+            switch (stageIndex) {
+            case 1: targetItem = stageThink; break;
+            case 2: targetItem = stagePlan; break;
+            case 3: targetItem = stageValidate; break;
+            case 4: targetItem = stageRisk; break;
+            case 5: targetItem = stageApproval; break;
+            case 6: targetItem = stageExecute; break;
+            case 7: targetItem = stageVerify; break;
+            }
+        }
+        if (targetItem && targetItem.visible) {
+            var itemX = targetItem.x;
+            var itemRight = itemX + targetItem.width;
+            if (itemRight > stageFlickable.contentX + stageFlickable.width) {
+                stageFlickable.contentX = Math.max(0, itemRight - stageFlickable.width + 12);
+            } else if (itemX < stageFlickable.contentX) {
+                stageFlickable.contentX = Math.max(0, itemX - 12);
+            }
+        }
+    }
+
+    Flickable {
+        id: stageFlickable
+        anchors.fill: parent
+        contentWidth: stageRow.width
+        contentHeight: height
+        clip: true
+        boundsBehavior: Flickable.StopAtBounds
+
+        Row {
+            id: stageRow
+            y: Math.max(0, Math.round((parent.height - height) / 2))
+            spacing: root.rowSpacing
 
         // 1. THINK
         Text {
@@ -281,4 +326,5 @@ Item {
             Behavior on color { ColorAnimation { duration: Theme.motionFast } }
         }
     }
+}
 }

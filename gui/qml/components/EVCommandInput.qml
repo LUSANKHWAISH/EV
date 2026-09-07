@@ -9,12 +9,17 @@ import "../theme"
 Item {
     id: root
     
-    // Allow the parent to anchor it
-    height: Theme.spacingXXL
+    // Adaptive presentation properties
+    readonly property bool isCompact: (parent && parent.height < Theme.stageCompactHeight)
+                                      || (typeof windowRoot !== "undefined" && windowRoot && windowRoot.isCompactHeight)
+
+    // Allow the parent to anchor it; adapts between standard (64px) and compact (48px)
+    height: isCompact ? Theme.spacingXL : Theme.spacingXXL
 
     TextField {
         id: commandField
         anchors.fill: parent
+        verticalAlignment: TextInput.AlignVCenter
         
         placeholderText: "Enter a task..."
         color: Theme.textPrimary
@@ -33,10 +38,10 @@ Item {
         }
         
         font.family: Theme.fontFamily
-        font.pointSize: Theme.fontSizeBody
+        font.pointSize: root.isCompact ? Theme.fontSizeBodySmall : Theme.fontSizeBody
         
-        leftPadding: Theme.spacingM
-        rightPadding: Theme.spacingM
+        leftPadding: root.isCompact ? Theme.spacingS : Theme.spacingM
+        rightPadding: root.isCompact ? Theme.spacingS : Theme.spacingM
         
         onAccepted: {
             var rawText = text.trim()
