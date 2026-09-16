@@ -37,6 +37,7 @@ from core.action_pipeline import (
     EVActionPipeline,
 )
 from core.agent import EVAgent
+from core.brain_models import BrainDecision, BrainDecisionType
 from core.brain_router import BrainRouter, RouteType, RoutingResult
 from core.cancellation import CancellationSource, CancellationToken
 from core.events import EVEvent, EVEventBus
@@ -632,6 +633,105 @@ class TestActionPipelineMatrix(unittest.TestCase):
         # Executor must fail-closed when validation_result is invalid
         self.assertEqual(res.status, PlanStatus.REJECTED)
         self.assertFalse(res.overall_success)
+
+    # -------------------------------------------------------------------------
+    # M. CONVERSATIONAL & EXPLANATION ROUTING (NO_ACTION ROUTE)
+    # -------------------------------------------------------------------------
+    def test_matrix_m_conversational_explanation_success(self) -> None:
+        """
+        Matrix M1: Conversational/Explanation inputs that produce NO_ACTION
+        must complete successfully with overall_success=True, status=COMPLETED,
+        and conversational response in metadata (NEVER Task failed).
+        """
+        mock_router = MagicMock(spec=BrainRouter)
+        mock_router.route.return_value = RoutingResult(
+            route_type=RouteType.NO_ACTION,
+            tasks=[],
+            decision=BrainDecision(
+                decision_type=BrainDecisionType.EXPLANATION_ONLY,
+                user_message="Hello! I am E.V., your system assistant.",
+            ),
+            message="Hello! I am E.V., your system assistant.",
+            success=True,
+        )
+
+        pipe = EVActionPipeline(
+            event_bus=self.event_bus,
+            risk_engine=self.risk_engine,
+            plan_validator=self.plan_validator,
+            router=mock_router,
+        )
+
+        res = pipe.execute_request("hello")
+        self.assertTrue(res.overall_success)
+        self.assertEqual(res.status, PlanStatus.COMPLETED)
+        self.assertEqual(res.execution_status, ExecutionStatus.SUCCEEDED)
+        self.assertEqual(res.verification_status, VerificationStatus.NOT_APPLICABLE)
+        self.assertIsNone(res.plan)
+        self.assertIsNone(res.error)
+        self.assertEqual(
+            res.metadata.get("conversational_response"),
+            "Hello! I am E.V., your system assistant.",
+        )
+
+    def test_matrix_m_conversational_clarification_success(self) -> None:
+        """
+        Matrix M2: Brain clarification request must complete successfully,
+        set pending clarification in context store, and provide prompt text.
+        """
+        mock_router = MagicMock(spec=BrainRouter)
+        mock_router.route.return_value = RoutingResult(
+            route_type=RouteType.NO_ACTION,
+            tasks=[],
+            decision=BrainDecision(
+                decision_type=BrainDecisionType.REQUEST_CLARIFICATION,
+                user_message="Which file would you like to inspect?",
+                clarification_prompt="Which file would you like to inspect?",
+            ),
+            message="Which file would you like to inspect?",
+            success=True,
+        )
+
+        pipe = EVActionPipeline(
+            event_bus=self.event_bus,
+            risk_engine=self.risk_engine,
+            plan_validator=self.plan_validator,
+            router=mock_router,
+        )
+
+        res = pipe.execute_request("inspect the file")
+        self.assertTrue(res.overall_success)
+        self.assertEqual(res.status, PlanStatus.COMPLETED)
+        self.assertEqual(res.execution_status, ExecutionStatus.SUCCEEDED)
+        self.assertEqual(
+            res.metadata.get("conversational_response"),
+            "Which file would you like to inspect?",
+        )
+
+    def test_matrix_m_routing_failure_returns_failed_status(self) -> None:
+        """
+        Matrix M3: Genuine routing failure produces PlanStatus.FAILED
+        and overall_success=False.
+        """
+        mock_router = MagicMock(spec=BrainRouter)
+        mock_router.route.return_value = RoutingResult(
+            route_type=RouteType.FAILURE,
+            error="Brain provider unavailable",
+            success=False,
+        )
+
+        pipe = EVActionPipeline(
+            event_bus=self.event_bus,
+            risk_engine=self.risk_engine,
+            plan_validator=self.plan_validator,
+            router=mock_router,
+        )
+
+        res = pipe.execute_request("unrecognized nonsense")
+        self.assertFalse(res.overall_success)
+        self.assertEqual(res.status, PlanStatus.FAILED)
+        self.assertEqual(res.execution_status, ExecutionStatus.FAILED)
+        self.assertEqual(res.error, "Brain provider unavailable")
 
 
 if __name__ == "__main__":

@@ -96,7 +96,7 @@ def test_command_input_transparent_background(bridge, qapp):
 def test_command_input_file_has_transparent_color():
     """2. EVCommandInput.qml source uses transparent rgba background, not opaque Theme.backgroundBase."""
     source = (COMPONENT_ROOT / "EVCommandInput.qml").read_text(encoding="utf-8")
-    assert "Qt.rgba(1, 1, 1, 0.03)" in source
+    assert "Qt.rgba(1.0, 1.0, 1.0" in source or "Qt.rgba(1, 1, 1" in source
     assert "Theme.backgroundBase" not in source.split("background")[1].split("}")[0]
 
 
@@ -115,6 +115,19 @@ def test_result_surface_no_status_dot():
     """6. EVResultSurface.qml has no status dot indicator."""
     source = (COMPONENT_ROOT / "EVResultSurface.qml").read_text(encoding="utf-8")
     assert "statusDot" not in source
+
+
+def test_result_surface_no_ai_response_header():
+    """Verify 'AI RESPONSE' and 'PROCESSING' header text is absent from EVResultSurface."""
+    source = (COMPONENT_ROOT / "EVResultSurface.qml").read_text(encoding="utf-8")
+    assert "AI RESPONSE" not in source
+    assert 'text: root.isRunning ? "PROCESSING" : "AI RESPONSE"' not in source
+
+
+def test_result_surface_anchored_above_command_input():
+    """Verify result surface is positioned directly above command input in EVWindow.qml."""
+    source = (COMPONENT_ROOT / "EVWindow.qml").read_text(encoding="utf-8")
+    assert "anchors.bottom: commandInput.top" in source
 
 
 def test_result_surface_success_uses_luminous_primary():
@@ -231,3 +244,135 @@ def test_provider_error_normal_text_unchanged():
     normal = "Task failed: Directory not found at C:\\missing"
     result = _sanitize_provider_error(normal)
     assert result == normal
+
+
+# ---- 5. Dynamic Core Repositioning & HUD Composition Tests ----
+
+def test_result_surface_positioned_above_command_input(bridge, qapp):
+    """22. In EVWindow, resultSurface is anchored directly above commandInput."""
+    engine = QQmlApplicationEngine()
+    engine.rootContext().setContextProperty("guiBridge", bridge)
+
+    comp = QQmlComponent(
+        engine,
+        QUrl.fromLocalFile(str(COMPONENT_ROOT / "EVWindow.qml")),
+    )
+    assert not comp.isError(), [e.toString() for e in comp.errors()]
+    window = comp.create()
+    assert window is not None
+    qapp.processEvents()
+
+    result_surface = window.findChild(object, "resultSurface")
+    command_input = window.findChild(object, "commandInput")
+    assert result_surface is not None
+    assert command_input is not None
+
+    # Simulate active result
+    bridge.notifyTaskResult("System diagnostics operational.", "SUCCESS", True)
+    qapp.processEvents()
+    from PySide6.QtTest import QTest
+    QTest.qWait(200)
+
+    # Result surface bottom must be at or above commandInput top
+    assert result_surface.y() + result_surface.height() <= command_input.y() + 5
+
+    window.deleteLater()
+    engine.deleteLater()
+    qapp.processEvents()
+
+
+def test_dynamic_core_repositioning_on_response(bridge, qapp):
+    """23. EVIntelligenceCore dynamically calculates upward shift when AI response is active."""
+    engine = QQmlApplicationEngine()
+    engine.rootContext().setContextProperty("guiBridge", bridge)
+
+    comp = QQmlComponent(
+        engine,
+        QUrl.fromLocalFile(str(COMPONENT_ROOT / "EVIntelligenceCore.qml")),
+    )
+    assert not comp.isError(), [e.toString() for e in comp.errors()]
+    core = comp.create()
+    assert core is not None
+    core.setProperty("width", 600)
+    core.setProperty("height", 600)
+    qapp.processEvents()
+
+    # Normal state: zero shift
+    assert core.property("isResponseActive") is False
+    assert core.property("dynamicShiftY") == 0.0
+    assert core.property("dynamicShiftX") == 0.0
+
+    # Short response: minimal upward shift
+    bridge.notifyTaskResult("All systems normal.", "SUCCESS", True)
+    qapp.processEvents()
+    assert core.property("isResponseActive") is True
+    short_shift_y = core.property("dynamicShiftY")
+    assert short_shift_y < 0.0, "Core must shift upward on active response"
+
+    # Long response: larger upward shift
+    long_text = "Detailed system analysis complete: memory nominal, CPU stable, telemetry online across all threads."
+    bridge.notifyTaskResult(long_text, "SUCCESS", True)
+    qapp.processEvents()
+    long_shift_y = core.property("dynamicShiftY")
+    assert long_shift_y <= short_shift_y, "Long response must create equal or greater upward clearance"
+
+    # Clear response: returns smoothly to zero
+    bridge.clearTaskResult()
+    qapp.processEvents()
+    assert core.property("isResponseActive") is False
+    assert core.property("dynamicShiftY") == 0.0
+    assert core.property("dynamicShiftX") == 0.0
+
+    core.deleteLater()
+    engine.deleteLater()
+    qapp.processEvents()
+
+
+def test_notification_minimal_hud_styling(bridge, qapp):
+    """24. EVSystemAlertBanner source uses open floating HUD text without heavy box borders."""
+    source = (COMPONENT_ROOT / "EVSystemAlertBanner.qml").read_text(encoding="utf-8")
+    assert "border.width: 0" in source
+    assert "border.color: \"transparent\"" in source
+    assert "hudNotificationContent" in source
+
+
+def test_result_surface_geometry_established_before_reveal(result_surface, bridge, qapp):
+    """25. Verify response surface establishes geometry before text reveal begins and height does not grow per-character."""
+    bridge.notifyTaskResult("This is a multi-character response to verify geometry.", "SUCCESS", True)
+    qapp.processEvents()
+    from PySide6.QtTest import QTest
+    QTest.qWait(250)
+
+    initial_height = result_surface.property("implicitHeight")
+    target_text_height = result_surface.property("targetTextHeight")
+    assert initial_height > 0
+    assert target_text_height > 0
+
+    # Simulate typing progress
+    result_surface.setProperty("_displayedText", "This")
+    qapp.processEvents()
+    height_during_typing = result_surface.property("implicitHeight")
+    assert height_during_typing == initial_height, "Height must not grow as characters appear (no bottom-up creeping)"
+
+    result_surface.setProperty("_displayedText", "This is a multi-character response to verify geometry.")
+    qapp.processEvents()
+    assert result_surface.property("implicitHeight") == initial_height
+
+
+def test_result_surface_reveal_speed_and_bounded_duration(result_surface, bridge, qapp):
+    """26. Verify typewriter reveal speed scales cleanly with text length and duration is bounded."""
+    # Short text: 10 chars
+    bridge.notifyTaskResult("Short text", "SUCCESS", True)
+    qapp.processEvents()
+    short_chars_per_tick = result_surface.property("_charsPerTick")
+    assert short_chars_per_tick >= 1
+
+    # Long text: 300 chars
+    long_text = "A" * 300
+    bridge.notifyTaskResult(long_text, "SUCCESS", True)
+    qapp.processEvents()
+    long_chars_per_tick = result_surface.property("_charsPerTick")
+    assert long_chars_per_tick > short_chars_per_tick, "Long responses must increase chars per tick to avoid excessive reveal delay"
+    # Verify tick interval is 20ms
+    assert result_surface.property("_tickInterval") == 20
+

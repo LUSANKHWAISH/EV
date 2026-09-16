@@ -1,0 +1,6 @@
+{
+  "passed": 65,
+  "failed": 0,
+  "seconds": 3.65,
+  "command": ".\\.venv\\Scripts\\python.exe -B -m pytest tests/test_music_reaction_modes.py tests/test_music_beats.py tests/test_music_foundation.py tests/test_cinematic_startup_audio.py -q -p no:cacheprovider --basetemp=prototypes/cinematic_v4/evidence/music_all_modes/pytest"
+}

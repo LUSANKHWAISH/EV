@@ -35,11 +35,13 @@ class EVExperienceMode(str, Enum):
 class EVCoreStylePreset(str, Enum):
     """Visual style preset that describes HOW E.V. presents itself."""
 
-    EV_CORE = "EV_CORE"
+    ASTRA = "ASTRA"
+    ORIGINAL = "ORIGINAL"
     MINIMAL = "MINIMAL"
     AMBIENT = "AMBIENT"
     FOCUSED = "FOCUSED"
     ALERT = "ALERT"
+    EV_CORE = "EV_CORE"  # Backward-compatible alias for ASTRA
 
 
 EXPERIENCE_MODE_DESCRIPTIONS: Dict[EVExperienceMode, str] = {
@@ -53,11 +55,13 @@ EXPERIENCE_MODE_DESCRIPTIONS: Dict[EVExperienceMode, str] = {
 }
 
 STYLE_PRESET_DESCRIPTIONS: Dict[EVCoreStylePreset, str] = {
-    EVCoreStylePreset.EV_CORE: "Flagship E.V. visual identity — full detail",
-    EVCoreStylePreset.MINIMAL: "Reduced visual density — clean and quiet",
-    EVCoreStylePreset.AMBIENT: "Atmospheric — soft gradients, low contrast",
-    EVCoreStylePreset.FOCUSED: "High contrast — sharp edges, bright accents",
+    EVCoreStylePreset.ASTRA: "Celestial intelligence globe",
+    EVCoreStylePreset.ORIGINAL: "Original E.V. intelligence field",
+    EVCoreStylePreset.MINIMAL: "Reduced visual Core",
+    EVCoreStylePreset.AMBIENT: "Atmospheric Core",
+    EVCoreStylePreset.FOCUSED: "High-energy intelligence Core",
     EVCoreStylePreset.ALERT: "Alert state — elevated urgency, warm tones",
+    EVCoreStylePreset.EV_CORE: "Celestial intelligence globe",
 }
 
 

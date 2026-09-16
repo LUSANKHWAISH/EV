@@ -1,0 +1,23 @@
+{
+  "voice": "Microsoft David Desktop",
+  "spoken_text": "E.V. online.",
+  "generation": "Local System.Speech fixed phrase + original NumPy synthesis; no film audio.",
+  "sample_rate": 48000,
+  "channels": 2,
+  "sample_width_bytes": 2,
+  "arrival_voice_offset_seconds": 0.42,
+  "files": {
+    "rise.wav": {
+      "seconds": 3.2,
+      "peak_dbfs": -8.564600914717397,
+      "rms_dbfs": -24.64723099876039,
+      "sha256": "81aa3e39c26d6a22a2b558cf206809354ca7fbc6c0336489dda0c21ea9bc4de0"
+    },
+    "arrival.wav": {
+      "seconds": 3.6,
+      "peak_dbfs": -3.345846718632497,
+      "rms_dbfs": -22.22683392363493,
+      "sha256": "8dbe73218bfaa2c8eda59340f30aebad47ced628ae4eb8abc497a44e0d9143aa"
+    }
+  }
+}

@@ -1,0 +1,166 @@
+{
+  "passed": true,
+  "checks": [
+    {
+      "name": "startup_has_no_capture_or_analysis",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "real_player_beats_reach_assistant",
+      "passed": true,
+      "detail": 0.25
+    },
+    {
+      "name": "assistant_strength_is_quarter",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "assistant_scale_is_bounded",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "player_analysis_survives_navigation",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "priority_LISTENING",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "priority_THINKING",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "priority_SPEAKING",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "priority_EXECUTING",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "priority_VERIFYING",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "idle_restores_reaction",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "animation_pause_suppresses_reaction",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "lifecycle_flag_suppresses_reaction",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "approval_suppresses_reaction_and_controls",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "mode_control_selects_music_only",
+      "passed": true,
+      "detail": "music"
+    },
+    {
+      "name": "music_only_sleeps_in_assistant",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "mode_control_selects_all",
+      "passed": true,
+      "detail": "all"
+    },
+    {
+      "name": "intensity_slider_updates_settings",
+      "passed": true,
+      "detail": 0.95
+    },
+    {
+      "name": "settings_controls_fit_narrow_drawer",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "assistant_source_control_starts_capture",
+      "passed": true,
+      "detail": "Listening to output \u00b7 BenQ VZ2250 (NVIDIA High Definition Audio) [Loopback]"
+    },
+    {
+      "name": "capture_indicator_visible",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "windows_mix_drives_assistant",
+      "passed": true,
+      "detail": 0.25
+    },
+    {
+      "name": "navigation_preserves_capture_instance",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "music_full_strength_preserved",
+      "passed": true,
+      "detail": 1.0
+    },
+    {
+      "name": "off_disables_core_but_not_spectrum",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "off_releases_background_capture",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "all_restores_requested_capture",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "stop_capture_control_releases_background",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "indicator_hides_after_stop",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "manual_stop_survives_navigation",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "no_render_or_callback_errors",
+      "passed": true,
+      "detail": []
+    },
+    {
+      "name": "worker_closed",
+      "passed": true,
+      "detail": null
+    }
+  ],
+  "scope": "Real generated PCM and Windows loopback; fixed envelope only for priority checks. Isolated bridge, no executor. Forced frame readbacks, not FPS benchmark."
+}

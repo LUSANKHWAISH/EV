@@ -87,6 +87,15 @@ class BrainRouter:
         """Return the configured EVBrainProviderManager, if any."""
         return self._provider_manager
 
+    @provider_manager.setter
+    def provider_manager(self, value: Optional[EVBrainProviderManager]) -> None:
+        """Update the configured EVBrainProviderManager."""
+        self._provider_manager = value
+
+    def set_provider_manager(self, provider_manager: Optional[EVBrainProviderManager]) -> None:
+        """Update the configured EVBrainProviderManager."""
+        self._provider_manager = provider_manager
+
     def route(
         self,
         user_input: str,

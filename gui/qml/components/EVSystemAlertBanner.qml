@@ -33,9 +33,9 @@ Item {
     }
 
     implicitWidth: parent ? parent.width : 400
-    implicitHeight: hasContent ? Math.max(34, contentRow.implicitHeight + Theme.spacingXXS * 2) : 0
+    implicitHeight: hasContent ? Math.max(28, hudNotificationContent.implicitHeight + Theme.spacingXXS * 2) : 0
 
-    clip: true
+    clip: false
 
     Behavior on implicitHeight {
         NumberAnimation {
@@ -44,32 +44,14 @@ Item {
         }
     }
 
-    // Banner background container
-    Rectangle {
-        anchors.fill: parent
-        visible: root.hasContent
-        color: Theme.surfaceLowest
-        radius: Theme.radiusXS
-        border.width: Theme.hairline
-        border.color: root.toneColor
-        opacity: root.hasContent ? 0.95 : 0.0
-
-        Behavior on opacity {
-            NumberAnimation {
-                duration: Theme.motionStandard
-            }
-        }
-    }
-
-    // Banner content layout
-    Row {
-        id: contentRow
-        anchors.fill: parent
-        anchors.leftMargin: Theme.spacingXS
-        anchors.rightMargin: Theme.spacingXS
-        anchors.topMargin: Theme.spacingXXS
-        anchors.bottomMargin: Theme.spacingXXS
-        spacing: Theme.spacingXS
+    // Open floating HUD notification positioned toward the right-side Telemetry area
+    Item {
+        id: hudNotificationContent
+        anchors.right: parent.right
+        anchors.rightMargin: Theme.spacingM
+        anchors.verticalCenter: parent.verticalCenter
+        width: Math.min(380, Math.max(240, parent.width * 0.35))
+        implicitHeight: contentRow.implicitHeight + Theme.spacingXXS * 2
         visible: root.hasContent
         opacity: root.hasContent ? 1.0 : 0.0
 
@@ -79,100 +61,120 @@ Item {
             }
         }
 
-        // Severity indicator dot (pulses on CRITICAL/WARNING)
+        // Minimal HUD background: ultra-subtle transparent layer (6% opacity, zero border)
         Rectangle {
-            anchors.verticalCenter: parent.verticalCenter
-            width: Math.max(6, Theme.spacingXXS)
-            height: width
-            radius: width / 2
-            color: root.toneColor
-
-            SequentialAnimation on opacity {
-                running: root.hasContent && (root.severity === "CRITICAL" || root.severity === "WARNING")
-                loops: Animation.Infinite
-                NumberAnimation {
-                    from: 1.0; to: 0.35
-                    duration: Theme.motionCinematic
-                    easing.type: Easing.InOutSine
-                }
-                NumberAnimation {
-                    from: 0.35; to: 1.0
-                    duration: Theme.motionCinematic
-                    easing.type: Easing.InOutSine
-                }
-            }
-        }
-
-        // Textual content: Title + Severity Tag and Message
-        Column {
-            width: parent.width
-                   - Math.max(6, Theme.spacingXXS) // dot width
-                   - dismissBtn.width
-                   - (parent.spacing * 2)
-            anchors.verticalCenter: parent.verticalCenter
-            spacing: 2
-
-            Row {
-                spacing: Theme.spacingXXS
-                visible: root.displayTitle.length > 0
-
-                Text {
-                    text: root.displayTitle
-                    color: Theme.textPrimary
-                    font.family: Theme.fontFamily
-                    font.pointSize: Theme.fontSizeLabelSmall
-                    font.weight: Theme.fontWeightSemibold
-                    elide: Text.ElideRight
-                }
-
-                Text {
-                    text: "[" + root.severity + "]"
-                    color: root.toneColor
-                    font.family: Theme.fontFamily
-                    font.pointSize: Theme.fontSizeLabelSmall
-                    font.weight: Theme.fontWeightMedium
-                }
-            }
-
-            Text {
-                width: parent.width
-                text: root.displayMessage
-                color: Theme.textSecondary
-                font.family: Theme.fontFamily
-                font.pointSize: Theme.fontSizeLabelSmall
-                font.weight: Theme.fontWeightRegular
-                wrapMode: Text.Wrap
-                elide: Text.ElideRight
-                maximumLineCount: 2
-            }
-        }
-
-        // Dismissal control: presentation-only dismiss
-        Rectangle {
-            id: dismissBtn
-            anchors.verticalCenter: parent.verticalCenter
-            width: 22
-            height: 22
+            anchors.fill: parent
+            color: Qt.rgba(root.toneColor.r, root.toneColor.g, root.toneColor.b, 0.06)
             radius: Theme.radiusXS
-            color: dismissMouseArea.containsMouse ? Theme.surfaceRaised : "transparent"
+            border.width: 0
+            border.color: "transparent"
+        }
 
-            Text {
-                anchors.centerIn: parent
-                text: "×"
-                color: dismissMouseArea.containsMouse ? Theme.textPrimary : Theme.textTertiary
-                font.family: Theme.fontFamily
-                font.pointSize: 13
-                font.weight: Theme.fontWeightMedium
+        // Banner content layout — open floating HUD typography
+        Row {
+            id: contentRow
+            anchors.fill: parent
+            anchors.leftMargin: Theme.spacingXS
+            anchors.rightMargin: Theme.spacingXS
+            anchors.topMargin: Theme.spacingXXS
+            anchors.bottomMargin: Theme.spacingXXS
+            spacing: Theme.spacingXS
+
+            // Subtle severity indicator dot (pulses gently on CRITICAL/WARNING)
+            Rectangle {
+                anchors.verticalCenter: parent.verticalCenter
+                width: 4
+                height: 4
+                radius: 2
+                color: root.toneColor
+
+                SequentialAnimation on opacity {
+                    running: root.hasContent && (root.severity === "CRITICAL" || root.severity === "WARNING")
+                    loops: Animation.Infinite
+                    NumberAnimation {
+                        from: 1.0; to: 0.30
+                        duration: Theme.motionCinematic
+                        easing.type: Easing.InOutSine
+                    }
+                    NumberAnimation {
+                        from: 0.30; to: 1.0
+                        duration: Theme.motionCinematic
+                        easing.type: Easing.InOutSine
+                    }
+                }
             }
 
-            MouseArea {
-                id: dismissMouseArea
-                anchors.fill: parent
-                hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor
-                onClicked: {
-                    if (root.isBridgeValid && typeof guiBridge.clearAwareness === "function") {
-                        guiBridge.clearAwareness();
+            // Textual content: Title + Severity Tag and Message (clean HUD typography)
+            Column {
+                width: parent.width
+                       - 4 // dot width
+                       - dismissBtn.width
+                       - (parent.spacing * 2)
+                anchors.verticalCenter: parent.verticalCenter
+                spacing: 2
+
+                Row {
+                    spacing: Theme.spacingXXS
+                    visible: root.displayTitle.length > 0
+
+                    Text {
+                        text: root.displayTitle
+                        color: Theme.textPrimary
+                        font.family: Theme.fontFamily
+                        font.pointSize: Theme.fontSizeLabelSmall
+                        font.weight: Theme.fontWeightMedium
+                        elide: Text.ElideRight
+                    }
+
+                    Text {
+                        text: root.severity
+                        color: root.toneColor
+                        font.family: Theme.fontFamily
+                        font.pointSize: Theme.fontSizeLabelSmall
+                        font.weight: Theme.fontWeightRegular
+                        opacity: 0.80
+                    }
+                }
+
+                Text {
+                    width: parent.width
+                    text: root.displayMessage
+                    color: Theme.textSecondary
+                    font.family: Theme.fontFamily
+                    font.pointSize: Theme.fontSizeLabelSmall
+                    font.weight: Theme.fontWeightRegular
+                    wrapMode: Text.Wrap
+                    elide: Text.ElideRight
+                    maximumLineCount: 2
+                }
+            }
+
+            // Minimal dismiss control
+            Item {
+                id: dismissBtn
+                anchors.verticalCenter: parent.verticalCenter
+                width: 16
+                height: 16
+
+                Text {
+                    anchors.centerIn: parent
+                    text: "✕"
+                    color: dismissMouseArea.containsMouse ? Theme.textPrimary : Theme.textTertiary
+                    font.family: Theme.fontFamily
+                    font.pointSize: Theme.fontSizeLabelSmall
+                    font.weight: Theme.fontWeightLight
+                    opacity: dismissMouseArea.containsMouse ? 1.0 : 0.4
+                }
+
+                MouseArea {
+                    id: dismissMouseArea
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: {
+                        if (root.isBridgeValid && typeof guiBridge.clearAwareness === "function") {
+                            guiBridge.clearAwareness();
+                        }
                     }
                 }
             }

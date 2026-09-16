@@ -1,0 +1,13 @@
+{
+  "schema": 1,
+  "created_utc": "2026-09-16T15:39:40.619537+00:00",
+  "archive": "astra-source-20260916-210938.zip",
+  "sha256": "9914c86b3e52b34813a46633c0016f43e12a4ff0fc9b4d5be0856ad3dcbfd8c5",
+  "bytes": 7965787,
+  "source_file_count": 400,
+  "archive_entry_count": 401,
+  "verified_all_entries": true,
+  "starting_git_head": "8237dbbf7055826806ee82b62520e1e88841d248",
+  "scope": "Selected application source, assets, tests, synthetic fixtures and documentation; no credentials, raw user captures, virtual environments or models",
+  "manifest_sha256": "8c9627d504b43bb5f97377a3eaee384b51a42e16cd8c6d681b4114fa2f1de7ca"
+}

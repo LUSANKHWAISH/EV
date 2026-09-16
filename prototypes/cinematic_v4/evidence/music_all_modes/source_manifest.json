@@ -1,0 +1,13 @@
+{
+  "docs/reports/2026-09-16-music-reaction-all-modes.md": "c3bb827aacdb9d730032bc7142574ada12897e809dd8c4ad120a511697a49718",
+  "music/README.md": "3b5754b7dc181c5324fa674edd0e50fe1a052eaa062d14f5199d625ca043e43d",
+  "music/session.py": "6a4041415c8e2ae1e5c5712ca0a35d458c69677fc85451c3ba8738d8c0b0efbb",
+  "prototypes/cinematic_v4/integration.py": "66e78730d818ad6f50820c8fd248fa13c9841da3c6573777d64d16c88b91038e",
+  "prototypes/cinematic_v4/qml/CinematicStage.qml": "a4498854b190a37ba0edc7dfb9428b20ed29fa5c61eb466f4f16527ce8e9667f",
+  "prototypes/cinematic_v4/qml/MusicReactionSettings.qml": "d46581a5146643b512c8042642832a29e03fdb8d64208e4d73352fdc97e49257",
+  "prototypes/cinematic_v4/qml/MusicWorkspace.qml": "57404eda12c950338487dc2f79398199589011b73f142e9bd83110aec272a7c9",
+  "prototypes/cinematic_v4/validate_music.py": "3fe31dd8b5a44fca80935a032c006756b868d49e593111b5a8c4561a5796c514",
+  "prototypes/cinematic_v4/validate_music_all_modes.py": "b60233aa5a072228555d43eaab9a52f4e74f978d48c98c6173a17d2341b2e21c",
+  "prototypes/cinematic_v4/validate_music_beats.py": "214decdec06d15b1e417e50e938f7f46c5b709f77611ebb810cea6611e2377a0",
+  "tests/test_music_reaction_modes.py": "5bf28baa1f50d498c539e3f2e4725b3b00262d09e62e482fec6b74d3ca00dbc2"
+}

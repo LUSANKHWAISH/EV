@@ -244,34 +244,39 @@ def test_preset_loader_single_child_and_clean_destruction(bridge, event_bus, qap
 
 
 # =============================================================================
-# D. Canvas Repaint Contract Tests
+# D. Flagship Intelligence Field Contract
 # =============================================================================
 
-def test_canvas_repaint_contract_in_flagship_visual(bridge, qapp):
-    """EVCoreFlagshipVisual initializes cleanly with optimized repaint connections."""
+def test_flagship_visual_uses_view3d_and_profile_animation_gate(bridge, qapp):
+    """The flagship field loads a 3D scene and sleeps without local frame updates."""
     engine = QQmlApplicationEngine()
     engine.rootContext().setContextProperty("guiBridge", bridge)
 
-    comp = QQmlComponent(engine, QUrl.fromLocalFile(str(QML_COMPONENTS / "presets" / "EVCoreFlagshipVisual.qml")))
+    comp = QQmlComponent(engine, QUrl.fromLocalFile(str(QML_COMPONENTS / "EVIntelligenceCore.qml")))
     assert not comp.isError(), [e.toString() for e in comp.errors()]
-    visual = comp.create()
+    core = comp.create()
+    assert core is not None
+    core.setProperty("themeProfile", "EV_CORE")
+    core.setProperty("width", 1024)
+    core.setProperty("height", 576)
+    qapp.processEvents()
+
+    field = core.findChild(QQuickItem, "intelligenceField")
+    visual = core.findChild(QQuickItem, "flagshipIntelligenceField")
+    assert field is not None
     assert visual is not None
-    qapp.processEvents()
 
-    # Changing stateText should trigger canvas updates without error
-    visual.setProperty("stateText", "LISTENING")
+    bridge.setVisualStateForSimulation("SLEEP")
     qapp.processEvents()
-    visual.setProperty("stateText", "SPEAKING")
-    qapp.processEvents()
-    visual.setProperty("stateText", "IDLE")
-    qapp.processEvents()
+    assert core.property("visualAnimationEnabled") is False
+    assert visual.property("localAnimationRunning") is False
 
-    # Resize should trigger canvas updates without error
-    visual.setProperty("width", 800)
-    visual.setProperty("height", 600)
+    bridge.setVisualStateForSimulation("PROCESSING")
     qapp.processEvents()
+    assert core.property("visualAnimationEnabled") is True
+    assert visual.property("localAnimationRunning") is True
 
-    visual.deleteLater()
+    core.deleteLater()
     engine.deleteLater()
     qapp.processEvents()
 

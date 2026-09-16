@@ -1,0 +1,6 @@
+{
+  "command": "python -B -m pytest tests/test_gui_settings.py -q -p no:cacheprovider --basetemp=prototypes/cinematic_v4/evidence/settings_redesign/pytest",
+  "passed": 10,
+  "failed": 0,
+  "seconds": 4.41
+}

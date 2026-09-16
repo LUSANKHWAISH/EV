@@ -2,6 +2,7 @@
 import argparse
 import os
 import sys
+from pathlib import Path
 from unittest.mock import patch, MagicMock
 
 import pytest
@@ -32,16 +33,27 @@ def test_parse_args_accepts_help():
     with pytest.raises(SystemExit):
         _parse_args(["--help"])
 
+def test_cinematic_is_default_with_explicit_classic_fallback():
+    assert _parse_args([]).cinematic is True
+    assert _parse_args(["--cinematic"]).cinematic is True
+    assert _parse_args(["--classic"]).cinematic is False
+
+def test_interface_flags_are_mutually_exclusive():
+    with pytest.raises(SystemExit):
+        _parse_args(["--classic", "--cinematic"])
+
 # --- Production Architecture Wiring ----------------------------------------
 
-@pytest.fixture
-def mock_gui_env():
+@pytest.fixture(params=["cinematic", "classic"])
+def mock_gui_env(request):
     """Mock out the blocking Qt/GUI components for testing main()."""
     with patch("gui.app.QGuiApplication") as mock_app, \
          patch("gui.app.QQmlApplicationEngine") as mock_engine, \
          patch("gui.app.install_windows_native_chrome"), \
          patch("sys.exit") as mock_exit, \
-         patch("sys.argv", ["gui.app"]):
+         patch("sys.argv", ["gui.app"] + (["--classic"] if request.param == "classic" else [])), \
+         patch("prototypes.cinematic_v4.integration.configure_cinematic", return_value=Path(__file__).parents[1] / "prototypes/cinematic_v4/qml/ConnectedWindow.qml"), \
+         patch("prototypes.cinematic_v4.integration.attach_cinematic_window"):
 
         # Make app.exec() return 0 instead of blocking
         mock_app_instance = MagicMock()
@@ -309,6 +321,8 @@ def test_task_submission_executes_canonical_pipeline(mock_gui_env):
          patch("gui.app.EVOrchestrator") as mock_orch_cls:
 
         mock_bridge = MagicMock()
+        mock_bridge.get_pending_activation.return_value = None
+        mock_bridge.get_pending_unidentified_key.return_value = None
         mock_bridge_cls.return_value = mock_bridge
         mock_orch = MagicMock()
         mock_orch_cls.return_value = mock_orch
@@ -348,6 +362,8 @@ def test_task_submission_worker_handles_unexpected_exception(mock_gui_env):
          patch("gui.app.EVOrchestrator") as mock_orch_cls:
 
         mock_bridge = MagicMock()
+        mock_bridge.get_pending_activation.return_value = None
+        mock_bridge.get_pending_unidentified_key.return_value = None
         mock_bridge_cls.return_value = mock_bridge
         mock_orch = MagicMock()
         mock_orch.execute_pipeline.side_effect = RuntimeError("Fatal hardware failure")
@@ -468,3 +484,22 @@ def test_sanitize_provider_error_passthrough():
     normal = "File not found: C:\\missing.txt"
     result = _sanitize_provider_error(normal)
     assert result == normal
+
+
+def test_format_pipeline_result_conversational_response():
+    """Verify conversational dialog produces clean SUCCESS output without Task failed prefix."""
+    mock_res = MagicMock()
+    mock_res.status.value = "COMPLETED"
+    mock_res.overall_success = True
+    mock_res.plan = None
+    mock_res.command_text = "how can you help me"
+    mock_res.metadata = {
+        "conversational_response": "I can assist you by providing information and helping you manage your system.",
+        "message": "I can assist you by providing information and helping you manage your system.",
+    }
+    summary, status, success = _format_pipeline_result(mock_res)
+    assert summary == "I can assist you by providing information and helping you manage your system."
+    assert "Task failed" not in summary
+    assert status == "SUCCESS"
+    assert success is True
+

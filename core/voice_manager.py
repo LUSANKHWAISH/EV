@@ -368,6 +368,11 @@ class EVVoiceManager:
         self._last_transcript: Optional[str] = None
         self._total_utterances_processed: int = 0
         self._total_commands_submitted: int = 0
+        
+        # Audio Telemetry Throttling
+        self._last_telemetry_ts: float = 0.0
+        self._max_telemetry_energy: float = 0.0
+        self._telemetry_interval: float = 0.1  # ~10Hz update rate
 
     # ------------------------------------------------------------------------
     # Properties
@@ -653,6 +658,28 @@ class EVVoiceManager:
             # Step 2.5: Acoustic self-trigger protection: suppress wake detection and command capture while TTS is speaking
             if self._tts_manager is not None and getattr(self._tts_manager, "is_speaking", False):
                 return
+
+            # Step 2.6: Audio Telemetry Emission (10Hz throttled)
+            if self._event_bus is not None:
+                try:
+                    vad_res = self._vad_provider.process_frame(frame)
+                    self._max_telemetry_energy = max(self._max_telemetry_energy, vad_res.energy)
+                    now = time.monotonic()
+                    if now - self._last_telemetry_ts >= self._telemetry_interval:
+                        # Normalize energy: typical threshold ~300, max expected speech ~2000-3000
+                        norm_level = min(1.0, self._max_telemetry_energy / 2000.0)
+                        self._event_bus.publish(
+                            event_type=EVEventType.VOICE_TELEMETRY,
+                            source="voice_manager",
+                            data={
+                                "voiceLevel": norm_level,
+                                "voiceActivity": vad_res.is_speech,
+                            },
+                        )
+                        self._last_telemetry_ts = now
+                        self._max_telemetry_energy = 0.0
+                except Exception as exc:
+                    logger.debug("EVVoiceManager: telemetry error: %s", exc)
 
             # Step 3: State-dependent processing
             if self._state == VoiceState.IDLE:

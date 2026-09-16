@@ -10,18 +10,10 @@ Item {
 
     height: Theme.topBarHeight
 
+    // Fully transparent header bar (no solid background or divider line)
     Rectangle {
         anchors.fill: parent
         color: "transparent"
-    }
-
-    Rectangle {
-        anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.bottom: parent.bottom
-
-        height: Theme.hairline
-        color: Theme.edgeSubtle
     }
 
     // Native Windows system move area.
@@ -101,6 +93,110 @@ Item {
 
             Layout.alignment: Qt.AlignVCenter
             Layout.rightMargin: Theme.spacingXS
+        }
+
+        // ====================================================
+        // SETTINGS (E.V. Subsystem Configuration)
+        // ====================================================
+
+        Rectangle {
+            id: settingsButton
+            objectName: "settingsButton"
+
+            width: Theme.windowControlWidth
+            height: Theme.windowControlHeight
+
+            radius: Theme.radiusS
+
+            color: settingsArea.pressed
+                ? Theme.surfaceElevated
+                : (typeof guiBridge !== "undefined" && guiBridge && guiBridge.settingsVisible)
+                    ? Theme.surfaceRaised
+                    : settingsArea.containsMouse
+                        ? Theme.surfaceBase
+                        : "transparent"
+
+            border.width: (settingsArea.containsMouse || (typeof guiBridge !== "undefined" && guiBridge && guiBridge.settingsVisible))
+                ? Theme.borderThin
+                : 0
+
+            border.color: (typeof guiBridge !== "undefined" && guiBridge && guiBridge.settingsVisible)
+                ? Theme.accent
+                : Theme.edgeSubtle
+
+            Layout.alignment: Qt.AlignVCenter
+            Layout.rightMargin: Theme.spacingXXS
+            z: 10
+
+            // Futuristic Hex/Gear glyph drawn cleanly with subtle glow
+            Canvas {
+                id: gearCanvas
+                anchors.centerIn: parent
+                width: 14
+                height: 14
+
+                onPaint: {
+                    var ctx = getContext("2d");
+                    ctx.reset();
+                    ctx.clearRect(0, 0, width, height);
+
+                    var cx = width / 2;
+                    var cy = height / 2;
+                    var outerR = 5.8;
+                    var innerR = 4.2;
+                    var holeR = 2.0;
+                    var numTeeth = 6;
+
+                    ctx.fillStyle = (typeof guiBridge !== "undefined" && guiBridge && guiBridge.settingsVisible)
+                        ? Theme.accent
+                        : (settingsArea.containsMouse ? Theme.textPrimary : Theme.textSecondary);
+
+                    ctx.beginPath();
+                    for (var i = 0; i < numTeeth * 2; i++) {
+                        var angle = (i * Math.PI) / numTeeth;
+                        var r = (i % 2 === 0) ? outerR : innerR;
+                        var x = cx + r * Math.cos(angle);
+                        var y = cy + r * Math.sin(angle);
+                        if (i === 0) ctx.moveTo(x, y);
+                        else ctx.lineTo(x, y);
+                    }
+                    ctx.closePath();
+                    ctx.fill();
+
+                    // Central cut-out hole
+                    ctx.globalCompositeOperation = "destination-out";
+                    ctx.beginPath();
+                    ctx.arc(cx, cy, holeR, 0, 2 * Math.PI);
+                    ctx.fill();
+                    ctx.globalCompositeOperation = "source-over";
+                }
+
+                Connections {
+                    target: settingsArea
+                    function onContainsMouseChanged() { gearCanvas.requestPaint(); }
+                }
+
+                Connections {
+                    target: typeof guiBridge !== "undefined" && guiBridge ? guiBridge : null
+                    function onSettingsVisibleChanged() { gearCanvas.requestPaint(); }
+                }
+            }
+
+            MouseArea {
+                id: settingsArea
+                objectName: "settingsArea"
+
+                anchors.fill: parent
+                hoverEnabled: true
+                acceptedButtons: Qt.LeftButton
+                cursorShape: Qt.PointingHandCursor
+
+                onClicked: {
+                    if (typeof guiBridge !== "undefined" && guiBridge !== null) {
+                        guiBridge.toggleSettings();
+                    }
+                }
+            }
         }
 
         // ====================================================

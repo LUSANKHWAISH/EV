@@ -38,3 +38,14 @@ Desktop.ini
 # EV local model cache
 /models/
 
+# Local Astra recovery archives and reference-review material
+/.astra-local/
+/.ev-cinematic-nucleus-backups/
+/astrabackup/*.zip
+/astrabackup/*.bundle
+/astrabackup/restored/
+/.pytest_cache/
+
+# Captures, browser profiles and temporary evidence remain local.
+# A few synthetic fixtures and sanitized acceptance artifacts are explicitly tracked.
+/prototypes/cinematic_v4/evidence/

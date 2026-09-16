@@ -24,7 +24,7 @@ Item {
     // ------------------------------------------------------------------------
     property var state: null
     property string visualMode: "STANDARD"
-    property string themeProfile: "EV_CORE"
+    property string themeProfile: ""
 
     property string stateText:
         state === null || state === undefined || String(state).length === 0
@@ -33,6 +33,11 @@ Item {
 
     property real energy: Theme.stateEnergy(root.stateText)
     property color stateTone: Theme.stateColor(root.stateText)
+    readonly property string visualState: typeof guiBridge !== "undefined" && guiBridge !== null ? guiBridge.visualState : root.stateText
+    readonly property string previousVisualState: typeof guiBridge !== "undefined" && guiBridge !== null ? guiBridge.previousVisualState : root.visualState
+    readonly property var visualProfile: typeof guiBridge !== "undefined" && guiBridge !== null ? guiBridge.visualProfile : ({})
+    readonly property real visualTransitionProgress: typeof guiBridge !== "undefined" && guiBridge !== null ? guiBridge.visualTransitionProgress : 1.0
+    readonly property bool visualAnimationEnabled: typeof guiBridge !== "undefined" && guiBridge !== null ? guiBridge.visualAnimationEnabled : true
 
     // State boolean flags for presentation convenience
     property bool idle: stateText === "IDLE"
@@ -48,8 +53,8 @@ Item {
     property bool stopped: stateText === "STOPPED"
 
     // Audio & Speech input levels
-    property real audioLevel: 0.0
-    property real speechLevel: 0.0
+    property real audioLevel: typeof guiBridge !== "undefined" && guiBridge !== null && guiBridge.voiceLevel !== undefined ? guiBridge.voiceLevel : 0.0
+    property real speechLevel: typeof guiBridge !== "undefined" && guiBridge !== null && guiBridge.speechLevel !== undefined ? guiBridge.speechLevel : 0.0
 
     // Master Animation Phase Clock
     property real phase: 0.0
@@ -87,7 +92,7 @@ Item {
         to: Math.PI * 2.0
         duration: root.motionCycle
         loops: Animation.Infinite
-        running: root.visible && !root.stopped && root.visualMode !== "SLEEP"
+        running: root.visible && !root.stopped && root.visualMode !== "SLEEP" && root.visualAnimationEnabled
     }
 
     readonly property color displayTone:
@@ -230,9 +235,11 @@ Item {
     // Maps themeProfile to the appropriate visual component.
     // Unloads old component tree immediately when switching presets,
     // avoiding duplicate View3D or Canvas resource consumption.
+
     readonly property string effectiveThemeProfile: {
-        var p = (themeProfile || "").toString().trim().toUpperCase()
-        if (p === "MINIMAL" || p === "AMBIENT" || p === "FOCUSED" || p === "ALERT" || p === "EV_CORE") {
+        var fromBridge = (typeof guiBridge !== "undefined" && guiBridge && guiBridge.stylePreset) ? guiBridge.stylePreset : ""
+        var p = (themeProfile || fromBridge || "EV_CORE").toString().trim().toUpperCase()
+        if (p === "ASTRA" || p === "ORIGINAL" || p === "MINIMAL" || p === "AMBIENT" || p === "FOCUSED" || p === "ALERT" || p === "EV_CORE") {
             return p
         }
         return "EV_CORE"
@@ -241,17 +248,54 @@ Item {
     readonly property var activeVisualItem: presetLoader.item
     readonly property bool hasActiveVisualItem: presetLoader.item !== null
     readonly property string activePresetSource: presetLoader.source.toString()
+    readonly property url presetSource: getPresetSource(effectiveThemeProfile)
 
     function getPresetSource(profile) {
         switch (profile) {
+        case "ASTRA":
+        case "EV_CORE": return Qt.resolvedUrl("presets/EVCoreFlagshipVisual.qml")
+        case "ORIGINAL": return Qt.resolvedUrl("presets/EVCoreNexusSphere.qml")
         case "MINIMAL": return Qt.resolvedUrl("presets/EVCoreMinimalVisual.qml")
         case "AMBIENT": return Qt.resolvedUrl("presets/EVCoreAmbientVisual.qml")
         case "FOCUSED": return Qt.resolvedUrl("presets/EVCoreFocusedVisual.qml")
         case "ALERT":   return Qt.resolvedUrl("presets/EVCoreAlertVisual.qml")
-        case "EV_CORE":
         default:        return Qt.resolvedUrl("presets/EVCoreFlagshipVisual.qml")
         }
     }
+
+    // ------------------------------------------------------------------------
+    // Dynamic HUD Response-Aware Composition (Task 018-K.3)
+    // ------------------------------------------------------------------------
+    // When an AI response or task execution output is visible in the conversational
+    // HUD area above the command input, the Core smoothly glides upward / side to
+    // create clean space without sacrificing visual dominance or shrinking.
+    readonly property bool isResponseActive: (typeof guiBridge !== "undefined" && guiBridge !== null)
+        ? (guiBridge.taskResultAvailable || guiBridge.taskResultStatus === "RUNNING" || (guiBridge.lifecycleActive && !root.idle))
+        : false
+
+    readonly property int responseTextLength: (typeof guiBridge !== "undefined" && guiBridge !== null)
+        ? (guiBridge.taskResult ? guiBridge.taskResult.length : 0)
+        : 0
+
+    // Progressive clearance calculation:
+    // Short response (<= 40 chars): minimal shift (~35-45px)
+    // Medium response (40-120 chars): moderate shift (~65-80px)
+    // Long response (> 120 chars): full clearance shift (~95-115px)
+    readonly property real responseClearanceRatio: {
+        if (!isResponseActive) return 0.0
+        if (responseTextLength <= 0) return 0.40
+        if (responseTextLength <= 40) return 0.35
+        if (responseTextLength <= 100) return 0.65
+        return 1.0
+    }
+
+    readonly property real maxVerticalShift: Math.min(root.height * 0.28, 115.0)
+    readonly property real dynamicShiftY: isResponseActive
+        ? -(maxVerticalShift * (0.35 + responseClearanceRatio * 0.65))
+        : 0.0
+    readonly property real dynamicShiftX: isResponseActive
+        ? Math.min(root.width * 0.05, 24.0)
+        : 0.0
 
     Loader {
         id: presetLoader
@@ -259,6 +303,25 @@ Item {
         anchors.fill: parent
         asynchronous: false
         source: root.getPresetSource(root.effectiveThemeProfile)
+
+        transform: Translate {
+            id: dynamicCoreTranslate
+            x: root.dynamicShiftX
+            y: root.dynamicShiftY
+
+            Behavior on x {
+                NumberAnimation {
+                    duration: Theme.motionCinematic
+                    easing.type: Easing.OutCubic
+                }
+            }
+            Behavior on y {
+                NumberAnimation {
+                    duration: Theme.motionCinematic
+                    easing.type: Easing.OutCubic
+                }
+            }
+        }
 
         onLoaded: {
             if (item && "host" in item) {

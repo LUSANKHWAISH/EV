@@ -19,6 +19,7 @@ Item {
     TextField {
         id: commandField
         anchors.fill: parent
+        horizontalAlignment: TextInput.AlignHCenter
         verticalAlignment: TextInput.AlignVCenter
         
         placeholderText: "Enter a task..."
@@ -26,15 +27,18 @@ Item {
         placeholderTextColor: Theme.textSecondary
         
         background: Rectangle {
-            color: Qt.rgba(1, 1, 1, 0.03)
+            color: commandField.activeFocus
+                   ? Qt.rgba(1.0, 1.0, 1.0, 0.08)
+                   : Qt.rgba(1.0, 1.0, 1.0, 0.05)
             radius: Theme.radiusS
-            border.color: commandField.activeFocus
-                          ? Qt.rgba(Theme.brandPrimary.r,
-                                    Theme.brandPrimary.g,
-                                    Theme.brandPrimary.b,
-                                    0.35)
-                          : Qt.rgba(1, 1, 1, 0.06)
-            border.width: commandField.activeFocus ? 1 : 0.5
+            border.width: 0
+            border.color: "transparent"
+
+            Behavior on color {
+                ColorAnimation {
+                    duration: Theme.motionStandard
+                }
+            }
         }
         
         font.family: Theme.fontFamily

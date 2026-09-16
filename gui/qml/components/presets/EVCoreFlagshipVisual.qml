@@ -1,858 +1,443 @@
 import QtQuick 2.15
 import QtQuick3D
-import "../../theme"
+import QtQuick3D.Helpers
+import QtQuick3D.AssetUtils
 
-// ============================================================================
-// E.V. CORE FLAGSHIP VISUAL PRESET (EV_CORE)
-// ============================================================================
-//
-// Extracted byte-for-byte visual logic from R11Q-D2.3 EVIntelligenceCore.
-// Procedural QtQuick3D View3D + Canvas orbital/aura layers.
-// Pure presentation component — zero execution authority.
-// ============================================================================
+// E.V. NUCLEUS v3.0 — REACTIVE VOLUMETRIC GOLD INTELLIGENCE SPHERE
+// Presentation only. Six deterministic GLB layers provide the real 3D form.
+// A plain transparent SceneEnvironment preserves alpha without a viewport box.
 
 Item {
     id: root
+    objectName: "flagshipIntelligenceField"
     anchors.fill: parent
+    clip: true
 
-    // Host connection for synchronized state and animation clock
     property var host: parent
 
-    // Visual inputs (falling back to host properties or safe defaults)
-    property string stateText: host && host.stateText !== undefined ? host.stateText : "IDLE"
-    property string visualMode: host && host.visualMode !== undefined ? host.visualMode : "STANDARD"
-    property real energy: host && host.energy !== undefined ? host.energy : Theme.stateEnergy(stateText)
-    property color stateTone: host && host.stateTone !== undefined ? host.stateTone : Theme.stateColor(stateText)
-    property color displayTone: host && host.displayTone !== undefined ? host.displayTone : stateTone
+    readonly property string visualState:
+        host && host.visualState !== undefined ? String(host.visualState) : "IDLE"
+    readonly property string previousVisualState:
+        host && host.previousVisualState !== undefined ? String(host.previousVisualState) : visualState
+    readonly property var visualProfile:
+        host && host.visualProfile !== undefined ? host.visualProfile : ({})
+    readonly property real visualTransitionProgress:
+        host && host.visualTransitionProgress !== undefined ? Number(host.visualTransitionProgress) : 1.0
+    readonly property bool visualAnimationEnabled:
+        host && host.visualAnimationEnabled !== undefined ? Boolean(host.visualAnimationEnabled) : true
+    readonly property real phase:
+        host && host.phase !== undefined ? Number(host.phase) : 0.0
+    readonly property real pulse:
+        host && host.pulse !== undefined ? Number(host.pulse) : (Math.sin(phase) + 1.0) * 0.5
+    readonly property real slowPulse:
+        host && host.slowPulse !== undefined ? Number(host.slowPulse) : (Math.sin(phase * 0.48) + 1.0) * 0.5
+    readonly property real coreBreath:
+        host && host.coreBreath !== undefined ? Number(host.coreBreath) : 1.0
+    readonly property real glowDrive:
+        host && host.glowDrive !== undefined ? Number(host.glowDrive) : 0.58
+    readonly property real satelliteSpeed:
+        host && host.satelliteSpeed !== undefined ? Number(host.satelliteSpeed) : 0.34
+    readonly property real effectiveListenLevel:
+        host && host.effectiveListenLevel !== undefined ? Number(host.effectiveListenLevel) : 0.0
+    readonly property real effectiveSpeechLevel:
+        host && host.effectiveSpeechLevel !== undefined ? Number(host.effectiveSpeechLevel) : 0.0
+    readonly property real profileMotion:
+        visualProfile && visualProfile.motion !== undefined ? Number(visualProfile.motion) : 0.22
+    readonly property real profileNucleus:
+        visualProfile && visualProfile.nucleus !== undefined ? Number(visualProfile.nucleus) : 0.30
+    readonly property real profileCamera:
+        visualProfile && visualProfile.camera !== undefined ? Number(visualProfile.camera) : 0.08
 
-    property real phase: host && host.phase !== undefined ? host.phase : 0.0
-    property real pulse: host && host.pulse !== undefined ? host.pulse : ((Math.sin(phase) + 1.0) * 0.5)
-    property real slowPulse: host && host.slowPulse !== undefined ? host.slowPulse : ((Math.sin(phase * 0.52) + 1.0) * 0.5)
-    property real drift: host && host.drift !== undefined ? host.drift : Math.sin(phase * 0.41)
-    property real counterDrift: host && host.counterDrift !== undefined ? host.counterDrift : Math.cos(phase * 0.37)
+    readonly property bool idleState: visualState === "IDLE"
+    readonly property bool awareState: visualState === "AWARE" || visualState === "VERIFYING_WAKE"
+    readonly property bool listeningState: visualState === "LISTENING"
+    readonly property bool thinkingState: visualState === "THINKING" || visualState === "PROCESSING" || visualState === "PLANNING"
+    readonly property bool speakingState: visualState === "SPEAKING"
+    readonly property bool executingState: visualState === "EXECUTING"
+    readonly property bool verifyingState: visualState === "VERIFYING"
+    readonly property bool approvalState: visualState === "WAITING_FOR_APPROVAL" || visualState === "AWAITING_APPROVAL"
+    readonly property bool successState: visualState === "SUCCESS"
+    readonly property bool failedState: visualState === "ERROR" || visualState === "FAILED" || visualState === "RECOVERING"
+    readonly property bool stoppedState: visualState === "SLEEP" || visualState === "STOPPED"
 
-    property real effectiveListenLevel: host && host.effectiveListenLevel !== undefined ? host.effectiveListenLevel : 0.0
-    property real effectiveSpeechLevel: host && host.effectiveSpeechLevel !== undefined ? host.effectiveSpeechLevel : 0.0
+    readonly property color primaryTone:
+        failedState ? "#ff3b24" :
+        successState ? "#8dff91" :
+        approvalState ? "#ffb21d" :
+        verifyingState ? "#ffe06a" :
+        speakingState ? "#ffe7a1" :
+        listeningState ? "#ffc344" :
+        "#ff9418"
+    readonly property color secondaryTone:
+        failedState ? "#ff7850" :
+        successState ? "#d4ff9c" :
+        approvalState ? "#ff6a0b" :
+        speakingState ? "#fff0c2" :
+        "#ff5b0a"
 
-    property real motionGate: host && host.motionGate !== undefined ? host.motionGate : (awaiting ? 0.06 : 1.0)
-    property real coreBreath: host && host.coreBreath !== undefined ? host.coreBreath : 1.0
-    property real glowDrive: host && host.glowDrive !== undefined ? host.glowDrive : 0.58
-    property real satelliteSpeed: host && host.satelliteSpeed !== undefined ? host.satelliteSpeed : 0.34
-    property real tracerOpacity: host && host.tracerOpacity !== undefined ? host.tracerOpacity : 0.10
+    readonly property real signalDrive:
+        listeningState ? effectiveListenLevel :
+        speakingState ? effectiveSpeechLevel :
+        thinkingState ? 0.30 + pulse * 0.28 :
+        executingState ? 0.58 + pulse * 0.30 :
+        verifyingState ? 0.38 + slowPulse * 0.20 :
+        approvalState ? 0.44 + slowPulse * 0.12 :
+        0.10 + slowPulse * 0.07
+    readonly property real transitionEase: {
+        var p = clamp01(visualTransitionProgress)
+        return 1.0 - Math.pow(1.0 - p, 3.0)
+    }
+    readonly property real motionDrive:
+        0.70 + Math.max(0.0, satelliteSpeed) * 0.68 + profileMotion * 0.55
+    readonly property real layerSpread:
+        approvalState ? 17.0 :
+        executingState ? 12.0 + pulse * 5.0 :
+        listeningState ? 5.0 + effectiveListenLevel * 11.0 :
+        speakingState ? 6.0 + effectiveSpeechLevel * 10.0 :
+        failedState ? 9.0 + pulse * 5.0 : 4.0
+    readonly property real assemblyScale:
+        (stoppedState ? 0.84 : 0.985 + signalDrive * 0.045 + interactionPulse * 0.035)
+        * (0.91 + transitionEase * 0.09) * coreBreath
+    readonly property real cameraDepth:
+        listeningState ? 800.0 - effectiveListenLevel * 32.0 :
+        speakingState ? 800.0 - effectiveSpeechLevel * 28.0 :
+        executingState ? 776.0 : 800.0
+    readonly property bool localAnimationRunning:
+        visible && visualAnimationEnabled && !stoppedState
 
-    property real auraRadius: host && host.auraRadius !== undefined ? host.auraRadius : Math.max(62.0, Math.min(width, height) * 0.185)
-    property real rearDepth: host && host.rearDepth !== undefined ? host.rearDepth : -68.0
-    property real rearEnergyDepth: host && host.rearEnergyDepth !== undefined ? host.rearEnergyDepth : -34.0
-    property real chamberDepth: host && host.chamberDepth !== undefined ? host.chamberDepth : 16.0
-    property real nucleusDepth: host && host.nucleusDepth !== undefined ? host.nucleusDepth : 40.0
-    property real lensDepth: host && host.lensDepth !== undefined ? host.lensDepth : 66.0
+    property real hoverX: 0.0
+    property real hoverY: 0.0
+    property real interactionPulse: 0.0
 
-    property bool idle: stateText === "IDLE"
-    property bool listening: stateText === "LISTENING"
-    property bool planning: stateText === "PLANNING"
-    property bool executing: stateText === "EXECUTING"
-    property bool verifying: stateText === "VERIFYING"
-    property bool awaiting: stateText === "AWAITING_APPROVAL"
-    property bool speaking: stateText === "SPEAKING"
-    property bool successful: stateText === "SUCCESS"
-    property bool failed: stateText === "FAILED"
-    property bool recovering: stateText === "RECOVERING"
-    property bool stopped: stateText === "STOPPED"
-
-    function rgbaString(c, alphaValue) {
-        return "rgba("
-            + Math.round(c.r * 255) + ","
-            + Math.round(c.g * 255) + ","
-            + Math.round(c.b * 255) + ","
-            + Math.max(0.0, Math.min(1.0, alphaValue))
-            + ")"
+    function clamp01(value) {
+        return Math.max(0.0, Math.min(1.0, Number(value)))
+    }
+    function rgba(colorValue, alphaValue) {
+        return "rgba(" + Math.round(colorValue.r * 255) + ","
+             + Math.round(colorValue.g * 255) + ","
+             + Math.round(colorValue.b * 255) + "," + clamp01(alphaValue) + ")"
+    }
+    function spinDuration(baseMs) {
+        var stateBoost = thinkingState ? 1.42 : executingState ? 1.75 :
+                         (listeningState || speakingState) ? 1.24 + signalDrive * 0.65 : 1.0
+        return Math.max(1900, Math.round(baseMs / (motionDrive * stateBoost)))
+    }
+    function repaintHologram() {
+        ambientAura.requestPaint()
+        holoCanvas.requestPaint()
     }
 
-    // ------------------------------------------------------------------------
-    // 1. AURA CANVAS LAYER
-    // ------------------------------------------------------------------------
+    onPrimaryToneChanged: repaintHologram()
+    onSecondaryToneChanged: repaintHologram()
+    onVisualStateChanged: repaintHologram()
+    onSignalDriveChanged: repaintHologram()
+    onPhaseChanged: repaintHologram()
+    Component.onCompleted: repaintHologram()
+
     Canvas {
-        id: auraCanvas
-        anchors.fill: parent
-        antialiasing: true
-
-        onPaint: {
-            var ctx = getContext("2d")
-            var cx = width * 0.5
-            var cy = height * 0.5
-            var r = root.auraRadius * root.coreBreath
-            var tone = root.displayTone
-
-            ctx.clearRect(0, 0, width, height)
-
-            var aura = ctx.createRadialGradient(
-                cx,
-                cy,
-                r * 0.18,
-                cx,
-                cy,
-                r * (2.30 + root.glowDrive * 0.14)
-            )
-
-            aura.addColorStop(
-                0.0,
-                root.rgbaString(
-                    tone,
-                    0.22 * root.glowDrive
-                )
-            )
-
-            aura.addColorStop(
-                0.38,
-                root.rgbaString(
-                    tone,
-                    0.075 * root.glowDrive
-                )
-            )
-
-            aura.addColorStop(
-                1.0,
-                root.rgbaString(tone, 0.0)
-            )
-
-            ctx.fillStyle = aura
-            ctx.beginPath()
-            ctx.arc(
-                cx,
-                cy,
-                r * (2.34 + root.glowDrive * 0.14),
-                0,
-                Math.PI * 2.0
-            )
-            ctx.fill()
-
-            if (root.listening) {
-                ctx.lineWidth = Math.max(1.0, r * 0.008)
-
-                for (var i = 0; i < 2; ++i) {
-                    var travel =
-                        (
-                            root.phase / (Math.PI * 2.0)
-                            + i * 0.5
-                        ) % 1.0
-
-                    var rr =
-                        r
-                        * (
-                            1.04
-                            + travel
-                            * (
-                                0.72
-                                + root.effectiveListenLevel
-                                * 0.34
-                            )
-                        )
-
-                    var alpha =
-                        (1.0 - travel)
-                        * (
-                            0.07
-                            + root.effectiveListenLevel
-                            * 0.14
-                        )
-
-                    ctx.strokeStyle =
-                        root.rgbaString(
-                            tone,
-                            alpha
-                        )
-
-                    ctx.beginPath()
-                    ctx.arc(
-                        cx,
-                        cy,
-                        rr,
-                        0,
-                        Math.PI * 2.0
-                    )
-                    ctx.stroke()
-                }
-            }
-
-            if (root.speaking) {
-                for (var s = 0; s < 2; ++s) {
-                    var speechTravel =
-                        (
-                            root.phase / (Math.PI * 2.0)
-                            + s * 0.5
-                        ) % 1.0
-
-                    var sr =
-                        r
-                        * (
-                            1.02
-                            + speechTravel
-                            * (
-                                0.66
-                                + root.effectiveSpeechLevel
-                                * 0.34
-                            )
-                        )
-
-                    var sa =
-                        (1.0 - speechTravel)
-                        * (
-                            0.06
-                            + root.effectiveSpeechLevel
-                            * 0.15
-                        )
-
-                    ctx.lineWidth =
-                        Math.max(
-                            1.0,
-                            r
-                            * (
-                                0.007
-                                + root.effectiveSpeechLevel
-                                * 0.004
-                            )
-                        )
-
-                    ctx.strokeStyle =
-                        root.rgbaString(
-                            tone,
-                            sa
-                        )
-
-                    ctx.beginPath()
-                    ctx.arc(
-                        cx,
-                        cy,
-                        sr,
-                        0,
-                        Math.PI * 2.0
-                    )
-                    ctx.stroke()
-                }
-            }
-
-            if (root.verifying) {
-                var vr =
-                    r
-                    * (
-                        1.06
-                        + 0.05
-                        * Math.sin(root.phase * 1.6)
-                    )
-
-                ctx.lineWidth =
-                    Math.max(
-                        1.0,
-                        r * 0.008
-                    )
-
-                ctx.strokeStyle =
-                    root.rgbaString(
-                        tone,
-                        0.16
-                    )
-
-                ctx.beginPath()
-                ctx.arc(
-                    cx,
-                    cy,
-                    vr,
-                    Math.PI * 1.14,
-                    Math.PI * 1.78
-                )
-                ctx.stroke()
-            }
-        }
-    }
-
-    // ------------------------------------------------------------------------
-    // 2. REAR ORBITAL TRACERS
-    // ------------------------------------------------------------------------
-    Canvas {
-        id: rearOrbitCanvas
-        anchors.fill: parent
-        antialiasing: true
-
-        onPaint: {
-            var ctx = getContext("2d")
-            var cx = width * 0.5
-            var cy = height * 0.5
-            var r = root.auraRadius
-            var tone = root.displayTone
-
-            ctx.clearRect(0, 0, width, height)
-
-            function ellipsePath(rx, ry, rotation, alphaValue) {
-                var steps = 96
-                var cr = Math.cos(rotation)
-                var sr = Math.sin(rotation)
-
-                ctx.beginPath()
-
-                for (var i = 0; i <= steps; ++i) {
-                    var t = (i / steps) * Math.PI * 2.0
-                    var ex = Math.cos(t) * rx
-                    var ey = Math.sin(t) * ry
-                    var x = cx + ex * cr - ey * sr
-                    var y = cy + ex * sr + ey * cr
-
-                    if (i === 0)
-                        ctx.moveTo(x, y)
-                    else
-                        ctx.lineTo(x, y)
-                }
-
-                ctx.lineWidth = Math.max(1.0, r * 0.006)
-                ctx.strokeStyle = root.rgbaString(tone, alphaValue)
-                ctx.stroke()
-            }
-
-            ellipsePath(
-                r * 1.34,
-                r * 0.48,
-                -0.34,
-                root.tracerOpacity * 0.65
-            )
-
-            ellipsePath(
-                r * 1.18,
-                r * 0.62,
-                0.18,
-                root.tracerOpacity * 0.54
-            )
-
-            ellipsePath(
-                r * 1.44,
-                r * 0.38,
-                0.58,
-                root.tracerOpacity * 0.45
-            )
-        }
-    }
-
-    // ------------------------------------------------------------------------
-    // 3. 3D CORE (View3D)
-    // ------------------------------------------------------------------------
-    View3D {
-        id: core3D
+        id: ambientAura
         anchors.centerIn: parent
-        camera: camera
-
-        width:
-            Math.min(
-                root.width,
-                root.height
-            ) * 0.64
-
+        width: Math.max(1, Math.min(root.width, root.height) * 1.16)
         height: width
-
-        environment: SceneEnvironment {
-            backgroundMode: SceneEnvironment.Transparent
+        opacity: root.stoppedState ? 0.06 : 0.22 + root.signalDrive * 0.08
+        antialiasing: true
+        onPaint: {
+            var ctx = getContext("2d")
+            ctx.reset()
+            ctx.clearRect(0, 0, width, height)
+            var cx = width * 0.5
+            var cy = height * 0.5
+            var radius = width * 0.49
+            var glow = ctx.createRadialGradient(cx, cy, width * 0.05, cx, cy, radius)
+            glow.addColorStop(0.0, root.rgba(root.primaryTone, 0.12 + root.signalDrive * 0.08))
+            glow.addColorStop(0.22, root.rgba(root.secondaryTone, 0.052))
+            glow.addColorStop(0.55, root.rgba(root.primaryTone, 0.012))
+            glow.addColorStop(1.0, "rgba(0,0,0,0)")
+            ctx.fillStyle = glow
+            ctx.fillRect(0, 0, width, height)
         }
+        onWidthChanged: requestPaint()
+        onHeightChanged: requestPaint()
+    }
 
-        PerspectiveCamera {
-            id: camera
-            position: Qt.vector3d(0, 0, 305)
-            fieldOfView: 38
-            clipNear: 1
-            clipFar: 1200
-        }
+    Item {
+        id: coreViewport
+        objectName: "intelligenceField"
+        anchors.centerIn: parent
+        width: Math.max(1, Math.min(root.width * 0.94, root.height * 0.985, 900))
+        height: width
+        opacity: root.stoppedState ? 0.28 : 1.0
+        onWidthChanged: root.repaintHologram()
+        onHeightChanged: root.repaintHologram()
 
-        DirectionalLight {
-            eulerRotation: Qt.vector3d(-32, 38, -8)
-            color: "#F4F8FF"
-            brightness: 2.10
-            ambientColor: "#111923"
-            castsShadow: false
-        }
-
-        DirectionalLight {
-            eulerRotation: Qt.vector3d(28, -46, 12)
-            color: "#7387A3"
-            brightness: 0.68
-            ambientColor: "#05080D"
-            castsShadow: false
-        }
-
-        PointLight {
-            position: Qt.vector3d(-62, 58, 118)
-            color: root.displayTone
-            brightness: 1.20 + root.glowDrive * 1.00
-            constantFade: 1.0
-            linearFade: 0.004
-            quadraticFade: 0.000025
-        }
-
-        PointLight {
-            position: Qt.vector3d(46, -28, -96)
-            color: root.displayTone
-            brightness: 0.14 + root.glowDrive * 0.18
-            constantFade: 1.0
-            linearFade: 0.006
-            quadraticFade: 0.000035
-        }
-
-        PrincipledMaterial {
-            id: rearShellMaterial
-            baseColor: Qt.rgba(
-                0.014 + root.displayTone.r * 0.040,
-                0.020 + root.displayTone.g * 0.040,
-                0.032 + root.displayTone.b * 0.040,
-                1.0
-            )
-            metalness: 0.46
-            roughness: 0.28
-            clearcoatAmount: 0.32
-            clearcoatRoughnessAmount: 0.12
-            emissiveFactor: Qt.vector3d(
-                root.displayTone.r * root.glowDrive * 0.075,
-                root.displayTone.g * root.glowDrive * 0.075,
-                root.displayTone.b * root.glowDrive * 0.075
-            )
-        }
-
-        PrincipledMaterial {
-            id: rearEnergyMaterial
-            baseColor: Qt.rgba(
-                0.028 + root.displayTone.r * 0.12,
-                0.055 + root.displayTone.g * 0.16,
-                0.13 + root.displayTone.b * 0.22,
-                0.88
-            )
-            metalness: 0.08
-            roughness: 0.19
-            clearcoatAmount: 0.52
-            clearcoatRoughnessAmount: 0.075
-            emissiveFactor: Qt.vector3d(
-                root.displayTone.r * root.glowDrive * 0.30,
-                root.displayTone.g * root.glowDrive * 0.30,
-                root.displayTone.b * root.glowDrive * 0.30
-            )
-        }
-
-        PrincipledMaterial {
-            id: outerOrbMaterial
-            baseColor: Qt.rgba(
-                0.028 + root.displayTone.r * 0.12,
-                0.040 + root.displayTone.g * 0.13,
-                0.060 + root.displayTone.b * 0.14,
-                1.0
-            )
-            metalness: 0.16
-            roughness: 0.17
-            clearcoatAmount: 0.66
-            clearcoatRoughnessAmount: 0.07
-            emissiveFactor: Qt.vector3d(
-                root.displayTone.r * root.glowDrive * 0.36,
-                root.displayTone.g * root.glowDrive * 0.36,
-                root.displayTone.b * root.glowDrive * 0.36
-            )
-        }
-
-        PrincipledMaterial {
-            id: chamberMaterial
-            baseColor: Qt.rgba(
-                0.040 + root.displayTone.r * 0.19,
-                0.074 + root.displayTone.g * 0.24,
-                0.17 + root.displayTone.b * 0.29,
-                1.0
-            )
-            metalness: 0.06
-            roughness: 0.12
-            clearcoatAmount: 0.70
-            clearcoatRoughnessAmount: 0.050
-            emissiveFactor: Qt.vector3d(
-                root.displayTone.r * root.glowDrive * 0.76,
-                root.displayTone.g * root.glowDrive * 0.76,
-                root.displayTone.b * root.glowDrive * 0.76
-            )
-        }
-
-        PrincipledMaterial {
-            id: nucleusMaterial
-            baseColor: "#06101C"
-            metalness: 0.10
-            roughness: 0.16
-            clearcoatAmount: 0.54
-            clearcoatRoughnessAmount: 0.07
-            emissiveFactor: Qt.vector3d(
-                root.displayTone.r * root.glowDrive * 1.06,
-                root.displayTone.g * root.glowDrive * 1.06,
-                root.displayTone.b * root.glowDrive * 1.06
-            )
-        }
-
-        PrincipledMaterial {
-            id: lensMaterial
-            baseColor: Qt.rgba(
-                0.10 + root.displayTone.r * 0.08,
-                0.13 + root.displayTone.g * 0.08,
-                0.20 + root.displayTone.b * 0.10,
-                0.17
-            )
-            metalness: 0.03
-            roughness: 0.055
-            clearcoatAmount: 0.92
-            clearcoatRoughnessAmount: 0.025
-            transmissionFactor: 0.48
-            alphaMode: PrincipledMaterial.Blend
-        }
-
-        PrincipledMaterial {
-            id: particleMaterial
-            baseColor: root.displayTone
-            metalness: 0.04
-            roughness: 0.18
-            emissiveFactor: Qt.vector3d(
-                root.displayTone.r * 1.13,
-                root.displayTone.g * 1.13,
-                root.displayTone.b * 1.13
-            )
-        }
-
-        PrincipledMaterial {
-            id: satelliteMaterial
-            baseColor: "#ECFCFF"
-            metalness: 0.02
-            roughness: 0.12
-            clearcoatAmount: 0.52
-            clearcoatRoughnessAmount: 0.035
-            emissiveFactor: Qt.vector3d(
-                0.36 + root.displayTone.r * 1.46,
-                0.36 + root.displayTone.g * 1.46,
-                0.36 + root.displayTone.b * 1.46
-            )
-        }
-
-        Node {
-            id: orbRoot
-
-            scale: Qt.vector3d(
-                root.coreBreath,
-                root.coreBreath,
-                root.coreBreath
-            )
-
-            eulerRotation: Qt.vector3d(
-                -7.5 + root.counterDrift * 0.35 * root.motionGate,
-                -15.0 + root.drift * 1.05 * root.motionGate,
-                root.failed
-                ? Math.sin(root.phase * 3.8) * 1.5
-                : root.planning
-                  ? root.drift * 0.55
-                  : 0.6
-            )
-
-            Model {
-                source: "#Sphere"
-                position: Qt.vector3d(-10.0, 5.0, root.rearDepth)
-                scale: Qt.vector3d(1.11, 1.05, 0.62)
-                materials: [rearShellMaterial]
+        View3D {
+            id: field
+            objectName: "intelligenceView3D"
+            anchors.fill: parent
+            camera: intelligenceCamera
+            environment: SceneEnvironment {
+                id: sceneEnvironment
+                backgroundMode: SceneEnvironment.Transparent
+                clearColor: "transparent"
+                antialiasingMode: SceneEnvironment.MSAA
+                antialiasingQuality: SceneEnvironment.High
+                temporalAAEnabled: false
+                specularAAEnabled: true
+                tonemapMode: SceneEnvironment.TonemapModeFilmic
             }
 
-            Model {
-                source: "#Sphere"
-                position: Qt.vector3d(-4.0, 2.0, root.rearEnergyDepth)
-                scale: Qt.vector3d(0.91, 0.89, 0.54)
-                materials: [rearEnergyMaterial]
+            PerspectiveCamera {
+                id: intelligenceCamera
+                objectName: "intelligenceCamera"
+                position: Qt.vector3d(root.hoverX * 12.0, -7.0 - root.hoverY * 9.0, root.cameraDepth)
+                eulerRotation: Qt.vector3d(-0.55 + root.hoverY * 0.82, -root.hoverX * 1.10, 0)
+                fieldOfView: 37
+                clipNear: 1
+                clipFar: 1900
             }
 
-            Model {
-                source: "#Sphere"
-                position: Qt.vector3d(0, 0, -4.0)
-                scale: Qt.vector3d(1.15, 1.15, 0.94)
-                materials: [outerOrbMaterial]
+            DirectionalLight {
+                eulerRotation: Qt.vector3d(-36, -31, 4)
+                color: "#ffd08a"
+                brightness: 0.62 + root.glowDrive * 0.09
+                castsShadow: false
+            }
+            DirectionalLight {
+                eulerRotation: Qt.vector3d(142, 42, 16)
+                color: root.secondaryTone
+                brightness: 0.22 + root.signalDrive * 0.12
+                castsShadow: false
+            }
+            PointLight {
+                position: Qt.vector3d(-65, 20, 235)
+                color: root.primaryTone
+                brightness: 7.4 + root.glowDrive * 2.6 + root.signalDrive * 3.2
+                constantFade: 1.0
+                linearFade: 0.007
+                quadraticFade: 0.000045
+                castsShadow: false
+            }
+            PointLight {
+                position: Qt.vector3d(165, -110, 130)
+                color: root.secondaryTone
+                brightness: 4.8 + root.signalDrive * 2.0
+                constantFade: 1.0
+                linearFade: 0.009
+                quadraticFade: 0.000065
+                castsShadow: false
             }
 
-            Model {
-                source: "#Sphere"
-                position: Qt.vector3d(2.0, -1.0, root.chamberDepth)
-                scale: Qt.vector3d(
-                    0.67 + root.effectiveListenLevel * 0.030,
-                    0.67 + root.effectiveListenLevel * 0.030,
-                    0.50 + root.effectiveSpeechLevel * 0.022
-                )
-                eulerRotation: Qt.vector3d(
-                    root.planning ? root.phase * 8.0 : root.drift * 1.2,
-                    root.planning ? -root.phase * 12.0 : root.counterDrift * 1.6,
-                    root.executing ? root.phase * 3.0 : 0.0
-                )
-                materials: [chamberMaterial]
-            }
-
-            Model {
-                source: "#Sphere"
+            Node {
+                id: sceneRoot
+                objectName: "nucleusAssembly3D"
                 position: Qt.vector3d(
-                    root.executing ? 4.0 : -2.0,
-                    root.verifying ? root.drift * 3.0 : 2.0,
-                    root.nucleusDepth
-                )
-                scale: Qt.vector3d(
-                    0.29 + root.effectiveListenLevel * 0.016 + root.effectiveSpeechLevel * 0.020,
-                    0.29 + root.effectiveListenLevel * 0.016 + root.effectiveSpeechLevel * 0.020,
-                    0.25
-                )
-                materials: [nucleusMaterial]
-            }
+                    root.failedState ? Math.sin(root.phase * 6.0) * 2.5 : 0,
+                    11 + (root.failedState ? Math.cos(root.phase * 5.0) * 2.0 : 0),
+                    0)
+                scale: Qt.vector3d(root.assemblyScale, root.assemblyScale, root.assemblyScale)
+                eulerRotation: Qt.vector3d(
+                    -7.0 + root.hoverY * 8.5 + Math.sin(root.phase * 0.23) * 0.75,
+                    11.0 + root.hoverX * 10.5 + Math.cos(root.phase * 0.21) * 0.85,
+                    root.executingState ? Math.sin(root.phase) * 2.4 : Math.sin(root.phase * 0.32) * 0.65)
+                opacity: root.stoppedState ? 0.24 : 1.0
 
-            Model {
-                source: "#Sphere"
-                position: Qt.vector3d(0, 0, root.lensDepth)
-                scale: Qt.vector3d(0.93, 0.93, 0.105)
-                materials: [lensMaterial]
-            }
+                Node {
+                    id: deepStructureGroup
+                    property real spinZ: 0
+                    position: Qt.vector3d(0, 0, -42 - root.layerSpread * 0.45)
+                    eulerRotation: Qt.vector3d(-4 + Math.sin(root.phase * .31) * 2.2,
+                                                     7 + Math.cos(root.phase * .27) * 2.0,
+                                                     spinZ)
+                    RuntimeLoader {
+                        id: deepStructureAsset
+                        objectName: "evV3DeepStructureAsset"
+                        source: Qt.resolvedUrl("../../assets/ev_v3_deep_structure.glb")
+                    }
+                    NumberAnimation on spinZ {
+                        from: 0; to: 360
+                        duration: root.spinDuration(48000)
+                        loops: Animation.Infinite
+                        running: root.localAnimationRunning
+                    }
+                }
 
-            Repeater3D {
-                model: 24
+                Node {
+                    id: outerLatticeGroup
+                    property real spinZ: 0
+                    position: Qt.vector3d(0, 0, -13 - root.layerSpread * 0.20)
+                    scale: Qt.vector3d(1 + root.signalDrive*.014, 1 + root.signalDrive*.014, 1 + root.signalDrive*.014)
+                    eulerRotation: Qt.vector3d(13 + Math.sin(root.phase*.42)*3.0,
+                                                     -17 + Math.cos(root.phase*.38)*3.4,
+                                                     spinZ)
+                    RuntimeLoader {
+                        id: outerLatticeAsset
+                        objectName: "evV3OuterLatticeAsset"
+                        source: Qt.resolvedUrl("../../assets/ev_v3_outer_lattice.glb")
+                    }
+                    NumberAnimation on spinZ {
+                        from: 0; to: -360
+                        duration: root.spinDuration(33500)
+                        loops: Animation.Infinite
+                        running: root.localAnimationRunning
+                    }
+                }
 
-                delegate: Model {
-                    property int particleIndex: index
-                    property real angle:
-                        (particleIndex / 24.0) * Math.PI * 2.0
-                        + root.phase * (
-                            root.planning ? 1.70 :
-                            root.executing ? 2.30 :
-                            root.verifying ? 1.18 :
-                            root.listening ? 0.62 :
-                            root.speaking ? 0.72 :
-                            0.27
-                        )
+                Node {
+                    id: innerLatticeGroup
+                    property real spinZ: 0
+                    position: Qt.vector3d(0, 0, 18 + root.layerSpread * 0.34)
+                    scale: Qt.vector3d(1 + root.signalDrive*.025, 1 + root.signalDrive*.025, 1 + root.signalDrive*.025)
+                    eulerRotation: Qt.vector3d(-21 + Math.cos(root.phase*.54)*4.6,
+                                                     26 + Math.sin(root.phase*.49)*5.2,
+                                                     spinZ)
+                    RuntimeLoader {
+                        id: innerLatticeAsset
+                        objectName: "evV3InnerLatticeAsset"
+                        source: Qt.resolvedUrl("../../assets/ev_v3_inner_lattice.glb")
+                    }
+                    NumberAnimation on spinZ {
+                        from: 0; to: 360
+                        duration: root.spinDuration(root.thinkingState ? 12800 : 22000)
+                        loops: Animation.Infinite
+                        running: root.localAnimationRunning
+                    }
+                }
 
-                    property real orbitRadius:
-                        78.0
-                        + (particleIndex % 4) * 11.0
-                        - (root.listening ? root.effectiveListenLevel * 8.0 : 0.0)
+                Node {
+                    id: coreVortexGroup
+                    property real spinZ: 0
+                    position: Qt.vector3d(0, 0, 50 + root.layerSpread * 0.72 + root.interactionPulse * 5)
+                    scale: Qt.vector3d(0.98 + root.signalDrive*.10 + root.interactionPulse*.07,
+                                           0.98 + root.signalDrive*.10 + root.interactionPulse*.07,
+                                           0.98 + root.signalDrive*.10 + root.interactionPulse*.07)
+                    eulerRotation: Qt.vector3d(Math.sin(root.phase*.73)*7.0,
+                                                     Math.cos(root.phase*.69)*8.0,
+                                                     spinZ)
+                    RuntimeLoader {
+                        id: coreVortexAsset
+                        objectName: "evV3CoreVortexAsset"
+                        source: Qt.resolvedUrl("../../assets/ev_v3_core_vortex.glb")
+                    }
+                    NumberAnimation on spinZ {
+                        from: 0; to: -360
+                        duration: root.spinDuration(root.speakingState ? 7600 : 14200)
+                        loops: Animation.Infinite
+                        running: root.localAnimationRunning
+                    }
+                }
 
-                    property real depthZ:
-                        Math.sin(angle * 1.37 + particleIndex * 0.63)
-                        * (52.0 + (particleIndex % 4) * 7.0)
+                Node {
+                    id: fragmentGroup
+                    property real spinZ: 0
+                    position: Qt.vector3d(0, 0, 27 + root.layerSpread * 0.20)
+                    eulerRotation: Qt.vector3d(17 + Math.sin(root.phase*.33)*5,
+                                                     -12 + Math.cos(root.phase*.29)*5,
+                                                     spinZ)
+                    RuntimeLoader {
+                        id: fragmentAsset
+                        objectName: "evV3FragmentAsset"
+                        source: Qt.resolvedUrl("../../assets/ev_v3_fragments.glb")
+                    }
+                    NumberAnimation on spinZ {
+                        from: 0; to: 360
+                        duration: root.spinDuration(root.executingState ? 9200 : 27200)
+                        loops: Animation.Infinite
+                        running: root.localAnimationRunning
+                    }
+                }
 
-                    source: "#Sphere"
-                    position: Qt.vector3d(
-                        Math.cos(angle) * orbitRadius,
-                        Math.sin(angle) * orbitRadius * (0.50 + (particleIndex % 3) * 0.045),
-                        depthZ
-                    )
-                    scale: Qt.vector3d(
-                        0.016 + (particleIndex % 3) * 0.005,
-                        0.016 + (particleIndex % 3) * 0.005,
-                        0.016 + (particleIndex % 3) * 0.005
-                    )
-                    materials: [particleMaterial]
+                Node {
+                    id: nodesGroup
+                    property real spinZ: 0
+                    position: Qt.vector3d(0, 0, 62 + root.layerSpread * 0.55)
+                    scale: Qt.vector3d(1 + root.signalDrive*.045, 1 + root.signalDrive*.045, 1 + root.signalDrive*.045)
+                    eulerRotation: Qt.vector3d(-28 + Math.sin(root.phase*.45)*8,
+                                                     20 + Math.cos(root.phase*.40)*8,
+                                                     spinZ)
+                    RuntimeLoader {
+                        id: nodesAsset
+                        objectName: "evV3NodesAsset"
+                        source: Qt.resolvedUrl("../../assets/ev_v3_nodes.glb")
+                    }
+                    NumberAnimation on spinZ {
+                        from: 0; to: -360
+                        duration: root.spinDuration((root.listeningState || root.speakingState) ? 9800 : 19000)
+                        loops: Animation.Infinite
+                        running: root.localAnimationRunning
+                    }
                 }
             }
         }
 
-        // SATELLITE NODES
-        Node {
-            id: satelliteSystem
-
-            Repeater3D {
-                model: 6
-
-                delegate: Model {
-                    property int satelliteIndex: index
-                    property real direction: satelliteIndex % 2 === 0 ? 1.0 : -0.82
-                    property real angle:
-                        root.phase * root.satelliteSpeed * direction
-                        + satelliteIndex * 1.37
-
-                    property int orbitPlane: satelliteIndex % 3
-                    property real radiusX: 112.0 + (satelliteIndex % 3) * 18.0
-                    property real radiusY: 42.0 + (satelliteIndex % 2) * 17.0
-                    property real xPos: Math.cos(angle) * radiusX
-                    property real yPos:
-                        orbitPlane === 0
-                        ? Math.sin(angle) * radiusY
-                        : orbitPlane === 1
-                          ? Math.sin(angle) * radiusY + Math.cos(angle) * 13.0
-                          : Math.sin(angle) * (radiusY * 0.82) - Math.cos(angle) * 16.0
-
-                    property real zPos:
-                        orbitPlane === 0
-                        ? Math.sin(angle) * 72.0
-                        : orbitPlane === 1
-                          ? -Math.sin(angle) * 58.0 + Math.cos(angle) * 24.0
-                          : Math.sin(angle) * 82.0 + Math.cos(angle) * 14.0
-
-                    source: "#Sphere"
-                    position: Qt.vector3d(xPos, yPos, zPos)
-                    scale: Qt.vector3d(
-                        0.039 + (satelliteIndex % 3) * 0.007 + root.effectiveListenLevel * 0.004,
-                        0.039 + (satelliteIndex % 3) * 0.007 + root.effectiveListenLevel * 0.004,
-                        0.039 + (satelliteIndex % 3) * 0.007 + root.effectiveListenLevel * 0.004
-                    )
-                    materials: [satelliteMaterial]
+        // Thin transparent calibration marks complement, but never replace, the 3D GLBs.
+        Canvas {
+            id: holoCanvas
+            anchors.fill: parent
+            opacity: root.stoppedState ? 0.06 : 0.26 + root.signalDrive * 0.09
+            antialiasing: true
+            onPaint: {
+                var ctx = getContext("2d")
+                ctx.reset()
+                ctx.clearRect(0, 0, width, height)
+                var cx = width * 0.5
+                var cy = height * 0.5
+                var base = width * 0.405
+                for (var i = 0; i < 18; ++i) {
+                    var r = base * (0.66 + i * 0.021)
+                    var start = (i * 47 + root.phase * (3 + i % 4)) * Math.PI / 180
+                    var span = (18 + (i * 19) % 74) * Math.PI / 180
+                    ctx.beginPath()
+                    ctx.arc(cx, cy, r, start, start + span, false)
+                    ctx.strokeStyle = root.rgba(i % 4 === 0 ? root.secondaryTone : root.primaryTone,
+                                                0.20 + (i % 3) * 0.055)
+                    ctx.lineWidth = i % 5 === 0 ? 1.5 : 0.7
+                    ctx.stroke()
+                }
+                for (var t = 0; t < 72; ++t) {
+                    var a = (t * 5 + root.phase * 1.7) * Math.PI / 180
+                    var inner = base * (0.89 + (t % 4) * 0.012)
+                    var outer = inner + (t % 9 === 0 ? 11 : 4)
+                    ctx.beginPath()
+                    ctx.moveTo(cx + Math.cos(a) * inner, cy + Math.sin(a) * inner)
+                    ctx.lineTo(cx + Math.cos(a) * outer, cy + Math.sin(a) * outer)
+                    ctx.strokeStyle = root.rgba(t % 7 === 0 ? root.secondaryTone : root.primaryTone, 0.28)
+                    ctx.lineWidth = t % 9 === 0 ? 1.2 : 0.55
+                    ctx.stroke()
                 }
             }
+            onWidthChanged: requestPaint()
+            onHeightChanged: requestPaint()
         }
     }
 
-    // ------------------------------------------------------------------------
-    // 4. FRONT GLASS REFLECTION CANVAS
-    // ------------------------------------------------------------------------
-    Canvas {
-        id: glassCanvas
+    MouseArea {
+        id: visualInteraction
         anchors.fill: parent
-        antialiasing: true
-
-        onPaint: {
-            var ctx = getContext("2d")
-            var cx = width * 0.5
-            var cy = height * 0.5
-            var r = root.auraRadius * root.coreBreath * 0.83
-            var tone = root.displayTone
-
-            ctx.clearRect(0, 0, width, height)
-
-            ctx.lineWidth = Math.max(1.0, r * 0.010)
-            ctx.strokeStyle = root.rgbaString(tone, 0.15 + root.glowDrive * 0.05)
-            ctx.beginPath()
-            ctx.arc(cx, cy, r, Math.PI * 0.06, Math.PI * 1.86)
-            ctx.stroke()
-
-            ctx.lineWidth = Math.max(1.0, r * 0.018)
-            ctx.strokeStyle = "rgba(255,255,255,0.17)"
-            ctx.beginPath()
-            ctx.arc(cx - r * 0.020, cy - r * 0.018, r * 0.76, Math.PI * 1.11, Math.PI * 1.48)
-            ctx.stroke()
-
-            var kernelRadius = r * (0.13 + root.effectiveListenLevel * 0.030 + root.effectiveSpeechLevel * 0.028)
-            var kernel = ctx.createRadialGradient(
-                cx - kernelRadius * 0.18,
-                cy - kernelRadius * 0.18,
-                1,
-                cx,
-                cy,
-                kernelRadius
-            )
-            kernel.addColorStop(0.0, "rgba(255,255,255,0.46)")
-            kernel.addColorStop(0.42, root.rgbaString(tone, 0.28))
-            kernel.addColorStop(1.0, root.rgbaString(tone, 0.0))
-
-            ctx.fillStyle = kernel
-            ctx.beginPath()
-            ctx.arc(cx, cy, kernelRadius, 0, Math.PI * 2.0)
-            ctx.fill()
+        hoverEnabled: true
+        acceptedButtons: Qt.LeftButton
+        cursorShape: Qt.CrossCursor
+        onPositionChanged: function(mouse) {
+            root.hoverX = root.width > 0 ? (mouse.x / root.width - 0.5) * 2.0 : 0
+            root.hoverY = root.height > 0 ? (mouse.y / root.height - 0.5) * 2.0 : 0
+        }
+        onExited: {
+            root.hoverX = 0
+            root.hoverY = 0
+        }
+        onClicked: {
+            root.interactionPulse = 1.0
+            interactionPulseAnimation.restart()
         }
     }
-
-    // ------------------------------------------------------------------------
-    // 5. FRONT ORBITAL TRACERS
-    // ------------------------------------------------------------------------
-    Canvas {
-        id: frontOrbitCanvas
-        anchors.fill: parent
-        antialiasing: true
-
-        onPaint: {
-            var ctx = getContext("2d")
-            var cx = width * 0.5
-            var cy = height * 0.5
-            var r = root.auraRadius
-            var tone = root.displayTone
-
-            ctx.clearRect(0, 0, width, height)
-
-            function movingArc(rx, ry, rotation, startAngle, arcLength, alphaValue) {
-                var steps = 30
-                var cr = Math.cos(rotation)
-                var sr = Math.sin(rotation)
-
-                ctx.beginPath()
-                for (var i = 0; i <= steps; ++i) {
-                    var t = startAngle + (i / steps) * arcLength
-                    var ex = Math.cos(t) * rx
-                    var ey = Math.sin(t) * ry
-                    var x = cx + ex * cr - ey * sr
-                    var y = cy + ex * sr + ey * cr
-
-                    if (i === 0)
-                        ctx.moveTo(x, y)
-                    else
-                        ctx.lineTo(x, y)
-                }
-                ctx.lineWidth = Math.max(1.1, r * 0.008)
-                ctx.strokeStyle = root.rgbaString(tone, alphaValue)
-                ctx.stroke()
-            }
-
-            var p = root.phase * root.satelliteSpeed
-
-            movingArc(r * 1.34, r * 0.48, -0.34, p + 0.10, 0.72, root.tracerOpacity * 1.20)
-            movingArc(r * 1.18, r * 0.62, 0.18, -p * 0.82 + 2.10, 0.58, root.tracerOpacity * 0.94)
-            movingArc(r * 1.44, r * 0.38, 0.58, p * 0.66 + 4.10, 0.48, root.tracerOpacity * 0.75)
-        }
-    }
-
-    // Synchronize canvas repaints on property triggers
-    onPhaseChanged: {
-        rearOrbitCanvas.requestPaint()
-        frontOrbitCanvas.requestPaint()
-        if (root.listening || root.speaking || root.verifying) {
-            auraCanvas.requestPaint()
-        }
-    }
-
-    onWidthChanged: {
-        auraCanvas.requestPaint()
-        rearOrbitCanvas.requestPaint()
-        glassCanvas.requestPaint()
-        frontOrbitCanvas.requestPaint()
-    }
-
-    onHeightChanged: {
-        auraCanvas.requestPaint()
-        rearOrbitCanvas.requestPaint()
-        glassCanvas.requestPaint()
-        frontOrbitCanvas.requestPaint()
-    }
-
-    onDisplayToneChanged: {
-        auraCanvas.requestPaint()
-        rearOrbitCanvas.requestPaint()
-        glassCanvas.requestPaint()
-        frontOrbitCanvas.requestPaint()
-    }
-
-    onStateTextChanged: {
-        auraCanvas.requestPaint()
-        glassCanvas.requestPaint()
-        rearOrbitCanvas.requestPaint()
-        frontOrbitCanvas.requestPaint()
-    }
-
-    onVisualModeChanged: {
-        auraCanvas.requestPaint()
-        glassCanvas.requestPaint()
-        rearOrbitCanvas.requestPaint()
-        frontOrbitCanvas.requestPaint()
-    }
-
-    onGlowDriveChanged: {
-        auraCanvas.requestPaint()
-        glassCanvas.requestPaint()
-    }
-
-    onAuraRadiusChanged: {
-        auraCanvas.requestPaint()
-        glassCanvas.requestPaint()
-    }
-
-    onEffectiveListenLevelChanged: {
-        auraCanvas.requestPaint()
-        glassCanvas.requestPaint()
-    }
-
-    onEffectiveSpeechLevelChanged: {
-        auraCanvas.requestPaint()
-        glassCanvas.requestPaint()
-    }
-
-    Component.onCompleted: {
-        auraCanvas.requestPaint()
-        glassCanvas.requestPaint()
-        rearOrbitCanvas.requestPaint()
-        frontOrbitCanvas.requestPaint()
+    Behavior on hoverX { NumberAnimation { duration: 145; easing.type: Easing.OutCubic } }
+    Behavior on hoverY { NumberAnimation { duration: 145; easing.type: Easing.OutCubic } }
+    NumberAnimation {
+        id: interactionPulseAnimation
+        target: root
+        property: "interactionPulse"
+        from: 1.0
+        to: 0.0
+        duration: 680
+        easing.type: Easing.OutCubic
     }
 }

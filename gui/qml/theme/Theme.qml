@@ -60,16 +60,17 @@ QtObject {
     readonly property string fontFamily: "Segoe UI, system-ui, sans-serif"
     readonly property string fontFamilyMono: "Consolas, 'Courier New', monospace"
 
-    // Font sizes (in points, scalable via DPI)
-    readonly property int fontSizeDisplay: 48
-    readonly property int fontSizeTitle: 32
-    readonly property int fontSizeSection: 24
-    readonly property int fontSizeBody: 16
-    readonly property int fontSizeBodySmall: 14
-    readonly property int fontSizeLabel: 12
-    readonly property int fontSizeLabelSmall: 10
-    readonly property int fontSizeNumeric: 18
-    readonly property int fontSizeMono: 12
+    // Font sizes (in points, scalable via DPI) - reduced 15-20% for refined HUD scale
+    readonly property int fontSizeDisplay: 40
+    readonly property int fontSizeTitle: 26
+    readonly property int fontSizeSection: 20
+    readonly property int fontSizeBody: 13
+    readonly property int fontSizeBodySmall: 11
+    readonly property int fontSizeLabel: 10
+    readonly property int fontSizeLabelSmall: 9
+    readonly property int fontSizeNumeric: 15
+    readonly property int fontSizeMono: 10
+    readonly property int fontSizeTelemetryIcon: 14
 
     // Font weights
     readonly property int fontWeightLight: 300

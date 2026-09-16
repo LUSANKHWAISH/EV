@@ -1,0 +1,134 @@
+{
+  "passed": true,
+  "scope": "Real QMediaPlayer + Qt PCM tap + WASAPI selected output. Generated signal fixture; isolated bridge, no executor. Forced readbacks, not FPS benchmark.",
+  "checks": [
+    {
+      "name": "canonical_music_mode",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "music_surface_loaded",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "local_playback_running",
+      "passed": true,
+      "detail": {
+        "position": 1365.0,
+        "duration": 12000.0
+      }
+    },
+    {
+      "name": "real_pcm_reaches_analyzer",
+      "passed": true,
+      "detail": {
+        "processed": 17,
+        "level": 0.2613108749815556
+      }
+    },
+    {
+      "name": "volume_slider_controls_output",
+      "passed": true,
+      "detail": {
+        "before": 0.550000011920929,
+        "after": 0.45000001788139343
+      }
+    },
+    {
+      "name": "pause_control_and_silence",
+      "passed": true,
+      "detail": 0.0002618792219808811
+    },
+    {
+      "name": "seek_slider_controls_position",
+      "passed": true,
+      "detail": {
+        "before": 1536.0,
+        "after": 2536.0
+      }
+    },
+    {
+      "name": "seek_works",
+      "passed": true,
+      "detail": 8268.0
+    },
+    {
+      "name": "mute_control_and_meter",
+      "passed": true,
+      "detail": 0.00031017696065560477
+    },
+    {
+      "name": "loopback_started",
+      "passed": true,
+      "detail": "Listening to output \u00b7 BenQ VZ2250 (NVIDIA High Definition Audio) [Loopback]"
+    },
+    {
+      "name": "windows_mix_has_real_audio",
+      "passed": true,
+      "detail": 0.4796503282173228
+    },
+    {
+      "name": "stop_capture_releases_device",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "capture_reconnect",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "device_reconnect_with_default",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "source_switch_releases_loopback",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "recorded_silence_settles",
+      "passed": true,
+      "detail": 0.0
+    },
+    {
+      "name": "compact_music_navigation",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "approval_disables_music_controls",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "assistant_restored",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "capture_and_analysis_sleep_outside_music",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "stop_control_stops_player",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "no_qml_or_python_callbacks_failed",
+      "passed": true,
+      "detail": []
+    },
+    {
+      "name": "analysis_worker_stops",
+      "passed": true,
+      "detail": null
+    }
+  ],
+  "sample_count": 140
+}

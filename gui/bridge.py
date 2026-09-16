@@ -3,7 +3,9 @@
 # Uses queued Qt signal to update Qt state from any thread.
 
 from datetime import datetime, timezone, timedelta
+import json
 import logging
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from PySide6.QtCore import QObject, Property, Signal, Slot, Qt
@@ -11,6 +13,7 @@ from PySide6.QtCore import QObject, Property, Signal, Slot, Qt
 from core.events import EVEvent, EVEventBus
 from core.experience import EVExperienceManager
 from core.models import EVEventType, EVState
+from gui.visual_state import VisualStateController
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +46,10 @@ class GuiBridge(QObject):
     # Public signals for QML to bind to
     stateChanged = Signal(str)
     voiceStateChanged = Signal(str)
+    voiceLevelChanged = Signal(float)
+    speechLevelChanged = Signal(float)
+    voiceActivityChanged = Signal(bool)
+    speakingActivityChanged = Signal(bool)
     currentTaskChanged = Signal(str)
     latestObservationChanged = Signal(str)
     taskSubmitted = Signal(str)
@@ -81,6 +88,7 @@ class GuiBridge(QObject):
     latestAwarenessMessageChanged = Signal(str)
     latestAwarenessSeverityChanged = Signal(str)
     taskResultChanged = Signal()
+    visualStateChanged = Signal()
 
     # Lifecycle projection signals (Phase 018-E)
     lifecycleStageChanged = Signal(str)
@@ -88,9 +96,16 @@ class GuiBridge(QObject):
     lifecycleActiveChanged = Signal(bool)
     lifecycleRollbackChanged = Signal(bool)
 
+    # Settings & AI Provider Signals
+    settingsVisibleChanged = Signal(bool)
+    activeProviderChanged = Signal(str)
+    activeProviderStatusChanged = Signal(str)
+    providerListChanged = Signal()
+
     # Internal signal for safe cross-thread queued handoff
     _stateChangeRequested = Signal(object)
     _voiceStateChangeRequested = Signal(str)
+    _voiceTelemetryQueued = Signal(float, float, bool, bool)
     _currentTaskChangeRequested = Signal(str)
     _latestObservationChangeRequested = Signal(str)
     _approvalRequestQueued = Signal(dict)
@@ -102,6 +117,7 @@ class GuiBridge(QObject):
     _awarenessEventQueued = Signal(str, str, str, str)
     _taskResultQueued = Signal(str, str, bool)
     _lifecycleStageQueued = Signal(str, dict)
+    _visualEventQueued = Signal(str, dict, str)
 
     def __init__(
         self,
@@ -112,7 +128,13 @@ class GuiBridge(QObject):
         self._event_bus: EVEventBus = event_bus
         self._experience_manager: Optional[EVExperienceManager] = experience_manager
         self._state: Optional[EVState] = event_bus.current_state
+        self._visual_controller = VisualStateController()
+        self._visual_controller.changed.connect(self.visualStateChanged)
         self._voice_state: str = "IDLE"
+        self._voice_level: float = 0.0
+        self._speech_level: float = 0.0
+        self._voice_activity: bool = False
+        self._speaking_activity: bool = False
         self._current_task: str = ""
         self._latest_observation: str = ""
         self._approval_pending: bool = False
@@ -142,7 +164,7 @@ class GuiBridge(QObject):
             experience_manager.current_mode.value if experience_manager else "STANDARD"
         )
         self._style_preset: str = (
-            experience_manager.current_preset.value if experience_manager else "EV_CORE"
+            experience_manager.current_preset.value if experience_manager else self._load_persisted_style_preset()
         )
         self._system_alert_message: str = ""
         self._latest_awareness_title: str = ""
@@ -159,15 +181,52 @@ class GuiBridge(QObject):
         self._lifecycle_rollback: bool = False
         self._lifecycle_terminal: bool = False
         self._lifecycle_approval_required: bool = False
+        self._settings_visible: bool = False
+        self._provider_config_store = None
+        self._brain_router = None
+        self._pending_activation_provider_id: Optional[str] = None
+        self._pending_unidentified_key: Optional[str] = None
         self._subscription_tokens: List[str] = []
         self._setup_subscriptions()
+
+    def _get_core_style_path(self) -> Path:
+        from core.paths import ensure_dir, get_config_dir
+        return ensure_dir(get_config_dir()) / "core_style.json"
+
+    def _load_persisted_style_preset(self) -> str:
+        try:
+            path = self._get_core_style_path()
+            if path.exists():
+                data = json.loads(path.read_text(encoding="utf-8"))
+                if isinstance(data, dict) and "preset" in data:
+                    val = str(data["preset"]).strip().upper()
+                    if val in ("ASTRA", "ORIGINAL", "MINIMAL", "AMBIENT", "FOCUSED", "ALERT", "EV_CORE"):
+                        return val
+        except Exception as exc:
+            logger.debug("Failed reading core_style.json: %s", exc)
+        return "EV_CORE"
+
+    def _save_persisted_style_preset(self, preset: str) -> None:
+        try:
+            path = self._get_core_style_path()
+            path.write_text(json.dumps({"preset": preset}, indent=2), encoding="utf-8")
+        except Exception as exc:
+            logger.warning("Failed saving core_style.json: %s", exc)
 
     def set_experience_manager(self, experience_manager: Optional[EVExperienceManager]) -> None:
         """Attach an experience manager to the bridge after construction."""
         self._experience_manager = experience_manager
         if experience_manager is not None:
+            persisted = self._load_persisted_style_preset()
+            if persisted:
+                try:
+                    from core.experience import EVCoreStylePreset
+                    experience_manager.set_style_preset(EVCoreStylePreset(persisted))
+                except Exception:
+                    pass
             self._experience_mode = experience_manager.current_mode.value
             self._style_preset = experience_manager.current_preset.value
+            self.stylePresetChanged.emit(self._style_preset)
 
     def _setup_subscriptions(self) -> None:
         """Connect internal signals and subscribe to EVEventBus."""
@@ -177,6 +236,10 @@ class GuiBridge(QObject):
         )
         self._voiceStateChangeRequested.connect(
             self._on_voice_state_changed_internal,
+            type=Qt.ConnectionType.QueuedConnection,
+        )
+        self._voiceTelemetryQueued.connect(
+            self._on_voice_telemetry_internal,
             type=Qt.ConnectionType.QueuedConnection,
         )
         self._currentTaskChangeRequested.connect(
@@ -223,12 +286,17 @@ class GuiBridge(QObject):
             self._on_lifecycle_stage_internal,
             type=Qt.ConnectionType.QueuedConnection,
         )
+        self._visualEventQueued.connect(
+            self._on_visual_event_internal,
+            type=Qt.ConnectionType.QueuedConnection,
+        )
 
         token = self._event_bus.subscribe(
             self._on_event_received,
             event_types=[
                 EVEventType.STATE_CHANGED,
                 EVEventType.VOICE_STATE_CHANGED,
+                EVEventType.VOICE_TELEMETRY,
                 EVEventType.ACTION_STARTED,
                 EVEventType.ACTION_COMPLETED,
                 EVEventType.ACTION_VERIFYING,
@@ -258,8 +326,12 @@ class GuiBridge(QObject):
         Callback from EVEventBus (may be called from any thread).
         Only emits internal Qt signals to hand off execution to the Qt thread.
         """
+        if event.event_type not in (EVEventType.STATE_CHANGED, EVEventType.VOICE_STATE_CHANGED):
+            self._visualEventQueued.emit(event.event_type.value, event.data or {}, "")
+
         if event.event_type == EVEventType.STATE_CHANGED:
             if event.state is not None:
+                self._visualEventQueued.emit("STATE_CHANGED", {}, event.state.value if hasattr(event.state, "value") else str(event.state))
                 self._stateChangeRequested.emit(event.state)
                 val = event.state.value if hasattr(event.state, "value") else str(event.state)
                 if val == "AWAITING_APPROVAL":
@@ -269,7 +341,15 @@ class GuiBridge(QObject):
         elif event.event_type == EVEventType.VOICE_STATE_CHANGED:
             voice_state = str(event.data.get("voice_state", "")) if event.data else ""
             if voice_state:
+                self._visualEventQueued.emit("VOICE_STATE_CHANGED", {"voice_state": voice_state}, "")
                 self._voiceStateChangeRequested.emit(voice_state)
+        elif event.event_type == EVEventType.VOICE_TELEMETRY:
+            data = event.data or {}
+            vl = float(data.get("voiceLevel", 0.0))
+            sl = float(data.get("speechLevel", 0.0))
+            va = bool(data.get("voiceActivity", False))
+            sa = bool(data.get("speakingActivity", False))
+            self._voiceTelemetryQueued.emit(vl, sl, va, sa)
         elif event.event_type == EVEventType.ACTION_STARTED:
             msg = event.message if event.message else "Active"
             self._currentTaskChangeRequested.emit(msg)
@@ -395,6 +475,10 @@ class GuiBridge(QObject):
             self._systemAlertChangeRequested.emit("")
             self._awarenessEventQueued.emit("", "", "", "INFO")
 
+    @Slot(str, dict, str)
+    def _on_visual_event_internal(self, event_type: str, data: dict, state: str) -> None:
+        self._visual_controller.observe_event(event_type, data, state or None)
+
     @Slot(object)
     def _on_state_changed_internal(self, new_state: EVState) -> None:
         """
@@ -444,6 +528,37 @@ class GuiBridge(QObject):
     def isVoiceActive(self) -> bool:
         """True when the voice subsystem is actively interacting (not IDLE/PAUSED)."""
         return self._voice_state not in ("IDLE", "PAUSED", "")
+
+    @Slot(float, float, bool, bool)
+    def _on_voice_telemetry_internal(self, voice_level: float, speech_level: float, voice_activity: bool, speaking_activity: bool) -> None:
+        if self._voice_level != voice_level:
+            self._voice_level = voice_level
+            self.voiceLevelChanged.emit(voice_level)
+        if self._speech_level != speech_level:
+            self._speech_level = speech_level
+            self.speechLevelChanged.emit(speech_level)
+        if self._voice_activity != voice_activity:
+            self._voice_activity = voice_activity
+            self.voiceActivityChanged.emit(voice_activity)
+        if self._speaking_activity != speaking_activity:
+            self._speaking_activity = speaking_activity
+            self.speakingActivityChanged.emit(speaking_activity)
+
+    @Property(float, notify=voiceLevelChanged)
+    def voiceLevel(self) -> float:
+        return self._voice_level
+
+    @Property(float, notify=speechLevelChanged)
+    def speechLevel(self) -> float:
+        return self._speech_level
+
+    @Property(bool, notify=voiceActivityChanged)
+    def voiceActivity(self) -> bool:
+        return self._voice_activity
+
+    @Property(bool, notify=speakingActivityChanged)
+    def speakingActivity(self) -> bool:
+        return self._speaking_activity
 
     @Slot(dict)
     def _on_approval_requested_internal(self, payload: dict) -> None:
@@ -526,6 +641,58 @@ class GuiBridge(QObject):
         if self._state is None:
             return ""
         return self._state.value if hasattr(self._state, "value") else str(self._state)
+
+    @Property(str, notify=visualStateChanged)
+    def visualState(self) -> str:
+        """Canonical presentation-only state for the intelligence core."""
+        return self._visual_controller.state
+
+    @Property(str, notify=visualStateChanged)
+    def previousVisualState(self) -> str:
+        return self._visual_controller.previous_state
+
+    @Property("QVariantMap", notify=visualStateChanged)
+    def visualProfile(self) -> Dict[str, Any]:
+        return self._visual_controller.profile
+
+    @Property(float, notify=visualStateChanged)
+    def visualTransitionProgress(self) -> float:
+        return self._visual_controller.transition_progress
+
+    @Property(bool, notify=visualStateChanged)
+    def visualAnimationEnabled(self) -> bool:
+        return self._visual_controller.animation_enabled
+
+    @Property(str, notify=visualStateChanged)
+    def lastVisualEvent(self) -> str:
+        return self._visual_controller.last_event
+
+    @Property(bool, notify=visualStateChanged)
+    def visualSimulationActive(self) -> bool:
+        return self._visual_controller.simulation_active
+
+    def setVisualStateForSimulation(self, state: str) -> None:
+        """Test-only presentation simulation; it never mutates backend state."""
+        self._visual_controller.set_state_for_simulation(state)
+
+    def injectVisualVoiceSignal(self, *, activity: bool = False, speaking: bool = False) -> None:
+        """Test-only voice simulation with no microphone or authority effects."""
+        self._visual_controller.inject_voice_signal(activity=activity, speaking=speaking)
+
+    def injectVisualActionEvent(self, event: str) -> None:
+        """Test-only visual action simulation with no execution effect."""
+        self._visual_controller.inject_action_event(event)
+
+    def injectVisualExecutionEvent(self, event: str) -> None:
+        """Test-only visual execution simulation with no execution effect."""
+        self._visual_controller.inject_execution_event(event)
+
+    def injectVisualApprovalEvent(self, pending: bool) -> None:
+        """Test-only approval visualization; it cannot resolve an approval."""
+        self._visual_controller.inject_approval_event(pending)
+
+    def clearVisualSimulation(self) -> None:
+        self._visual_controller.clear_simulation()
 
     @Slot(str)
     def _on_current_task_changed_internal(self, task: str) -> None:
@@ -857,10 +1024,12 @@ class GuiBridge(QObject):
 
     @Slot(str)
     def _on_style_preset_changed_internal(self, preset: str) -> None:
-        if self._style_preset == preset:
+        clean = (preset or "").strip().upper()
+        if self._style_preset == clean:
             return
-        self._style_preset = preset
-        self.stylePresetChanged.emit(preset)
+        self._style_preset = clean
+        self.stylePresetChanged.emit(clean)
+        self._save_persisted_style_preset(clean)
 
     @Slot(str)
     def _on_system_alert_changed_internal(self, message: str) -> None:
@@ -878,6 +1047,17 @@ class GuiBridge(QObject):
     def stylePreset(self) -> str:
         """Current visual style preset for QML binding."""
         return self._style_preset
+
+    @Property("QVariantList", constant=True)
+    def availableStylePresets(self) -> List[Dict[str, str]]:
+        """List of available core visual style presets for Settings UI."""
+        return [
+            {"id": "ASTRA", "name": "ASTRA", "description": "Celestial intelligence globe"},
+            {"id": "ORIGINAL", "name": "ORIGINAL", "description": "Original E.V. intelligence field"},
+            {"id": "MINIMAL", "name": "MINIMAL", "description": "Reduced visual Core"},
+            {"id": "AMBIENT", "name": "AMBIENT", "description": "Atmospheric Core"},
+            {"id": "FOCUSED", "name": "FOCUSED", "description": "High-energy intelligence Core"},
+        ]
 
     @Property(str, notify=systemAlertChanged)
     def systemAlertMessage(self) -> str:
@@ -943,12 +1123,19 @@ class GuiBridge(QObject):
     @Slot(str)
     def setStylePreset(self, preset: str) -> None:
         """Called by QML to change the visual style preset."""
+        clean = (preset or "").strip().upper()
         if self._experience_manager:
             try:
                 from core.experience import EVCoreStylePreset
-                self._experience_manager.set_style_preset(EVCoreStylePreset(preset))
+                val = EVCoreStylePreset(clean)
+                self._experience_manager.set_style_preset(val)
+                self._save_persisted_style_preset(val.value)
             except (ValueError, KeyError):
                 pass  # Invalid preset string — silently ignore from QML
+        else:
+            self._style_preset = clean
+            self.stylePresetChanged.emit(clean)
+            self._save_persisted_style_preset(clean)
 
     # ------------------------------------------------------------------
     # Telemetry presentation contract (Task 018-B)
@@ -1298,3 +1485,226 @@ class GuiBridge(QObject):
         for token in self._subscription_tokens:
             self._event_bus.unsubscribe(token)
         self._subscription_tokens.clear()
+
+    # ------------------------------------------------------------------
+    # Settings & AI Provider Presentation & Management
+    # ------------------------------------------------------------------
+
+    def set_provider_config_store(self, store: Any) -> None:
+        """Attach a provider config store to the bridge."""
+        self._provider_config_store = store
+        self._refresh_active_provider_state()
+
+    def set_brain_router(self, router: Any) -> None:
+        """Attach the production BrainRouter to the bridge for dynamic provider synchronization."""
+        self._brain_router = router
+
+    def _get_store(self) -> Any:
+        if self._provider_config_store is None:
+            try:
+                from core.provider_config import AIProviderConfigStore
+                self._provider_config_store = AIProviderConfigStore()
+            except Exception as exc:
+                logger.warning("Failed to initialize lazy provider config store: %s", exc)
+        return self._provider_config_store
+
+    @Property(bool, notify=settingsVisibleChanged)
+    def settingsVisible(self) -> bool:
+        """Whether the Settings overlay panel is currently visible."""
+        return self._settings_visible
+
+    @Slot()
+    def toggleSettings(self) -> None:
+        """Toggle the Settings overlay presentation."""
+        self._settings_visible = not self._settings_visible
+        self.settingsVisibleChanged.emit(self._settings_visible)
+
+    @Slot(bool)
+    def setSettingsVisible(self, visible: bool) -> None:
+        """Set the Settings overlay visibility directly."""
+        v = bool(visible)
+        if self._settings_visible != v:
+            self._settings_visible = v
+            self.settingsVisibleChanged.emit(self._settings_visible)
+
+    @Slot()
+    def openSettings(self) -> None:
+        """Open the Settings overlay."""
+        self.setSettingsVisible(True)
+
+    @Slot()
+    def closeSettings(self) -> None:
+        """Close the Settings overlay."""
+        self.setSettingsVisible(False)
+
+    @Property(str, notify=activeProviderChanged)
+    def activeProviderName(self) -> str:
+        """Name of the currently active AI provider (e.g. 'Gemini')."""
+        store = self._get_store()
+        if store:
+            active = store.get_active_provider()
+            if active:
+                return active.name
+        return "Not Configured"
+
+    @Property(str, notify=activeProviderStatusChanged)
+    def activeProviderStatus(self) -> str:
+        """Connection / configuration status of the active provider."""
+        store = self._get_store()
+        if store:
+            active = store.get_active_provider()
+            if active:
+                return "Connected" if active.has_credential else "Configured"
+        return "Inactive"
+
+    @Property(str, notify=providerListChanged)
+    def providerListJson(self) -> str:
+        """JSON-serialized list of all configured providers with masked keys."""
+        store = self._get_store()
+        if store:
+            providers = store.get_providers()
+            return json.dumps([p.to_dict(mask_keys=True) for p in providers])
+        return "[]"
+
+    @Slot(result=str)
+    def getProvidersJson(self) -> str:
+        """Return JSON-serialized provider list for QML."""
+        return self.providerListJson
+
+    @Slot(str, str, result=str)
+    def saveProvider(self, provider_json: str, api_key: str) -> str:
+        """
+        Save or update a provider config from QML.
+        Returns the saved provider ID on success, or empty string on error.
+        """
+        store = self._get_store()
+        if not store:
+            return ""
+        try:
+            data = json.loads(provider_json)
+            from core.provider_config import AIProviderConfig
+            cfg = AIProviderConfig.from_dict(data)
+            saved = store.save_provider(cfg, api_key=api_key if api_key else None)
+            self._sync_brain_router_if_active(saved.id)
+            self.providerListChanged.emit()
+            self.activeProviderChanged.emit(self.activeProviderName)
+            self.activeProviderStatusChanged.emit(self.activeProviderStatus)
+            return saved.id
+        except Exception as exc:
+            logger.error("Failed to save provider config: %s", exc)
+            return ""
+
+    @Slot(str, result=bool)
+    def setActiveProvider(self, provider_id: str) -> bool:
+        """
+        Set exactly one active provider in store and immediately synchronize BrainRouter.
+        """
+        store = self._get_store()
+        if not store:
+            return False
+        success = store.set_active(provider_id)
+        if success:
+            self._sync_brain_router_if_active(provider_id)
+            self.providerListChanged.emit()
+            self.activeProviderChanged.emit(self.activeProviderName)
+            self.activeProviderStatusChanged.emit(self.activeProviderStatus)
+        return success
+
+    @Slot(str, result=bool)
+    def deleteProvider(self, provider_id: str) -> bool:
+        """
+        Delete a provider configuration.
+        """
+        store = self._get_store()
+        if not store:
+            return False
+        success = store.delete_provider(provider_id)
+        if success:
+            self.providerListChanged.emit()
+            self.activeProviderChanged.emit(self.activeProviderName)
+            self.activeProviderStatusChanged.emit(self.activeProviderStatus)
+        return success
+
+    @Slot(str, str, result=str)
+    def testConnection(self, provider_json: str, api_key: str) -> str:
+        """
+        Test provider connectivity and auto-detect protocol if configured.
+        Returns JSON string with detailed status, message, and discovered models.
+        """
+        try:
+            data = json.loads(provider_json)
+            from core.provider_config import (
+                AIProviderConfig,
+                auto_detect_and_test_provider,
+                test_provider_connection,
+            )
+            cfg = AIProviderConfig.from_dict(data)
+            effective_key = api_key
+            if not effective_key or effective_key == "••••••••••••":
+                store = self._get_store()
+                if store:
+                    effective_key = store.get_credential(cfg.id) or ""
+
+            raw_proto = (cfg.protocol or "").strip().lower()
+            if raw_proto in ("auto_detect", "auto detect", "auto"):
+                det = auto_detect_and_test_provider(cfg, effective_key)
+                return json.dumps(det)
+
+            success, message = test_provider_connection(cfg, effective_key)
+            return json.dumps({
+                "success": success,
+                "message": message,
+                "status": "CONNECTED" if success else "FAILED",
+                "detected_protocol": cfg.protocol,
+                "discovered_models": [cfg.model] if cfg.model else [],
+            })
+        except Exception as exc:
+            logger.warning("Connection test failed with exception: %s", exc)
+            return json.dumps({
+                "success": False,
+                "message": f"✕ Provider unavailable: {str(exc)[:100]}",
+                "status": "UNAVAILABLE",
+            })
+
+    def set_pending_activation(self, provider_id: Optional[str]) -> None:
+        self._pending_activation_provider_id = provider_id
+
+    def get_pending_activation(self) -> Optional[str]:
+        return self._pending_activation_provider_id
+
+    def set_pending_unidentified_key(self, key: Optional[str]) -> None:
+        self._pending_unidentified_key = key
+
+    def get_pending_unidentified_key(self) -> Optional[str]:
+        return self._pending_unidentified_key
+
+    def _sync_brain_router_if_active(self, provider_id: str) -> None:
+        """Dynamically update BrainRouter's provider manager when active provider changes."""
+        if not self._brain_router:
+            return
+        store = self._get_store()
+        if not store:
+            return
+        active = store.get_active_provider()
+        if not active or active.id != provider_id:
+            return
+        try:
+            from core.brain_provider_manager import EVBrainProviderManager
+            new_primary = store.create_active_brain_provider()
+            if new_primary:
+                current_mgr = getattr(self._brain_router, "provider_manager", None)
+                fallbacks = []
+                if current_mgr:
+                    for p in current_mgr.providers:
+                        if p.provider_name != new_primary.provider_name:
+                            fallbacks.append(p)
+                new_mgr = EVBrainProviderManager([new_primary] + fallbacks)
+                self._brain_router.provider_manager = new_mgr
+                logger.info("Synchronized BrainRouter active provider to: %s (%s)", new_primary.provider_name, new_primary.model_name)
+        except Exception as exc:
+            logger.warning("Failed to synchronize BrainRouter provider manager: %s", exc)
+
+    def _refresh_active_provider_state(self) -> None:
+        self.activeProviderChanged.emit(self.activeProviderName)
+        self.activeProviderStatusChanged.emit(self.activeProviderStatus)
+        self.providerListChanged.emit()

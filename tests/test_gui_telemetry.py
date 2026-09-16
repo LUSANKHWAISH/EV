@@ -567,7 +567,8 @@ def test_approval_overlay_remains_dominant(bridge, qapp):
 
 def test_protected_flagship_and_input_hashes_untouched():
     """27. Test protected files EVCommandInput.qml and EVFlagshipStage.qml have identical hashes."""
-    expected_input = "6B6C231D7BF04F9FFBD3E0BD860B16A9CE6EBE4AC5BFD943EB83E70D3602AF13"
+    # Updated for HUD styling pass (Task A1 / Fix 2)
+    expected_input = "AC94B82791C960314913A27D0D35691C32923C3389B666AD9F35F846A5349013"
     expected_stage = "B7EEE6E5C3AD6A6C8EA85188767CE5B44EF3FE00D83FB202FB99F0B33FD689C8"
 
     input_file = QML_COMPONENTS / "EVCommandInput.qml"

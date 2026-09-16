@@ -1,0 +1,158 @@
+{
+  "passed": true,
+  "checks": [
+    {
+      "name": "modal_uses_cinematic_style",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "settings_owns_input",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "credential_remains_password_masked",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "connection_button_keeps_existing_route",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "save_button_updates_isolated_provider",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "saving_retains_masked_credential",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "add_provider_works",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "inactive_actions_fit_inside_panel",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "activate_provider_works",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "delete_provider_works",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "azure_fields_visible",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "category_VOICE",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "category_APPEARANCE",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "category_CORE STYLE",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "classic_style_control_still_works",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "category_AUDIO",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "category_GENERAL",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "actions_fit_1100",
+      "passed": true,
+      "detail": [
+        [
+          "providerTest",
+          453.0,
+          700.0
+        ],
+        [
+          "providerActivate",
+          573.0,
+          700.0
+        ],
+        [
+          "providerSave",
+          723.0,
+          700.0
+        ],
+        [
+          "settingsClose",
+          1040.0,
+          106.0
+        ]
+      ]
+    },
+    {
+      "name": "actions_fit_800",
+      "passed": true,
+      "detail": [
+        [
+          "providerTest",
+          389.0,
+          540.0
+        ],
+        [
+          "providerActivate",
+          495.0,
+          540.0
+        ],
+        [
+          "providerSave",
+          625.0,
+          540.0
+        ],
+        [
+          "settingsClose",
+          740.0,
+          106.0
+        ]
+      ]
+    },
+    {
+      "name": "approval_remains_above_settings",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "close_restores_main_interface",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "no_qml_or_callback_errors",
+      "passed": true,
+      "detail": []
+    }
+  ],
+  "scope": "Real rendered QML and GuiBridge; temporary provider/credential store, fake credential, mocked HTTP. No live provider changes or network calls."
+}

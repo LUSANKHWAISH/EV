@@ -1,0 +1,81 @@
+{
+  "passed": true,
+  "checks": [
+    {
+      "name": "known_audio_hits_produce_distinct_pulses",
+      "passed": true,
+      "detail": 10
+    },
+    {
+      "name": "pulse_reaches_actual_core_uniform",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "pulse_remains_bounded",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "silence_clears_beat",
+      "passed": true,
+      "detail": 0.0
+    },
+    {
+      "name": "rendered_core_brightens_on_hit",
+      "passed": true,
+      "detail": {
+        "beat": {
+          "energy": 2149942.0,
+          "beat": 1.0,
+          "scale": 1.025,
+          "shader_pulse": 1.0
+        },
+        "quiet": {
+          "energy": 1878364.0,
+          "beat": 0.0,
+          "scale": 1.0,
+          "shader_pulse": 0.0
+        }
+      }
+    },
+    {
+      "name": "loopback_drives_same_beat_signal",
+      "passed": true,
+      "detail": {
+        "state": "active",
+        "max": 1.0
+      }
+    },
+    {
+      "name": "stopping_clears_beat",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "assistant_has_no_music_pulse",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "no_render_or_callback_errors",
+      "passed": true,
+      "detail": []
+    }
+  ],
+  "images": {
+    "beat": {
+      "energy": 2149942.0,
+      "beat": 1.0,
+      "scale": 1.025,
+      "shader_pulse": 1.0
+    },
+    "quiet": {
+      "energy": 1878364.0,
+      "beat": 0.0,
+      "scale": 1.0,
+      "shader_pulse": 0.0
+    }
+  },
+  "scope": "Generated 120 BPM kick fixture through real local PCM then selected-output loopback. Render motion frozen for image comparison only. No executor or microphone."
+}

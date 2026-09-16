@@ -93,17 +93,21 @@ class OpenAICompatibleProvider(EVBrainProvider):
             "You are the Intelligence / Brain reasoning component for E.V. (Enhanced Virtual Intelligence on Windows).\n"
             "You are an ADVISORY assistant. You cannot directly execute commands or touch the OS.\n"
             "Your role is to understand user natural language intent and output a strictly structured JSON matching the BrainDecision schema.\n\n"
+            "REQUIRED JSON SCHEMA:\n"
+            "You must output a single JSON object with EXACTLY these top-level keys:\n"
+            '  "decision_type": (string) one of ["EXECUTE_ACTION", "REQUEST_VERIFICATION", "REQUEST_CLARIFICATION", "REFUSAL", "EXPLANATION_ONLY"]\n'
+            '  "user_message": (string) the response, message, or explanation to display to the user\n'
+            '  "decision_summary": (optional string) brief summary of reasoning\n'
+            '  "proposed_actions": (array) list of action objects [{"action": "...", "parameters": {...}, "description": "..."}], or []\n\n'
             "CRITICAL RULES:\n"
-            "1. Output MUST be valid JSON conforming strictly to BrainDecision schema.\n"
+            '1. Output MUST be valid JSON conforming strictly to the above keys. Do NOT use "action" or "message" as top-level keys.\n'
             "2. Available proposed actions are strictly limited to these enum values: "
             f"{json.dumps(available_actions)}.\n"
             "3. Available verification types are strictly limited to: "
             f"{json.dumps(available_verifications)}.\n"
             "4. NEVER invent tool names, action names, or unauthorized capabilities.\n"
-            "5. If an action is not executable safely or supported, choose REFUSAL or EXPLANATION_ONLY.\n"
-            "6. If the user's intent is ambiguous, choose REQUEST_CLARIFICATION.\n"
-            "7. If the user asks to verify a state, choose REQUEST_VERIFICATION with an appropriate action and verification_type.\n"
-            "8. Output ONLY the JSON object. Do NOT wrap in markdown fences or include introductory text."
+            '5. If the user prompt is a question, conversational request, or asks to reply with specific text, set "decision_type" to "EXPLANATION_ONLY" and set "user_message" to the requested text or answer.\n'
+            "6. Output ONLY the JSON object. Do NOT wrap in markdown fences or include introductory text."
         )
 
     def _build_messages(self, prompt: str, context: BrainContext) -> list[dict[str, str]]:
@@ -259,8 +263,52 @@ class OpenAICompatibleProvider(EVBrainProvider):
             )
 
         try:
-            decision = BrainDecision.model_validate_json(raw_content)
-        except (ValidationError, ValueError) as e:
+            # Strip markdown fences if present
+            raw_clean = raw_content.strip()
+            if raw_clean.startswith("```"):
+                lines = raw_clean.splitlines()
+                if lines[0].startswith("```"):
+                    lines = lines[1:]
+                if lines and lines[-1].strip() == "```":
+                    lines = lines[:-1]
+                raw_clean = "\n".join(lines).strip()
+
+            parsed_json = json.loads(raw_clean)
+            if isinstance(parsed_json, dict):
+                # Normalize common LLM key naming variations
+                if "decision_type" not in parsed_json:
+                    if "action" in parsed_json and parsed_json["action"] in [e.value for e in BrainDecisionType]:
+                        parsed_json["decision_type"] = parsed_json.pop("action")
+                    elif "decision" in parsed_json and parsed_json["decision"] in [e.value for e in BrainDecisionType]:
+                        parsed_json["decision_type"] = parsed_json.pop("decision")
+                    elif "decision" in parsed_json and parsed_json["decision"] == "DIRECT_ANSWER":
+                        parsed_json["decision_type"] = "EXPLANATION_ONLY"
+                        parsed_json.pop("decision", None)
+                    else:
+                        parsed_json["decision_type"] = "EXPLANATION_ONLY"
+                if "user_message" not in parsed_json:
+                    if "message" in parsed_json:
+                        parsed_json["user_message"] = str(parsed_json.pop("message"))
+                    elif "response" in parsed_json:
+                        parsed_json["user_message"] = str(parsed_json.pop("response"))
+                    elif "text" in parsed_json:
+                        parsed_json["user_message"] = str(parsed_json.pop("text"))
+                    elif "content" in parsed_json:
+                        parsed_json["user_message"] = str(parsed_json.pop("content"))
+                    else:
+                        parsed_json["user_message"] = "Response completed."
+                if "decision_summary" not in parsed_json and "reasoning" in parsed_json:
+                    parsed_json["decision_summary"] = str(parsed_json.pop("reasoning"))[:500]
+                allowed_keys = {
+                    "decision_id", "decision_type", "user_message", "decision_summary",
+                    "proposed_actions", "clarification_prompt", "confidence", "provider_name",
+                    "model_name", "token_usage", "created_at"
+                }
+                filtered_json = {k: v for k, v in parsed_json.items() if k in allowed_keys}
+                decision = BrainDecision.model_validate(filtered_json)
+            else:
+                decision = BrainDecision.model_validate_json(raw_clean)
+        except (ValidationError, ValueError, json.JSONDecodeError) as e:
             raise BrainProviderMalformedResponseError(
                 f"{self.provider_name} output failed BrainDecision validation: {e}",
                 provider_name=self.provider_name,

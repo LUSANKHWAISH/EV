@@ -63,15 +63,25 @@ ApplicationWindow {
             height: Theme.topBarHeight
         }
 
+        // Central Conversational HUD AI Response Surface (Directly Above Command Input)
+        EVResultSurface {
+            id: resultSurface
+            objectName: "resultSurface"
+            anchors.bottom: commandInput.top
+            anchors.bottomMargin: windowRoot.isCompactHeight ? Theme.spacingXXS : Theme.spacingXS
+            anchors.horizontalCenter: parent.horizontalCenter
+            width: Math.min(parent.width * 0.64, 660)
+            z: 20
+        }
+
+        // Proactive Awareness / System Alert Notification Panel (Shifts visual focus toward Telemetry rail)
         EVSystemAlertBanner {
             id: systemAlertBanner
             objectName: "systemAlertBanner"
             anchors.top: topBar.bottom
             anchors.left: parent.left
             anchors.right: parent.right
-            anchors.leftMargin: windowRoot.responsiveMarginH
-            anchors.rightMargin: windowRoot.responsiveMarginH
-            anchors.topMargin: hasContent ? Theme.spacingXXXS : 0
+            anchors.topMargin: hasContent ? (windowRoot.isCompactHeight ? Theme.spacingXXXS : Theme.spacingXS) : 0
             height: hasContent ? (implicitHeight > 0 ? implicitHeight : 38) : 0
             z: 10
         }
@@ -83,7 +93,7 @@ ApplicationWindow {
             anchors.top: systemAlertBanner.bottom
             anchors.left: parent.left
             anchors.right: parent.right
-            anchors.bottom: resultSurface.top
+            anchors.bottom: commandInput.top
 
             anchors.topMargin: windowRoot.isCompactHeight ? 0 : Theme.spacingXXXS
             anchors.leftMargin: windowRoot.responsiveMarginH
@@ -101,26 +111,20 @@ ApplicationWindow {
                           : "EV_CORE"
         }
 
-        EVResultSurface {
-            id: resultSurface
-            objectName: "resultSurface"
-            anchors.bottom: commandInput.top
-            anchors.left: parent.left
-            anchors.right: parent.right
-            anchors.leftMargin: windowRoot.responsiveMarginH
-            anchors.rightMargin: windowRoot.responsiveMarginH
-            anchors.bottomMargin: Theme.spacingXXXS
-        }
-
         EVCommandInput {
             id: commandInput
             objectName: "commandInput"
             anchors.bottom: parent.bottom
-            anchors.left: parent.left
-            anchors.right: parent.right
-            anchors.leftMargin: windowRoot.responsiveMarginH
-            anchors.rightMargin: windowRoot.responsiveMarginH
-            anchors.bottomMargin: windowRoot.responsiveMarginV
+            anchors.horizontalCenter: parent.horizontalCenter
+            width: Math.round(parent.width * 0.48)
+            anchors.bottomMargin: windowRoot.isCompactHeight ? Theme.spacingXS : Theme.spacingS
+        }
+
+        EVSettingsOverlay {
+            id: settingsOverlay
+            objectName: "settingsOverlay"
+            anchors.fill: parent
+            z: 80
         }
 
         EVApprovalOverlay {

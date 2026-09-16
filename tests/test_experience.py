@@ -47,7 +47,7 @@ class TestEVCoreStylePresetEnum:
     """Verify EVCoreStylePreset enum completeness."""
 
     def test_all_five_presets_exist(self):
-        expected = {"EV_CORE", "MINIMAL", "AMBIENT", "FOCUSED", "ALERT"}
+        expected = {"ASTRA", "ORIGINAL", "EV_CORE", "MINIMAL", "AMBIENT", "FOCUSED", "ALERT"}
         actual = {p.value for p in EVCoreStylePreset}
         assert actual == expected
 
@@ -376,7 +376,7 @@ class TestGuiBridgeExperienceIntegration:
         desc = bridge.experienceModeDescription
         assert isinstance(desc, str) and len(desc) > 0
 
-    def test_bridge_without_manager(self):
+    def test_bridge_without_manager(self, monkeypatch):
         """Bridge works without an experience manager (backwards compatible)."""
         import sys
         from PySide6.QtGui import QGuiApplication
@@ -388,6 +388,7 @@ class TestGuiBridgeExperienceIntegration:
         bus = EVEventBus(initial_state=EVState.IDLE)
 
         from gui.bridge import GuiBridge
+        monkeypatch.setattr(GuiBridge, "_load_persisted_style_preset", lambda self: "EV_CORE")
         bridge = GuiBridge(bus)  # No experience_manager
 
         assert bridge.experienceMode == "STANDARD"

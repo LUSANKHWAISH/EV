@@ -50,10 +50,10 @@ Item {
     property int _charIndex: 0
     property bool _animating: false
 
-    // Characters revealed per timer tick for smooth, fast typing
-    readonly property int _charsPerTick: 2
-    // Timer interval in ms — 12ms ≈ 83 ticks/sec for smooth feel
-    readonly property int _tickInterval: 12
+    // Characters revealed per timer tick — dynamically calculated per response
+    property int _charsPerTick: 1
+    // Timer interval in ms — 20ms = 50 ticks/sec
+    readonly property int _tickInterval: 20
 
     // Responsive presentation properties
     readonly property bool isCompactHeight: (parent && parent.height < Theme.stageCompactHeight)
@@ -65,23 +65,49 @@ Item {
     // Standard: at most 35% of parent height up to 240px
     // Compact: at most 25% of parent height up to 140px
     readonly property real maxTotalHeight: isCompactHeight
-        ? Math.min(parent ? parent.height * 0.25 : 140, 140)
-        : Math.min(parent ? parent.height * 0.35 : 240, 240)
+        ? ((parent && parent.height > 0) ? Math.min(parent.height * 0.25, 140) : 140)
+        : ((parent && parent.height > 0) ? Math.min(parent.height * 0.35, 240) : 240)
 
-    visible: opacity > 0.001
+    // Hidden measurement element to determine required geometry immediately BEFORE typing begins
+    Text {
+        id: measurementText
+        visible: false
+        width: flickableArea.width > 0 ? flickableArea.width : (root.width > 0 ? root.width : 400)
+        text: root.isRunning
+              ? ((typeof guiBridge !== "undefined" && guiBridge && guiBridge.currentTask) ? guiBridge.currentTask : "")
+              : (root._fullText.length > 0 ? root._fullText : root.resultText)
+        font.family: root.isRunning ? Theme.fontFamilyMono : Theme.fontFamily
+        font.pointSize: (root.isCompactHeight || root.width < 850)
+                        ? Theme.fontSizeLabelSmall
+                        : (root.isRunning ? Theme.fontSizeLabelSmall : Theme.fontSizeBodySmall)
+        font.weight: Theme.fontWeightRegular
+        horizontalAlignment: Text.AlignHCenter
+        wrapMode: Text.Wrap
+        lineHeight: 1.35
+        textFormat: Text.PlainText
+    }
+
+    // Fixed text height established before typewriter animation begins
+    readonly property real targetTextHeight: (measurementText.text.length > 0)
+        ? Math.min(flickableArea.maxTextHeight, Math.max(measurementText.implicitHeight, 18))
+        : 0
+
+    visible: isVisible
     opacity: isVisible ? 1.0 : 0.0
 
+    readonly property real surfaceContentHeight: ((typeof hudHeader !== "undefined" && hudHeader.visible) ? (hudHeader.height + contentColumn.spacing) : 0) + root.targetTextHeight
     implicitWidth: parent ? parent.width : 400
+    // Geometry established before text reveal — does NOT grow as characters appear
     implicitHeight: isVisible ? Math.min(maxTotalHeight,
-                                          contentColumn.implicitHeight + (isCompactHeight ? Theme.spacingXXS * 2 : Theme.spacingXS * 2)) : 0
+                                          surfaceContentHeight + (isCompactHeight ? Theme.spacingXXS * 2 : Theme.spacingXS * 2)) : 0
     height: implicitHeight
 
     clip: true
 
-    Behavior on implicitHeight {
+    Behavior on height {
         NumberAnimation {
             duration: Theme.motionStandard
-            easing.type: Easing.InOutCubic
+            easing.type: Easing.OutCubic
         }
     }
 
@@ -108,6 +134,9 @@ Item {
                                       root._fullText.length)
             root._displayedText = root._fullText.substring(0, nextIndex)
             root._charIndex = nextIndex
+            if (root._charIndex >= root._fullText.length) {
+                root._animating = false
+            }
         }
     }
 
@@ -136,6 +165,15 @@ Item {
         _fullText = text
         _displayedText = ""
         _charIndex = 0
+        var charsCount = text ? text.length : 0
+        if (charsCount <= 0) {
+            _animating = false
+            return
+        }
+        // Target 35-60 cps cadence with bounded duration (min 300ms, max 1800ms)
+        var targetDuration = Math.min(1800, Math.max(300, Math.round(charsCount * 20)))
+        var totalTicks = Math.max(1, Math.round(targetDuration / _tickInterval))
+        _charsPerTick = Math.max(1, Math.ceil(charsCount / totalTicks))
         _animating = true
     }
 
@@ -144,6 +182,7 @@ Item {
         _fullText = ""
         _displayedText = ""
         _charIndex = 0
+        _charsPerTick = 1
     }
 
     // --- Semantic text color ---
@@ -168,30 +207,31 @@ Item {
                        0.90)
     }
 
-    // --- Content ---
+    // --- Central HUD Content ---
     Column {
         id: contentColumn
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.top: parent.top
         anchors.margins: root.isCompactHeight ? Theme.spacingXXS : Theme.spacingXS
-        spacing: root.isCompactHeight ? Theme.spacingXXS : Theme.spacingXS
+        spacing: root.isCompactHeight ? 2 : Theme.spacingXXS
 
-        // Header: Lifecycle HUD on left, subtle dismiss control on right
+        // Header: Subtle Lifecycle HUD (left) + subtle dismiss (right)
         Item {
             id: hudHeader
             width: parent.width
-            height: Math.max(lifecycleHUD.implicitHeight, dismissText.implicitHeight)
-            visible: root.isVisible
+            height: lifecycleHUD.visible ? lifecycleHUD.implicitHeight : (dismissArea.visible ? Math.max(14, dismissText.implicitHeight) : 0)
+            visible: lifecycleHUD.visible || dismissArea.visible
 
+            // Left-aligned Lifecycle HUD (if active lifecycle stages exist)
             EVLifecycleHUD {
                 id: lifecycleHUD
                 anchors.left: parent.left
-                anchors.right: dismissArea.left
-                anchors.rightMargin: root.isCompactWidth ? Theme.spacingXXS : Theme.spacingXS
                 anchors.verticalCenter: parent.verticalCenter
+                visible: root.isLifecycleActive && !root.resultAvailable
             }
 
+            // Right-aligned dismiss control
             Item {
                 id: dismissArea
                 anchors.right: parent.right
@@ -232,19 +272,18 @@ Item {
             }
         }
 
-        // Result text — borderless, direct HUD presentation
+        // Result text — cinematic typewriter reveal, horizontally centered
         Flickable {
             id: flickableArea
             width: parent.width
-            visible: resultMessageText.text.length > 0
+            visible: (root.targetTextHeight > 0) || (resultMessageText.text.length > 0) || root.isRunning
             readonly property real maxTextHeight: root.isCompactHeight
-                ? Math.min(parent.parent ? parent.parent.height * 0.16 : 80, 80)
-                : Math.min(parent.parent ? parent.parent.height * 0.30 : 160, 160)
-            implicitHeight: visible
-                ? Math.min(maxTextHeight, resultMessageText.implicitHeight)
-                : 0
+                ? ((root.parent && root.parent.height > 0) ? Math.min(root.parent.height * 0.18, 85) : 85)
+                : ((root.parent && root.parent.height > 0) ? Math.min(root.parent.height * 0.30, 160) : 160)
+            height: visible ? root.targetTextHeight : 0
+            implicitHeight: height
             contentWidth: width
-            contentHeight: resultMessageText.implicitHeight
+            contentHeight: Math.max(root.targetTextHeight, resultMessageText.implicitHeight)
             clip: true
             boundsBehavior: Flickable.StopAtBounds
 
@@ -260,8 +299,9 @@ Item {
                                 ? Theme.fontSizeLabelSmall
                                 : (root.isRunning ? Theme.fontSizeLabelSmall : Theme.fontSizeBodySmall)
                 font.weight: Theme.fontWeightRegular
+                horizontalAlignment: Text.AlignHCenter
                 wrapMode: Text.Wrap
-                lineHeight: 1.3
+                lineHeight: 1.35
                 textFormat: Text.PlainText
 
                 Behavior on color {

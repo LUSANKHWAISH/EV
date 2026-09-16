@@ -42,6 +42,7 @@ from typing import Any, Callable, Dict, List, Optional, Union
 import uuid
 
 from core.agent import EVAgent
+from core.brain_models import BrainDecisionType
 from core.brain_router import BrainRouter, RouteType
 from core.cancellation import CancellationSource, CancellationToken
 from core.conversation import EVConversationContextStore
@@ -170,6 +171,7 @@ class EVActionPipeline:
         verifier: Optional[EVVerifier] = None,
         history_store: Optional[EVTaskHistoryStore] = None,
         memory_store: Optional[EVConversationMemoryStore] = None,
+        context_store: Optional[EVConversationContextStore] = None,
         diagnostic_engine: Optional[EVDiagnosticEngine] = None,
         recovery_planner: Optional[EVRecoveryPlanner] = None,
         tts_manager: Optional[Any] = None,
@@ -190,6 +192,12 @@ class EVActionPipeline:
         self.router: BrainRouter = router or BrainRouter()
         self._resolver: CommandResolver = resolver or CommandResolver()
         self.memory_store: Optional[EVConversationMemoryStore] = memory_store
+        self.context_store: Optional[EVConversationContextStore] = context_store
+        if self.context_store is None and self.memory_store is not None:
+            try:
+                self.context_store = EVConversationContextStore(memory_store=self.memory_store)
+            except Exception as exc:
+                logger.debug("Failed to initialize conversation context store from memory: %s", exc)
         self.diagnostic_engine: EVDiagnosticEngine = diagnostic_engine or EVDiagnosticEngine(event_bus=self.event_bus)
         self.recovery_planner: EVRecoveryPlanner = recovery_planner or EVRecoveryPlanner(
             risk_engine=self.risk_engine,
@@ -262,11 +270,30 @@ class EVActionPipeline:
 
         self._publish_status(f"Resolving command: {cleaned_text[:50]}", correlation_id=p_id)
 
+        # Multi-turn clarification resolution if context_store has pending clarification
+        effective_text = cleaned_text
+        if self.context_store is not None and self.context_store.has_pending_clarification():
+            pending_clarification = self.context_store.get_pending_clarification()
+            if pending_clarification is not None:
+                is_standalone = False
+                try:
+                    self._resolver.resolve(cleaned_text)
+                    is_standalone = True
+                except ValueError:
+                    is_standalone = False
+                if is_standalone:
+                    self.context_store.clear_pending_clarification()
+                    effective_text = cleaned_text
+                else:
+                    orig = pending_clarification.original_request
+                    effective_text = f"{orig} {cleaned_text}".strip()
+                    self.context_store.clear_pending_clarification()
+
         # 1. Resolution: Fast Path (CommandResolver) then Slow Path (BrainRouter)
         tasks: List[AgentTask] = []
         is_deterministic = False
         try:
-            resolved = self._resolver.resolve(cleaned_text)
+            resolved = self._resolver.resolve(effective_text)
             if isinstance(resolved, AgentTask):
                 tasks = [resolved]
             elif isinstance(resolved, (list, tuple)):
@@ -278,10 +305,10 @@ class EVActionPipeline:
         if not tasks:
             # Route through Brain
             routing_res = self.router.route(
-                user_input=cleaned_text,
+                user_input=effective_text,
                 current_state=self.event_bus.current_state or EVState.IDLE,
             )
-            if not routing_res.success or routing_res.route_type in (RouteType.FAILURE, RouteType.NO_ACTION):
+            if not routing_res.success or routing_res.route_type == RouteType.FAILURE:
                 err = routing_res.error or routing_res.message or "Unrecognized command"
                 self._speak_if_enabled(err)
                 return ActionPipelineResult(
@@ -297,6 +324,63 @@ class EVActionPipeline:
                     error=err,
                     duration_seconds=time.monotonic() - start_time,
                 )
+
+            if routing_res.route_type == RouteType.NO_ACTION:
+                msg = routing_res.message or "No action required"
+                # Check if Brain requested clarification
+                if routing_res.decision and getattr(routing_res.decision, "decision_type", None) == BrainDecisionType.REQUEST_CLARIFICATION:
+                    clarification_msg = getattr(routing_res.decision, "clarification_prompt", None) or msg
+                    if self.context_store is not None:
+                        try:
+                            self.context_store.set_pending_clarification(
+                                original_request=effective_text,
+                                clarification_prompt=clarification_msg,
+                            )
+                        except Exception as exc:
+                            logger.debug("Failed to set pending clarification: %s", exc)
+                    msg = clarification_msg
+
+                self._speak_if_enabled(msg)
+                self.event_bus.publish(
+                    event_type=EVEventType.STATUS,
+                    source="action_pipeline",
+                    correlation_id=p_id,
+                    message=msg,
+                    data={
+                        "response": msg,
+                        "conversational": True,
+                        "decision_type": routing_res.decision.decision_type.value if routing_res.decision else None,
+                    },
+                )
+                if self.context_store is not None:
+                    try:
+                        self.context_store.add_turn(
+                            user_message=cleaned_text,
+                            assistant_message=msg,
+                        )
+                    except Exception as exc:
+                        logger.debug("Failed to add turn to context store: %s", exc)
+
+                return ActionPipelineResult(
+                    pipeline_id=p_id,
+                    command_text=cleaned_text,
+                    status=PlanStatus.COMPLETED,
+                    execution_status=ExecutionStatus.SUCCEEDED,
+                    verification_status=VerificationStatus.NOT_APPLICABLE,
+                    overall_success=True,
+                    requires_approval=False,
+                    approved=None,
+                    rolled_back=False,
+                    plan=None,
+                    error=None,
+                    metadata={
+                        "conversational_response": msg,
+                        "message": msg,
+                        "route_type": "NO_ACTION",
+                    },
+                    duration_seconds=time.monotonic() - start_time,
+                )
+
             tasks = routing_res.tasks or []
 
         if not tasks:

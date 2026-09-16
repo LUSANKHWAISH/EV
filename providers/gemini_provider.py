@@ -92,7 +92,8 @@ def _clean_schema_for_gemini(schema: Any) -> Any:
 
 class GeminiProvider(EVBrainProvider):
     """
-    Concrete EVBrainProvider adapter for Google Gemini via the google-genai SDK.
+    Concrete EVBrainProvider adapter for Google Gemini via the google-genai SDK
+    or resilient HTTP REST adapter.
     """
 
     def __init__(
@@ -100,6 +101,7 @@ class GeminiProvider(EVBrainProvider):
         api_key: Optional[str] = None,
         model_name: str = DEFAULT_GEMINI_MODEL,
         client: Optional[Any] = None,
+        http_client: Optional[httpx.Client] = None,
     ) -> None:
         """
         Initialize the GeminiProvider.
@@ -108,10 +110,12 @@ class GeminiProvider(EVBrainProvider):
             api_key: Gemini API key. If None, reads from GEMINI_API_KEY environment variable.
             model_name: Gemini model name (default: 'gemini-3.6-flash').
             client: Optional pre-configured genai.Client instance (useful for testing/mocking).
+            http_client: Optional pre-configured httpx.Client instance for REST fallback.
         """
         self._model_name = model_name or DEFAULT_GEMINI_MODEL
         self._api_key = api_key or os.environ.get("GEMINI_API_KEY")
         self._client = client
+        self._http_client = http_client
 
         if self._client is None:
             if not self._api_key:
@@ -119,19 +123,19 @@ class GeminiProvider(EVBrainProvider):
                     "GEMINI_API_KEY environment variable or api_key parameter is required",
                     provider_name="gemini",
                 )
-            if not GENAI_AVAILABLE:
-                raise BrainProviderError(
-                    "google-genai SDK is not installed in the environment",
-                    provider_name="gemini",
-                )
-            try:
-                self._client = genai.Client(api_key=self._api_key)
-            except Exception as e:
-                sanitized_err = _sanitize_error_message(str(e), self._api_key)
-                raise BrainProviderAuthError(
-                    f"Failed to initialize Gemini client: {sanitized_err}",
-                    provider_name="gemini",
-                ) from e
+            if GENAI_AVAILABLE and genai is not None:
+                try:
+                    self._client = genai.Client(api_key=self._api_key)
+                except Exception as e:
+                    sanitized_err = _sanitize_error_message(str(e), self._api_key)
+                    raise BrainProviderAuthError(
+                        f"Failed to initialize Gemini client: {sanitized_err}",
+                        provider_name="gemini",
+                    ) from e
+            else:
+                # Direct REST fallback via httpx when google-genai SDK is uninstalled
+                if self._http_client is None:
+                    self._http_client = httpx.Client(timeout=15.0)
 
     @property
     def provider_name(self) -> str:
@@ -195,7 +199,7 @@ class GeminiProvider(EVBrainProvider):
         """
         self._validate_inputs(prompt, context, timeout_seconds)
 
-        if self._client is None:
+        if self._client is None and self._http_client is None:
             raise BrainProviderAuthError(
                 "Gemini client is not initialized",
                 provider_name=self.provider_name,
@@ -204,38 +208,102 @@ class GeminiProvider(EVBrainProvider):
         system_instruction = self._build_system_instruction()
         user_content = self._build_user_content(prompt, context)
 
-        # Prepare cleaned JSON schema for Gemini Developer API
-        raw_schema = BrainDecision.model_json_schema()
-        cleaned_schema = _clean_schema_for_gemini(raw_schema)
+        # If SDK client or injected mock is available
+        if self._client is not None:
+            raw_schema = BrainDecision.model_json_schema()
+            cleaned_schema = _clean_schema_for_gemini(raw_schema)
 
-        config_kwargs: dict[str, Any] = {
-            "response_mime_type": "application/json",
-            "response_schema": cleaned_schema,
-            "system_instruction": system_instruction,
+            config_kwargs: dict[str, Any] = {
+                "response_mime_type": "application/json",
+                "response_schema": cleaned_schema,
+                "system_instruction": system_instruction,
+            }
+
+            # Build config object if genai_types is available
+            if genai_types is not None:
+                config = genai_types.GenerateContentConfig(**config_kwargs)
+            else:
+                config = config_kwargs
+
+            try:
+                response = self._client.models.generate_content(
+                    model=self._model_name,
+                    contents=user_content,
+                    config=config,
+                )
+            except httpx.TimeoutException as e:
+                raise BrainProviderTimeoutError(
+                    f"Gemini API request timed out after {timeout_seconds}s",
+                    provider_name=self.provider_name,
+                ) from e
+            except Exception as e:
+                self._handle_api_exception(e)
+
+            # Parse and validate response
+            return self._parse_gemini_response(response)
+
+        # Direct REST execution via httpx
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{self._model_name}:generateContent?key={self._api_key}"
+        payload = {
+            "contents": [{"parts": [{"text": user_content}]}],
+            "system_instruction": {"parts": [{"text": system_instruction}]},
+            "generationConfig": {
+                "response_mime_type": "application/json"
+            },
         }
 
-        # Build config object if genai_types is available
-        if genai_types is not None:
-            config = genai_types.GenerateContentConfig(**config_kwargs)
-        else:
-            config = config_kwargs
-
         try:
-            response = self._client.models.generate_content(
-                model=self._model_name,
-                contents=user_content,
-                config=config,
-            )
-        except httpx.TimeoutException as e:
+            client = self._http_client or httpx.Client(timeout=timeout_seconds)
+            resp = client.post(url, json=payload, timeout=timeout_seconds)
+            if resp.status_code == 401 or resp.status_code == 403:
+                raise BrainProviderAuthError(
+                    f"Gemini authentication failed ({resp.status_code}): {resp.text}",
+                    provider_name=self.provider_name,
+                )
+            if resp.status_code == 429 or resp.status_code == 503:
+                raise BrainProviderUnavailableError(
+                    f"Gemini service unavailable or rate limited ({resp.status_code}): {resp.text}",
+                    provider_name=self.provider_name,
+                )
+            if resp.status_code != 200:
+                raise BrainProviderError(
+                    f"Gemini provider error ({resp.status_code}): {resp.text}",
+                    provider_name=self.provider_name,
+                )
+
+            data = resp.json()
+            candidates = data.get("candidates")
+            if not candidates:
+                raise BrainProviderMalformedResponseError(
+                    "Gemini API returned an empty response",
+                    provider_name=self.provider_name,
+                )
+            parts = candidates[0].get("content", {}).get("parts", [])
+            if not parts or not parts[0].get("text"):
+                raise BrainProviderMalformedResponseError(
+                    "Gemini API response contained no text or structured output",
+                    provider_name=self.provider_name,
+                )
+            raw_text = parts[0]["text"]
+            try:
+                decision = BrainDecision.model_validate_json(raw_text)
+                return self._ensure_metadata(decision)
+            except (ValidationError, json.JSONDecodeError, ValueError) as e:
+                raise BrainProviderMalformedResponseError(
+                    f"Failed to validate Gemini response text as BrainDecision: {e}",
+                    provider_name=self.provider_name,
+                ) from e
+
+        except (httpx.TimeoutException, TimeoutError) as e:
             raise BrainProviderTimeoutError(
                 f"Gemini API request timed out after {timeout_seconds}s",
                 provider_name=self.provider_name,
             ) from e
+        except (BrainProviderError, BrainProviderAuthError, BrainProviderUnavailableError, BrainProviderMalformedResponseError, BrainProviderTimeoutError):
+            raise
         except Exception as e:
             self._handle_api_exception(e)
-
-        # Parse and validate response
-        return self._parse_gemini_response(response)
+            raise
 
     def _parse_gemini_response(self, response: Any) -> BrainDecision:
         """
@@ -334,13 +402,17 @@ class GeminiProvider(EVBrainProvider):
         """
         Check connectivity and health of the Gemini provider.
         """
-        if not self._api_key or self._client is None:
+        if not self._api_key or (self._client is None and self._http_client is None):
             return False
 
         try:
-            if hasattr(self._client, "models") and hasattr(self._client.models, "get"):
+            if self._client is not None and hasattr(self._client, "models") and hasattr(self._client.models, "get"):
                 self._client.models.get(model=self._model_name)
                 return True
+            if self._http_client is not None:
+                url = f"https://generativelanguage.googleapis.com/v1beta/models/{self._model_name}?key={self._api_key}"
+                resp = self._http_client.get(url, timeout=5.0)
+                return resp.status_code == 200
             return True
         except Exception as e:
             logger.warning("Gemini health check failed: %s", _sanitize_error_message(str(e), self._api_key))

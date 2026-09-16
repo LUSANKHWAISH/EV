@@ -1,0 +1,6 @@
+{
+  "docs/reports/2026-09-16-settings-cinematic-redesign.md": "1e75be11b8728badc87a694bb1ab072d0650c3be57612df4539f48bbc48cb66b",
+  "gui/qml/components/EVSettingsOverlay.qml": "e54f76cbf17f2ac50bf6b7288e8bf5cf62b5e9699d54f209a06c8918dc71be1c",
+  "prototypes/cinematic_v4/qml/ConnectedWindow.qml": "87cbdbd16aaa5f85d9c9f0ff242d152f01c31a866954b6efd17a1d62970bbe36",
+  "prototypes/cinematic_v4/validate_settings_redesign.py": "b5c6f71dc57ba1d1727df7d299281cbcd61dcbe9c49623f656ec85e9dd154393"
+}

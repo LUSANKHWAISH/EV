@@ -137,6 +137,12 @@ def _format_pipeline_result(result: Any) -> Tuple[str, str, bool]:
             return (_sanitize_result_text(f"Task failed: {err_text}"), "FAILED", False)
 
         # Overall success
+        meta = getattr(result, "metadata", None)
+        if isinstance(meta, dict):
+            conv_resp = meta.get("conversational_response")
+            if conv_resp and isinstance(conv_resp, str):
+                return (_sanitize_result_text(conv_resp), "SUCCESS", True)
+
         plan = getattr(result, "plan", None)
         if plan is None:
             cmd = getattr(result, "command_text", "")
@@ -214,40 +220,63 @@ def _format_pipeline_result(result: Any) -> Tuple[str, str, bool]:
         )
 
 
-def build_production_router() -> BrainRouter:
+def build_production_router(config_store: Optional[Any] = None) -> BrainRouter:
     """
-    Discover configured provider credentials in environment variables and build a BrainRouter.
-    Credentials are never logged, printed, or exposed.
+    Discover configured provider credentials from AIProviderConfigStore or environment variables
+    and build a BrainRouter. Credentials are never logged, printed, or exposed.
     """
     providers: List[EVBrainProvider] = []
 
-    # 1. Gemini Provider (Primary if GEMINI_API_KEY / GOOGLE_API_KEY is present)
-    gemini_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
-    if gemini_key:
+    # 1. If config_store is provided, prioritize user's active configured provider
+    if config_store is not None:
         try:
-            providers.append(GeminiProvider(api_key=gemini_key))
-            logger.info("Configured GeminiProvider from environment credentials")
+            active_provider = config_store.create_active_brain_provider()
+            if active_provider:
+                providers.append(active_provider)
+                logger.info(
+                    "Configured active provider from user settings: %s (%s)",
+                    active_provider.provider_name,
+                    active_provider.model_name,
+                )
         except Exception as exc:
-            logger.warning("Failed to initialize GeminiProvider: %s", exc)
+            logger.warning("Failed to instantiate active provider from config store: %s", exc)
 
-    # 2. OpenRouter Provider (Fallback or Primary if OPENROUTER_API_KEY is present)
-    openrouter_key = os.getenv("OPENROUTER_API_KEY")
-    if openrouter_key:
-        try:
-            providers.append(OpenRouterProvider(api_key=openrouter_key))
-            logger.info("Configured OpenRouterProvider from environment credentials")
-        except Exception as exc:
-            logger.warning("Failed to initialize OpenRouterProvider: %s", exc)
+    # 2. Add fallback providers from environment if not already present
+    configured_names = {p.provider_name for p in providers}
 
-    # 3. Azure OpenAI Provider
-    azure_key = os.getenv("AZURE_OPENAI_API_KEY")
-    azure_endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
-    if azure_key and azure_endpoint:
-        try:
-            providers.append(AzureOpenAIProvider(api_key=azure_key, endpoint=azure_endpoint))
-            logger.info("Configured AzureOpenAIProvider from environment credentials")
-        except Exception as exc:
-            logger.warning("Failed to initialize AzureOpenAIProvider: %s", exc)
+    # Gemini Provider
+    if "gemini" not in configured_names:
+        gemini_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
+        if gemini_key:
+            try:
+                providers.append(GeminiProvider(api_key=gemini_key))
+                logger.info("Configured GeminiProvider from environment credentials")
+                configured_names.add("gemini")
+            except Exception as exc:
+                logger.warning("Failed to initialize GeminiProvider: %s", exc)
+
+    # OpenRouter Provider
+    if "openrouter" not in configured_names:
+        openrouter_key = os.getenv("OPENROUTER_API_KEY")
+        if openrouter_key:
+            try:
+                providers.append(OpenRouterProvider(api_key=openrouter_key))
+                logger.info("Configured OpenRouterProvider from environment credentials")
+                configured_names.add("openrouter")
+            except Exception as exc:
+                logger.warning("Failed to initialize OpenRouterProvider: %s", exc)
+
+    # Azure OpenAI Provider
+    if "azure_openai" not in configured_names:
+        azure_key = os.getenv("AZURE_OPENAI_API_KEY")
+        azure_endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
+        if azure_key and azure_endpoint:
+            try:
+                providers.append(AzureOpenAIProvider(api_key=azure_key, endpoint=azure_endpoint))
+                logger.info("Configured AzureOpenAIProvider from environment credentials")
+                configured_names.add("azure_openai")
+            except Exception as exc:
+                logger.warning("Failed to initialize AzureOpenAIProvider: %s", exc)
 
     provider_mgr = EVBrainProviderManager(providers) if providers else None
     return BrainRouter(provider_manager=provider_mgr)
@@ -259,6 +288,16 @@ def _parse_args(argv: list) -> argparse.Namespace:
         prog="gui.app",
         description="E.V. - Enhanced Virtual Intelligence GUI",
     )
+    interface = parser.add_mutually_exclusive_group()
+    interface.add_argument(
+        "--cinematic", dest="cinematic", action="store_true",
+        help="Open the cinematic interface (the default).",
+    )
+    interface.add_argument(
+        "--classic", dest="cinematic", action="store_false",
+        help="Open the previous E.V. interface.",
+    )
+    parser.set_defaults(cinematic=True)
     return parser.parse_args(argv)
 
 
@@ -288,8 +327,18 @@ def main() -> None:
 
     engine.rootContext().setContextProperty("guiBridge", bridge)
 
-    # Discover providers and instantiate production backend orchestrator
-    router = build_production_router()
+    # Initialize AI Provider configuration store and router
+    try:
+        from core.provider_config import AIProviderConfigStore
+        provider_store = AIProviderConfigStore()
+    except Exception as exc:
+        logger.warning("Failed to initialize AIProviderConfigStore: %s", exc)
+        provider_store = None
+
+    router = build_production_router(config_store=provider_store)
+    if provider_store is not None:
+        bridge.set_provider_config_store(provider_store)
+    bridge.set_brain_router(router)
 
     # Task 013: Optional TTS subsystem — opt-in via EV_TTS_ENABLED=true
     # Default is disabled; E.V. starts normally in text-only mode if TTS is
@@ -332,6 +381,71 @@ def main() -> None:
         cleaned = command.strip()
         if not cleaned:
             return
+
+        # 1. Check for pending provider activation (Part 4: Activation Safety)
+        pending_activation_id = bridge.get_pending_activation()
+        if pending_activation_id:
+            upper_cmd = cleaned.upper()
+            if upper_cmd in ("ACTIVATE", "YES", "CONFIRM", "OK", "ACTIVATE PROVIDER"):
+                bridge.set_pending_activation(None)
+                if bridge.setActiveProvider(pending_activation_id):
+                    active_name = bridge.activeProviderName
+                    bridge.notifyTaskResult(
+                        f"✓ Provider activated: {active_name}\nReady for intelligence requests.",
+                        "SUCCESS",
+                        True,
+                    )
+                else:
+                    bridge.notifyTaskResult(
+                        "✕ Failed to activate provider configuration.",
+                        "FAILED",
+                        False,
+                    )
+                return
+            elif upper_cmd in ("CANCEL", "NO", "ABORT", "DISMISS"):
+                bridge.set_pending_activation(None)
+                bridge.notifyTaskResult(
+                    "Provider activation cancelled. The configuration remains saved in Settings.",
+                    "CANCELLED",
+                    False,
+                )
+                return
+
+        # 2. Check for pending unidentified API key clarification (Part 4: Unknown Provider)
+        pending_key = bridge.get_pending_unidentified_key()
+        if pending_key:
+            upper_cmd = cleaned.upper()
+            if upper_cmd in ("CANCEL", "NO", "ABORT", "DISMISS"):
+                bridge.set_pending_unidentified_key(None)
+                bridge.notifyTaskResult("Provider setup cancelled.", "CANCELLED", False)
+                return
+            if provider_store is not None:
+                bridge.set_pending_unidentified_key(None)
+                from core.provider_config import configure_provider_from_key
+                ok, msg, p_id = configure_provider_from_key(pending_key, provider_store, service_hint=cleaned)
+                if ok and p_id:
+                    bridge.set_pending_activation(p_id)
+                    bridge.notifyTaskResult(msg, "SUCCESS", True)
+                else:
+                    bridge.notifyTaskResult(msg, "FAILED", False)
+                return
+
+        # 3. Check for API key entry / configuration intent (Part 4: Interception)
+        from core.provider_config import extract_api_key_intent, configure_provider_from_key
+        extracted_key = extract_api_key_intent(cleaned)
+        if extracted_key and provider_store is not None:
+            # INTERCEPT: Never log, never send to LLM, never route to ActionPipeline!
+            ok, msg, p_id = configure_provider_from_key(extracted_key, provider_store)
+            if ok and p_id:
+                bridge.set_pending_activation(p_id)
+                bridge.notifyTaskResult(msg, "SUCCESS", True)
+            elif not ok and "Which service is it?" in msg:
+                bridge.set_pending_unidentified_key(extracted_key)
+                bridge.notifyTaskResult(msg, "AWAITING_APPROVAL", False)
+            else:
+                bridge.notifyTaskResult(msg, "FAILED", False)
+            return
+
         ctx = ActionPipelineContext(
             pipeline_id=f"gui-{uuid.uuid4().hex[:8]}",
             source="GUI",
@@ -402,6 +516,9 @@ def main() -> None:
 
     # Load root QML
     qml_file = Path(__file__).parent / "qml" / "Main.qml"
+    if args.cinematic:
+        from prototypes.cinematic_v4.integration import configure_cinematic
+        qml_file = configure_cinematic(engine, bridge)
     engine.load(QUrl.fromLocalFile(str(qml_file)))
 
     if not engine.rootObjects():
@@ -413,6 +530,9 @@ def main() -> None:
     # the native frame capabilities required for Aero Snap and normal
     # desktop window management.
     root_window = engine.rootObjects()[0]
+    if args.cinematic:
+        from prototypes.cinematic_v4.integration import attach_cinematic_window
+        attach_cinematic_window(engine, root_window)
     native_chrome = install_windows_native_chrome(app, root_window)
 
     # Keep the native event filter alive for the complete application
