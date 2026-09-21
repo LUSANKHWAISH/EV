@@ -1,5 +1,6 @@
 """Bounded, source-tagged PCM analysis off the GUI/capture threads."""
 from collections import deque
+from dataclasses import dataclass
 import threading
 import time
 
@@ -7,7 +8,29 @@ import numpy as np
 from .onsets import OnsetDetector
 
 
-def analyze(pcm, rate, count=64):
+@dataclass(frozen=True)
+class AnalysisFrame:
+    source_id: str
+    generation: int
+    sequence: int
+    presentation_time: float
+    bands: tuple
+    waveform: tuple
+    rms: float
+    peak: float
+    left: float
+    right: float
+    bass: float
+    mid: float
+    treble: float
+    peakHz: float
+    timestamp: float
+
+    def __getitem__(self, key):
+        return getattr(self, key)
+
+
+def analyze(pcm, rate, count=64, *, source_id='audio', generation=0, sequence=0, presentation_time=None):
     """Sample peak and Hann-window spectrum, taking channel energy before mixing."""
     pcm = np.nan_to_num(np.asarray(pcm, dtype=np.float32), nan=0., posinf=0., neginf=0.)
     if pcm.ndim == 1:
@@ -28,11 +51,16 @@ def analyze(pcm, rate, count=64):
     def energy(low, high):
         mask = (freq >= low) & (freq < high)
         return float(np.sqrt(np.sum(amplitude[mask]**2) / 3))
-    return {'bands':bands, 'waveform':pcm[np.linspace(0, n-1, 160).astype(int), 0].tolist(),
-            'rms':float(np.sqrt(np.mean(rms**2))), 'peak':float(np.max(np.abs(pcm))),
-            'left':float(rms[0]), 'right':float(rms[-1]),
-            'bass':energy(25,250), 'mid':energy(250,4000), 'treble':energy(4000,20000),
-            'peakHz':float(freq[1+np.argmax(amplitude[1:])]), 'timestamp':time.monotonic()}
+    return AnalysisFrame(
+        source_id=str(source_id), generation=int(generation), sequence=int(sequence),
+        presentation_time=time.monotonic() if presentation_time is None else float(presentation_time),
+        bands=tuple(bands),
+        waveform=tuple(float(value) for value in pcm[np.linspace(0, n-1, 160).astype(int), 0]),
+        rms=float(np.sqrt(np.mean(rms**2))), peak=float(np.max(np.abs(pcm))),
+        left=float(rms[0]), right=float(rms[-1]),
+        bass=energy(25,250), mid=energy(250,4000), treble=energy(4000,20000),
+        peakHz=float(freq[1+np.argmax(amplitude[1:])]), timestamp=time.monotonic(),
+    )
 
 
 class AnalysisWorker:
@@ -40,6 +68,7 @@ class AnalysisWorker:
         self._condition = threading.Condition()
         self._queue = deque(maxlen=8)
         self._generation = 0
+        self._sequence = 0
         self._latest = None
         self._onsets = deque(maxlen=64)
         self._running = True
@@ -55,7 +84,7 @@ class AnalysisWorker:
             self._latest = None
             self._onsets.clear()
 
-    def push(self, pcm, rate, start_time=None):
+    def push(self, pcm, rate, start_time=None, *, source_id='audio'):
         if not len(pcm):
             return
         with self._condition:
@@ -68,7 +97,7 @@ class AnalysisWorker:
             end = time.monotonic()
             block=np.asarray(pcm,dtype=np.float32)[-8192:].copy()
             start=end-len(block)/rate if start_time is None else start_time
-            self._queue.append((self._generation,block,int(rate),start))
+            self._queue.append((self._generation,block,int(rate),start,str(source_id)))
             self._condition.notify()
 
     def latest(self):
@@ -85,12 +114,13 @@ class AnalysisWorker:
         previous = None
         samples = None
         detector = None
+        source_id = 'audio'
         while True:
             with self._condition:
                 self._condition.wait_for(lambda:not self._running or self._queue)
                 if not self._running:
                     return
-                generation, block, rate, start = self._queue.popleft()
+                generation, block, rate, start, source_id = self._queue.popleft()
             if block.ndim == 1:
                 block = block[:, None]
             identity = (generation, rate, block.shape[1])
@@ -101,13 +131,30 @@ class AnalysisWorker:
             else:
                 samples = np.concatenate((samples, block))[-8192:]
             hits=detector.process(block)
-            frame = analyze(samples[-2048:], rate) if len(samples)>=2048 else None
+            frame = analyze(samples[-2048:], rate, source_id=source_id, generation=generation) if len(samples)>=2048 else None
             with self._condition:
                 if generation == self._generation:
                     for offset,strength,rms in hits:
                         self._onsets.append({'time':start+offset/rate,'strength':strength,'rms':rms})
                     if frame is not None:
-                        self._latest = frame
+                        self._sequence += 1
+                        self._latest = AnalysisFrame(
+                            source_id=frame.source_id,
+                            generation=frame.generation,
+                            sequence=self._sequence,
+                            presentation_time=frame.presentation_time,
+                            bands=frame.bands,
+                            waveform=frame.waveform,
+                            rms=frame.rms,
+                            peak=frame.peak,
+                            left=frame.left,
+                            right=frame.right,
+                            bass=frame.bass,
+                            mid=frame.mid,
+                            treble=frame.treble,
+                            peakHz=frame.peakHz,
+                            timestamp=frame.timestamp,
+                        )
                         self.processed += 1
 
     def close(self):

@@ -135,6 +135,10 @@ class MusicSession(QObject):
     def mid(self): return min(1., self._values['mid']*5)
     @Property(float, notify=analysisChanged)
     def treble(self): return min(1., self._values['treble']*5)
+    @Property(float, notify=analysisChanged)
+    def left(self): return self._frame.left if self._frame is not None else 0.
+    @Property(float, notify=analysisChanged)
+    def right(self): return self._frame.right if self._frame is not None else 0.
     @Property(str, notify=analysisChanged)
     def rmsText(self): return f'{20*math.log10(max(1e-6,self._values["rms"])):.1f} dBFS'
     @Property(str, notify=analysisChanged)
@@ -230,7 +234,7 @@ class MusicSession(QObject):
         generation = self._capture_generation
         def consume(pcm, rate):
             if generation == self._capture_generation and self._active and self._input == 'system':
-                self.worker.push(pcm,rate)
+                self.worker.push(pcm,rate,source_id=f'output:{self._device_id}')
         self.capture = LoopbackCapture(consume, lambda state,detail:self._captureMessage.emit(generation,state,detail))
         self._capture_state = 'starting'
         self._status = 'Connecting to Windows output…'
@@ -387,9 +391,10 @@ class MusicSession(QObject):
         if dtype == np.uint8: pcm = (pcm-128)/128
         elif dtype == np.int16: pcm /= 32768
         elif dtype == np.int32: pcm /= 2147483648
-        self.worker.push(pcm.reshape(-1,fmt.channelCount()),fmt.sampleRate(),start_time=time.monotonic())
+        self.worker.push(pcm.reshape(-1,fmt.channelCount()),fmt.sampleRate(),start_time=time.monotonic(),source_id=f'player:{self._index}')
 
     def _clear_analysis(self):
+        self._frame = None
         self._beat.value=0.
         self._bands = [0.]*64
         self._wave = [0.]*160
@@ -402,7 +407,8 @@ class MusicSession(QObject):
         dt = min(.15,now-self._last_tick)
         self._last_tick = now
         frame = self.worker.latest()
-        valid = frame and now-frame['timestamp'] < .25
+        self._frame = frame if frame is not None else None
+        valid = frame is not None and now-frame['timestamp'] < .25
         gain = (0 if self.muted else self.volume) if self._input == 'player' else 1.
         if self._input == 'player' and not self.playing: valid = False
         self._beat.update(dt,self.worker.take_onsets(now),gain,bool(valid))

@@ -5,6 +5,7 @@ import EVLab 1.0
 View3D {
     id: scene
     objectName: "renderView"
+
     property var telemetry
     property real viewYaw: 0
     property real viewPitch: 0
@@ -13,6 +14,8 @@ View3D {
     property real zoom: 1
     property bool expanded: false
     property bool showNodes: true
+    property bool showAura: true
+    property int depthLayerMode: 0
     property string hoveredModule: ""
     readonly property real t: telemetry ? telemetry.motionTime : 0
     // Diagnostics isolate internal orientation and local emission from camera/time.
@@ -23,8 +26,8 @@ View3D {
     readonly property real reaction: reactionOverride>=0 ? Math.min(1,reactionOverride) : Math.max(0,Math.min(1,(energy-1.2)*1.7+level*.3))
     CoreMotion { id: motion; clock: scene.orbitTime; response: scene.reaction }
     component CoreMaterial: HoloMaterial {
-        reaction:scene.reaction
-        beatPulse:Math.max(0,Math.min(1,scene.musicBeat))
+        reaction: scene.reaction
+        beatPulse: Math.max(0, Math.min(1, scene.musicBeat))
     }
     readonly property real deployment: telemetry ? telemetry.launchProgress : 1
     function phase(a,b) { let v=Math.max(0,Math.min(1,(deployment-a)/(b-a)));return v*v*(3-2*v) }
@@ -34,6 +37,7 @@ View3D {
     readonly property real level: telemetry ? telemetry.audioLevel : 0
     readonly property bool lowCost: telemetry ? telemetry.qualityMode : false
     readonly property int particleCount: fieldInstances.instanceCountOverride
+    readonly property int orbitalParticleCount: 0
     renderStats.extendedDataCollectionEnabled: true
     renderMode: View3D.Offscreen
     explicitTextureWidth: Math.round(width*(lowCost ? .78 : 1))
@@ -47,10 +51,15 @@ View3D {
         antialiasingQuality: SceneEnvironment.High
         tonemapMode: SceneEnvironment.TonemapModeFilmic
     }
+    // The core renderer is bounded by NucleusScene. A fixed projection allows
+    // the 170px Music container to genuinely shrink the core instead of
+    // expanding the View3D back to the full stage.
+    readonly property real boundedCoreFieldOfView: 38
+
     camera: PerspectiveCamera {
         position: Qt.vector3d(0,0,382/Math.min(scene.zoom,1.10))
-        fieldOfView: 38
-        clipNear: 10; clipFar: 1200
+        fieldOfView: scene.boundedCoreFieldOfView
+        clipNear: 10; clipFar: 1400
     }
     Node {
         visible: scene.deployment<.7

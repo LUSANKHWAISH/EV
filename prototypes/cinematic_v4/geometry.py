@@ -49,3 +49,54 @@ class ParticleInstances(QQuick3DInstancing):
         self.setShadowBoundsMaximum(QVector3D(130,130,130))
     def getInstanceBuffer(self):
         return self._buffer, self._count
+
+
+def make_orbital_instance_data(count=1920, seed=9417):
+    """Return deterministic Qt Quick 3D instance entries for the outer aura.
+
+    The instance transform remains identity. The orbital particle shader uses
+    the four custom values as stable phase, radius, depth and band seeds.
+    """
+    if count <= 0:
+        raise ValueError("count must be positive")
+
+    rng = np.random.default_rng(seed)
+    data = np.zeros((count, 20), np.float32)
+
+    # Identity transform rows.
+    data[:, 0] = 1
+    data[:, 5] = 1
+    data[:, 10] = 1
+
+    # Neutral instance color. Final colour is selected by the shader.
+    data[:, 12:16] = 1
+
+    # Deterministic custom particle seeds.
+    data[:, 16:20] = rng.random((count, 4), dtype=np.float32)
+    return data
+
+
+class OrbitalParticleInstances(QQuick3DInstancing):
+    """Immutable seeded data for the restrained outer orbital aura."""
+
+    DEFAULT_COUNT = 1920
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        data = make_orbital_instance_data(self.DEFAULT_COUNT)
+        self._buffer = QByteArray(data.tobytes())
+        self._count = len(data)
+
+        self.setHasTransparency(True)
+
+        # Dynamic shader positions cannot be usefully CPU depth-sorted by
+        # their identity instance transforms.
+        self.setDepthSortingEnabled(False)
+
+        # Expanded full-display volumetric bounds
+        self.setShadowBoundsMinimum(QVector3D(-850, -600, -350))
+        self.setShadowBoundsMaximum(QVector3D(850, 600, 350))
+
+    def getInstanceBuffer(self):
+        return self._buffer, self._count
+

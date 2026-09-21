@@ -20,6 +20,7 @@ Item {
     readonly property bool lowCost: view.lowCost
     readonly property real launchProgress: view.deployment
     readonly property int particleCount: view.particleCount
+    readonly property int orbitalParticleCount: view.orbitalParticleCount
     readonly property int rendererFps: view.renderStats.fps
     readonly property real drawCalls: view.renderStats.drawCallCount
     readonly property real drawnVertices: view.renderStats.drawVertexCount

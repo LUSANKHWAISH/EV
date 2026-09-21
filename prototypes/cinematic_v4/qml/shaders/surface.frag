@@ -14,14 +14,20 @@ void MAIN() {
         float spot=exp(-dot(p,p)*24.0);
         float ray=exp(-abs(p.x)*75.0-abs(p.y)*4.0)+exp(-abs(p.y)*95.0-abs(p.x)*3.5);
         float fade=smoothstep(0.0,.035,deployment)*(1.0-smoothstep(.38,.68,deployment));
-        FRAGCOLOR=vec4(vec3(1.0,.84,.4),min(.95,(spot+ray*.35)*fade*gain));
+        float launchAlpha =
+            min(.95, (spot + ray * .35) * fade * gain)
+;
+        FRAGCOLOR = vec4(vec3(1.0, .84, .4), launchAlpha);
         return;
     }
     if(kind==7) {
         float head=smoothstep(.03,.38,deployment);
         float cross=pow(max(0.0,1.0-abs(vUv.y*2.0-1.0)),.5);
         float tail=packet(vUv.x,head)*cross*(1.0-smoothstep(.35,.52,deployment));
-        FRAGCOLOR=vec4(vec3(1.0,.69,.15),min(.95,tail*gain));
+        float trailAlpha =
+            min(.95, tail * gain)
+;
+        FRAGCOLOR = vec4(vec3(1.0, .69, .15), trailAlpha);
         return;
     }
     if(kind==8) {
@@ -41,7 +47,14 @@ void MAIN() {
         float corona=exp(-y*y*9.0)*.24;
         float alpha=(spine+corona)*life*wake*snap*coverage*(1.0+reaction*.7);
         vec3 fire=mix(vec3(1.0,.39,.018),vec3(1.0,.90,.45),spine);
-        FRAGCOLOR=vec4(fire*min(gain,2.3),min(.98,alpha*2.6)*smoothstep(.55,.86,deployment));
+        float dischargeAlpha =
+            min(.98, alpha * 2.6)
+            * smoothstep(.55, .86, deployment)
+;
+        FRAGCOLOR = vec4(
+            fire * min(gain, 2.3),
+            dischargeAlpha
+        );
         return;
     }
     float facing=dot(normalize(vNormal),normalize(CAMERA_POSITION-vWorld));
@@ -131,5 +144,15 @@ void MAIN() {
     rgb*=1.0+beatPulse*(kind==2?1.7:kind==4?.7:.18);
     bool filament=kind==1 || kind==2 || kind==4;
     vec3 emission=filament?vec3(1.4,1.26,1.4):vec3(1.12);
-    FRAGCOLOR=vec4(rgb*emission,clamp(alpha*(1.48+activation*.18),0.0,.97));
+    float finalAlpha =
+        clamp(
+            alpha * (1.48 + activation * .18),
+            0.0,
+            .97
+        );
+
+    FRAGCOLOR = vec4(
+        rgb * emission,
+        finalAlpha
+    );
 }

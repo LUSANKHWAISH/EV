@@ -12,6 +12,8 @@ CustomMaterial {
     property real deployment: 1
     property real reaction: 0
     property real beatPulse: 0
+
+
     property url textureSource: kind===0 ? "../assets/circuit.png" : "../assets/flow.png"
     property TextureInput detailMap: TextureInput {
         texture: Texture {

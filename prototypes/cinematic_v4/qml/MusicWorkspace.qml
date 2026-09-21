@@ -63,20 +63,11 @@ Rectangle {
         color:'#0a1821';border.color:'#263b45';radius:5;clip:true
         Caption { x:20;y:17;text:'LIVE SPECTRUM';color:musicPage.gold }
         Text { anchors.right:parent.right;anchors.rightMargin:20;y:17;text:musicPage.music.rmsText+' RMS    '+musicPage.music.peakText+' PEAK';color:'#9cb0b8';font.family:'Consolas';font.pixelSize:11 }
-        Canvas {
-            id:spectrum;objectName:'musicSpectrum';x:42;y:48;width:parent.width-64;height:parent.height-88
-            onWidthChanged:requestPaint();onHeightChanged:requestPaint()
-            Connections { target:musicPage.music;function onAnalysisChanged(){spectrum.requestPaint()} }
-            onPaint:{
-                let c=getContext('2d');c.reset()
-                c.lineWidth=1;c.strokeStyle='#1e323c'
-                for(let j=0;j<5;j++){let y=j*(height-38)/4;c.beginPath();c.moveTo(0,y);c.lineTo(width,y);c.stroke()}
-                let bars=musicPage.music.bands;let step=width/bars.length
-                let g=c.createLinearGradient(0,0,0,height);g.addColorStop(0,'#ffe6a2');g.addColorStop(.5,'#db982d');g.addColorStop(1,'#62421f');c.fillStyle=g
-                for(let i=0;i<bars.length;i++){let h=bars[i]*(height-40);if(h>.4)c.fillRect(i*step,height-38-h,Math.max(1,step-2),h)}
-                let wave=musicPage.music.waveform;c.beginPath();c.strokeStyle='#99b5b5';c.lineWidth=1
-                for(let k=0;k<wave.length;k++){let x=k*width/(wave.length-1),y=height-15-wave[k]*18;if(k===0)c.moveTo(x,y);else c.lineTo(x,y)}c.stroke()
-            }
+        VisualizerBoard {
+            id:visualizerBoard
+            objectName:'musicVisualizerBoard'
+            x:42;y:48;width:parent.width-64;height:parent.height-88
+            music:musicPage.music
         }
         Column { x:8;y:45;spacing:Math.max(1,(analyzer.height-125)/4-10)
             Repeater { model:['0','−20','−40','−60','−80'];Text { required property string modelData;text:modelData;color:'#617f8e';font.family:'Consolas';font.pixelSize:9 } }

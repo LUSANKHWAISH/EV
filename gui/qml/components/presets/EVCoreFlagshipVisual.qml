@@ -227,6 +227,389 @@ Item {
                 castsShadow: false
             }
 
+            // AMBER ORBITAL FIELD A1 — presentation-only; original nucleus unchanged.
+            // Three instanced dust bands replace the previous 150 large spheres.
+            // #Sphere is 100 units across: model scale 0.01 = 1 unit BEFORE
+            // the per-instance scale below (final particle diameter 1.05–2.15).
+            Node {
+                id: orbitalField
+                objectName: "amberOrbitalField"
+                property bool fieldEnabled: true // A/B switch; affects only this field.
+                visible: fieldEnabled
+                position: sceneRoot.position
+                opacity: root.stoppedState ? 0.18 : 0.78
+
+                // Fit the existing square camera frustum, not an assumed asset size.
+                // This does NOT resize the viewport, move the camera, or shrink the core.
+                // At z=800 and vertical FOV=37 this is about 216 scene units.
+                readonly property real outerRadius:
+                    intelligenceCamera.z * Math.sin(intelligenceCamera.fieldOfView * Math.PI / 360.0) * 0.85
+                readonly property bool animationAllowed:
+                    fieldEnabled && root.localAnimationRunning
+                    && !(root.host && root.host.stopped !== undefined && root.host.stopped)
+                    && !(root.host && root.host.visualMode !== undefined
+                         && String(root.host.visualMode) === "SLEEP")
+
+                // QML inline component: local to this file; no new runtime files.
+                component AmberDustBand: Node {
+                    id: bandRoot
+                    property int bandIndex: 0
+                    property int periodMs: 55000
+                    property int direction: 1
+                    property real orbitDegrees: 0.0
+                    property real fieldRadius: 1.0
+                    property bool animationAllowed: false
+
+                    // Deterministic samples: no random reseeding, spawning, or per-frame
+                    // JavaScript particle-position updates. Only three parent nodes rotate.
+                    function sample(i, salt) {
+                        var v = Math.sin((i + 1) * 127.1 + (bandIndex + 1) * 311.7
+                                         + salt * 74.7) * 43758.5453
+                        return v - Math.floor(v)
+                    }
+                    function dustPosition(i) {
+                        var a = (i * 137.507764 + bandIndex * 61.0) * Math.PI / 180.0
+                        var r = bandRoot.fieldRadius
+                              * Math.sqrt(0.82 * 0.82 + (1.0 - 0.82 * 0.82) * sample(i, 1))
+                        return Qt.vector3d(Math.cos(a) * r, Math.sin(a) * r,
+                                           (sample(i, 2) - 0.5) * bandRoot.fieldRadius * 0.10)
+                    }
+                    function dustScale(i) {
+                        var s = (i + bandIndex * 7) % 23 === 0
+                              ? 2.15 : 1.05 + sample(i, 3) * 0.90
+                        return Qt.vector3d(s, s, s)
+                    }
+                    function dustColor(i) {
+                        var alpha = (0.44 + sample(i, 4) * 0.22) * (1.0 - sample(i, 1) * 0.38)
+                        if ((i + bandIndex * 7) % 23 === 0)
+                            return Qt.rgba(1.0, 224.0 / 255.0, 160.0 / 255.0, alpha)
+                        if ((i + bandIndex) % 5 === 0)
+                            return Qt.rgba(232.0 / 255.0, 170.0 / 255.0, 69.0 / 255.0, alpha)
+                        return Qt.rgba(184.0 / 255.0, 130.0 / 255.0, 50.0 / 255.0, alpha)
+                    }
+
+                    // Rotation is periodic in 360 degrees. Pausing retains the current
+                    // angle; toggling animation does NOT stop/restart at the first frame.
+                    NumberAnimation on orbitDegrees {
+                        from: 0.0
+                        to: bandRoot.direction * 360.0
+                        duration: bandRoot.periodMs
+                        loops: Animation.Infinite
+                        easing.type: Easing.Linear
+                        running: true
+                        paused: !bandRoot.animationAllowed
+                    }
+
+                    Node {
+                        id: dustSpin
+                        eulerRotation.z: bandRoot.orbitDegrees
+                        Model {
+                            objectName: "amberDustBand" + bandRoot.bandIndex
+                            source: "#Sphere"
+                            scale: Qt.vector3d(0.01, 0.01, 0.01)
+                            instanceRoot: dustSpin
+                            instancing: dustInstances
+                            castsShadows: false
+                            receivesShadows: false
+                            pickable: false
+                            materials: PrincipledMaterial {
+                                lighting: PrincipledMaterial.NoLighting
+                                baseColor: "#ffffff"
+                                // Instance color supplies the tint and alpha. No ignored
+                                // emissiveFactor, new light, bloom pass, or Canvas overlay.
+                            }
+                        }
+                    }
+
+                    InstanceList {
+                        id: dustInstances
+                        hasTransparency: true
+                        depthSortingEnabled: true
+                        instances: [
+                            InstanceListEntry {
+                                position: bandRoot.dustPosition(0)
+                                scale: bandRoot.dustScale(0)
+                                color: bandRoot.dustColor(0)
+                            },
+                            InstanceListEntry {
+                                position: bandRoot.dustPosition(1)
+                                scale: bandRoot.dustScale(1)
+                                color: bandRoot.dustColor(1)
+                            },
+                            InstanceListEntry {
+                                position: bandRoot.dustPosition(2)
+                                scale: bandRoot.dustScale(2)
+                                color: bandRoot.dustColor(2)
+                            },
+                            InstanceListEntry {
+                                position: bandRoot.dustPosition(3)
+                                scale: bandRoot.dustScale(3)
+                                color: bandRoot.dustColor(3)
+                            },
+                            InstanceListEntry {
+                                position: bandRoot.dustPosition(4)
+                                scale: bandRoot.dustScale(4)
+                                color: bandRoot.dustColor(4)
+                            },
+                            InstanceListEntry {
+                                position: bandRoot.dustPosition(5)
+                                scale: bandRoot.dustScale(5)
+                                color: bandRoot.dustColor(5)
+                            },
+                            InstanceListEntry {
+                                position: bandRoot.dustPosition(6)
+                                scale: bandRoot.dustScale(6)
+                                color: bandRoot.dustColor(6)
+                            },
+                            InstanceListEntry {
+                                position: bandRoot.dustPosition(7)
+                                scale: bandRoot.dustScale(7)
+                                color: bandRoot.dustColor(7)
+                            },
+                            InstanceListEntry {
+                                position: bandRoot.dustPosition(8)
+                                scale: bandRoot.dustScale(8)
+                                color: bandRoot.dustColor(8)
+                            },
+                            InstanceListEntry {
+                                position: bandRoot.dustPosition(9)
+                                scale: bandRoot.dustScale(9)
+                                color: bandRoot.dustColor(9)
+                            },
+                            InstanceListEntry {
+                                position: bandRoot.dustPosition(10)
+                                scale: bandRoot.dustScale(10)
+                                color: bandRoot.dustColor(10)
+                            },
+                            InstanceListEntry {
+                                position: bandRoot.dustPosition(11)
+                                scale: bandRoot.dustScale(11)
+                                color: bandRoot.dustColor(11)
+                            },
+                            InstanceListEntry {
+                                position: bandRoot.dustPosition(12)
+                                scale: bandRoot.dustScale(12)
+                                color: bandRoot.dustColor(12)
+                            },
+                            InstanceListEntry {
+                                position: bandRoot.dustPosition(13)
+                                scale: bandRoot.dustScale(13)
+                                color: bandRoot.dustColor(13)
+                            },
+                            InstanceListEntry {
+                                position: bandRoot.dustPosition(14)
+                                scale: bandRoot.dustScale(14)
+                                color: bandRoot.dustColor(14)
+                            },
+                            InstanceListEntry {
+                                position: bandRoot.dustPosition(15)
+                                scale: bandRoot.dustScale(15)
+                                color: bandRoot.dustColor(15)
+                            },
+                            InstanceListEntry {
+                                position: bandRoot.dustPosition(16)
+                                scale: bandRoot.dustScale(16)
+                                color: bandRoot.dustColor(16)
+                            },
+                            InstanceListEntry {
+                                position: bandRoot.dustPosition(17)
+                                scale: bandRoot.dustScale(17)
+                                color: bandRoot.dustColor(17)
+                            },
+                            InstanceListEntry {
+                                position: bandRoot.dustPosition(18)
+                                scale: bandRoot.dustScale(18)
+                                color: bandRoot.dustColor(18)
+                            },
+                            InstanceListEntry {
+                                position: bandRoot.dustPosition(19)
+                                scale: bandRoot.dustScale(19)
+                                color: bandRoot.dustColor(19)
+                            },
+                            InstanceListEntry {
+                                position: bandRoot.dustPosition(20)
+                                scale: bandRoot.dustScale(20)
+                                color: bandRoot.dustColor(20)
+                            },
+                            InstanceListEntry {
+                                position: bandRoot.dustPosition(21)
+                                scale: bandRoot.dustScale(21)
+                                color: bandRoot.dustColor(21)
+                            },
+                            InstanceListEntry {
+                                position: bandRoot.dustPosition(22)
+                                scale: bandRoot.dustScale(22)
+                                color: bandRoot.dustColor(22)
+                            },
+                            InstanceListEntry {
+                                position: bandRoot.dustPosition(23)
+                                scale: bandRoot.dustScale(23)
+                                color: bandRoot.dustColor(23)
+                            },
+                            InstanceListEntry {
+                                position: bandRoot.dustPosition(24)
+                                scale: bandRoot.dustScale(24)
+                                color: bandRoot.dustColor(24)
+                            },
+                            InstanceListEntry {
+                                position: bandRoot.dustPosition(25)
+                                scale: bandRoot.dustScale(25)
+                                color: bandRoot.dustColor(25)
+                            },
+                            InstanceListEntry {
+                                position: bandRoot.dustPosition(26)
+                                scale: bandRoot.dustScale(26)
+                                color: bandRoot.dustColor(26)
+                            },
+                            InstanceListEntry {
+                                position: bandRoot.dustPosition(27)
+                                scale: bandRoot.dustScale(27)
+                                color: bandRoot.dustColor(27)
+                            },
+                            InstanceListEntry {
+                                position: bandRoot.dustPosition(28)
+                                scale: bandRoot.dustScale(28)
+                                color: bandRoot.dustColor(28)
+                            },
+                            InstanceListEntry {
+                                position: bandRoot.dustPosition(29)
+                                scale: bandRoot.dustScale(29)
+                                color: bandRoot.dustColor(29)
+                            },
+                            InstanceListEntry {
+                                position: bandRoot.dustPosition(30)
+                                scale: bandRoot.dustScale(30)
+                                color: bandRoot.dustColor(30)
+                            },
+                            InstanceListEntry {
+                                position: bandRoot.dustPosition(31)
+                                scale: bandRoot.dustScale(31)
+                                color: bandRoot.dustColor(31)
+                            },
+                            InstanceListEntry {
+                                position: bandRoot.dustPosition(32)
+                                scale: bandRoot.dustScale(32)
+                                color: bandRoot.dustColor(32)
+                            },
+                            InstanceListEntry {
+                                position: bandRoot.dustPosition(33)
+                                scale: bandRoot.dustScale(33)
+                                color: bandRoot.dustColor(33)
+                            },
+                            InstanceListEntry {
+                                position: bandRoot.dustPosition(34)
+                                scale: bandRoot.dustScale(34)
+                                color: bandRoot.dustColor(34)
+                            },
+                            InstanceListEntry {
+                                position: bandRoot.dustPosition(35)
+                                scale: bandRoot.dustScale(35)
+                                color: bandRoot.dustColor(35)
+                            },
+                            InstanceListEntry {
+                                position: bandRoot.dustPosition(36)
+                                scale: bandRoot.dustScale(36)
+                                color: bandRoot.dustColor(36)
+                            },
+                            InstanceListEntry {
+                                position: bandRoot.dustPosition(37)
+                                scale: bandRoot.dustScale(37)
+                                color: bandRoot.dustColor(37)
+                            },
+                            InstanceListEntry {
+                                position: bandRoot.dustPosition(38)
+                                scale: bandRoot.dustScale(38)
+                                color: bandRoot.dustColor(38)
+                            },
+                            InstanceListEntry {
+                                position: bandRoot.dustPosition(39)
+                                scale: bandRoot.dustScale(39)
+                                color: bandRoot.dustColor(39)
+                            },
+                            InstanceListEntry {
+                                position: bandRoot.dustPosition(40)
+                                scale: bandRoot.dustScale(40)
+                                color: bandRoot.dustColor(40)
+                            },
+                            InstanceListEntry {
+                                position: bandRoot.dustPosition(41)
+                                scale: bandRoot.dustScale(41)
+                                color: bandRoot.dustColor(41)
+                            },
+                            InstanceListEntry {
+                                position: bandRoot.dustPosition(42)
+                                scale: bandRoot.dustScale(42)
+                                color: bandRoot.dustColor(42)
+                            },
+                            InstanceListEntry {
+                                position: bandRoot.dustPosition(43)
+                                scale: bandRoot.dustScale(43)
+                                color: bandRoot.dustColor(43)
+                            },
+                            InstanceListEntry {
+                                position: bandRoot.dustPosition(44)
+                                scale: bandRoot.dustScale(44)
+                                color: bandRoot.dustColor(44)
+                            },
+                            InstanceListEntry {
+                                position: bandRoot.dustPosition(45)
+                                scale: bandRoot.dustScale(45)
+                                color: bandRoot.dustColor(45)
+                            },
+                            InstanceListEntry {
+                                position: bandRoot.dustPosition(46)
+                                scale: bandRoot.dustScale(46)
+                                color: bandRoot.dustColor(46)
+                            },
+                            InstanceListEntry {
+                                position: bandRoot.dustPosition(47)
+                                scale: bandRoot.dustScale(47)
+                                color: bandRoot.dustColor(47)
+                            },
+                            InstanceListEntry {
+                                position: bandRoot.dustPosition(48)
+                                scale: bandRoot.dustScale(48)
+                                color: bandRoot.dustColor(48)
+                            },
+                            InstanceListEntry {
+                                position: bandRoot.dustPosition(49)
+                                scale: bandRoot.dustScale(49)
+                                color: bandRoot.dustColor(49)
+                            }
+                        ]
+                    }
+                }
+
+                // Static tilt is on each PARENT orbital plane, not on a round particle.
+                AmberDustBand {
+                    fieldRadius: orbitalField.outerRadius
+                    animationAllowed: orbitalField.animationAllowed
+                    objectName: "amberDustPlane0"
+                    bandIndex: 0
+                    periodMs: 55000
+                    direction: 1
+                    eulerRotation: Qt.vector3d(22, -14, 12)
+                }
+                AmberDustBand {
+                    fieldRadius: orbitalField.outerRadius
+                    animationAllowed: orbitalField.animationAllowed
+                    objectName: "amberDustPlane1"
+                    bandIndex: 1
+                    periodMs: 70000
+                    direction: -1
+                    eulerRotation: Qt.vector3d(-28, 18, 64)
+                }
+                AmberDustBand {
+                    fieldRadius: orbitalField.outerRadius
+                    animationAllowed: orbitalField.animationAllowed
+                    objectName: "amberDustPlane2"
+                    bandIndex: 2
+                    periodMs: 90000
+                    direction: 1
+                    eulerRotation: Qt.vector3d(35, 8, -32)
+                }
+            }
+
             Node {
                 id: sceneRoot
                 objectName: "nucleusAssembly3D"

@@ -14,6 +14,15 @@ Item {
     property bool checkerboard:false
     property bool recordingActive:false
     property string drawer:''
+    property bool geometryInitialized:false
+    function initializeGeometry(){
+        if (geometryInitialized || width <= 0 || height <= 0) return
+        Qt.callLater(function(){
+            if (width > 0 && height > 0) geometryInitialized=true
+        })
+    }
+    onWidthChanged:initializeGeometry()
+    onHeightChanged:initializeGeometry()
     readonly property bool compact:width<1360
     readonly property bool shortView:height<850
     readonly property real rail:compact?60:76
@@ -56,6 +65,39 @@ Item {
             for(let y=122;y<height;y+=64){c.beginPath();c.moveTo(stage.rail,y);c.lineTo(width,y);c.stroke()}
             c.strokeStyle='rgba(79,111,126,.05)';c.beginPath();c.moveTo(stage.centerX,100);c.lineTo(stage.centerX,height-170);c.stroke()
         }
+    }
+    OrbitalAura {
+        id: globalFireParticleLayer
+        objectName: "globalFireParticleLayer"
+        anchors.fill: parent
+
+        // Keep the layer at the stage origin. Do not bind these values to
+        // nucleus.x, nucleus.y, nucleus.width, nucleus.scale or view rotation.
+        z: 0
+
+        timeSeconds:
+            stage.model ? stage.model.motionTime : 0
+
+        deployment:
+            stage.model ? stage.model.launchProgress : 1
+
+        lowCost:
+            stage.model ? stage.model.qualityMode : false
+
+        activity: Math.max(
+            0.0,
+            Math.min(
+                1.0,
+                (stage.model ? Math.max(0.0, stage.model.glow - 1.0) : 0.0)
+                + (
+                    stage.musicReactionActive
+                    ? stage.musicSession.beat
+                      * stage.musicSession.reactionGain
+                      * 0.20
+                    : 0.0
+                )
+            )
+        )
     }
     Repeater { model:stage.checkerboard?Math.ceil(stage.width/32)*Math.ceil(stage.height/32):0
         Rectangle { required property int index;readonly property int cols:Math.ceil(stage.width/32);width:32;height:32;x:(index%cols)*32;y:Math.floor(index/cols)*32;color:((index%cols)+Math.floor(index/cols))%2?'#252d32':'#131a20' }
@@ -144,9 +186,9 @@ Item {
         musicBeat:stage.musicReactionActive?stage.musicSession.beat*stage.musicSession.reactionGain:0
         scale:1+musicBeat*.025
         reactionOverride:stage.musicReactionActive?Math.min(1,stage.musicSession.level*.2*stage.musicSession.reactionGain+musicBeat):!stage.model.animationEnabled?0:-1
-        Behavior on x { NumberAnimation { duration:600;easing.type:Easing.InOutCubic } }
-        Behavior on y { NumberAnimation { duration:600;easing.type:Easing.InOutCubic } }
-        Behavior on width { NumberAnimation { duration:600;easing.type:Easing.InOutCubic } }
+        Behavior on x { enabled:stage.geometryInitialized;NumberAnimation { duration:600;easing.type:Easing.InOutCubic } }
+        Behavior on y { enabled:stage.geometryInitialized;NumberAnimation { duration:600;easing.type:Easing.InOutCubic } }
+        Behavior on width { enabled:stage.geometryInitialized;NumberAnimation { duration:600;easing.type:Easing.InOutCubic } }
     }
     MouseArea {
         id:interaction;objectName:'coreInteraction'
@@ -213,9 +255,25 @@ Item {
     }
     Label { visible:!stage.musicActive;x:composerBox.x;y:stage.height-30;text:stage.model.previewMode?'PREVIEW SESSION · ACTIONS DISCONNECTED':'ENTER TO SEND · VOICE DOES NOT AUTHORIZE ACTIONS';font.pixelSize:8;font.letterSpacing:1.2 }
     Loader {
-        id:musicLoader;active:stage.musicActive;z:3
-        x:stage.contentLeft;y:145;width:stage.width-x-stage.margin;height:stage.height-190
-        sourceComponent:Component { MusicWorkspace { music:stage.model.music;reactionAllowed:stage.musicReactionActive } }
+        id: musicLoader
+        active: stage.musicActive
+        z: 3
+        x: stage.contentLeft
+        y: 145
+        width: stage.width - x - stage.margin
+        height: stage.height - 190
+
+        onLoaded: {
+            if (item)
+                item.color = "transparent"
+        }
+
+        sourceComponent: Component {
+            MusicWorkspace {
+                music: stage.model.music
+                reactionAllowed: stage.musicReactionActive
+            }
+        }
     }
     Label { anchors.right:parent.right;anchors.rightMargin:stage.margin;y:stage.height-30;text:stage.model.dateText;font.pixelSize:8;font.letterSpacing:1.2 }
     Rectangle {

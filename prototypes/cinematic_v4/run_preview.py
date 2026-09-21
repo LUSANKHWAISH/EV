@@ -16,7 +16,7 @@ from PySide6.QtCore import QUrl, QTimer, qInstallMessageHandler, Qt
 from PySide6.QtGui import QGuiApplication, QImage
 from PySide6.QtQml import QQmlApplicationEngine, qmlRegisterType
 from PySide6.QtQuick import QQuickWindow
-from geometry import LabGeometry, ParticleInstances
+from geometry import LabGeometry, ParticleInstances, OrbitalParticleInstances
 from presentation import PresentationModel
 
 ROOT=Path(__file__).resolve().parent
@@ -31,6 +31,7 @@ def main():
     parser.add_argument('--duration',type=float,default=0)
     parser.add_argument('--checkerboard',action='store_true')
     parser.add_argument('--record',default='')
+    parser.add_argument('--record-seconds',type=float,default=25)
     parser.add_argument('--scenario',action='store_true')
     parser.add_argument('--validate',action='store_true')
     parser.add_argument('--validate-launch',action='store_true')
@@ -45,6 +46,8 @@ def main():
     parser.add_argument('--skip-launch',action='store_true')
     parser.add_argument('--record-launch',action='store_true',help='Replay projection as the recording begins.')
     parser.add_argument('--view-yaw',type=float,default=0)
+    parser.add_argument('--hide-aura',action='store_true')
+    parser.add_argument('--depth-layer',type=int,default=0,choices=[0,1,2,3],help='Diagnostic depth layer: 0=all, 1=rear, 2=middle, 3=front')
     args=parser.parse_args()
     if args.reference_dpi:
         os.environ['QT_ENABLE_HIGHDPI_SCALING']='0'
@@ -62,6 +65,13 @@ def main():
              'reference_dpi_requested':args.reference_dpi}
     qmlRegisterType(LabGeometry,'EVLab',1,0,'LabGeometry')
     qmlRegisterType(ParticleInstances,'EVLab',1,0,'ParticleInstances')
+    qmlRegisterType(
+        OrbitalParticleInstances,
+        'EVLab',
+        1,
+        0,
+        'OrbitalParticleInstances',
+    )
     lab=PresentationModel();lab.setQuality(args.quality);lab.setState(args.state)
     engine=QQmlApplicationEngine()
     engine.rootContext().setContextProperty('lab',lab)
@@ -78,6 +88,23 @@ def main():
     scene=window.findChild(QQuickItem,'nucleusView')
     scene.setProperty('viewYaw',args.view_yaw)
     scene.setProperty('orbitTimeOverride',args.orbit_time)
+    if args.hide_aura:
+        aura_item = window.findChild(
+            QQuickItem,
+            'globalFireParticleLayer',
+        )
+        if aura_item:
+            aura_item.setVisible(False)
+    if args.depth_layer:
+        aura_item = window.findChild(
+            QQuickItem,
+            'globalFireParticleLayer',
+        )
+        if aura_item:
+            aura_item.setProperty(
+                'depthLayerMode',
+                args.depth_layer,
+            )
     from frame_pacing import FramePacer
     pacer=FramePacer(window.screen().refreshRate())
     pacer.quality=args.quality
@@ -109,7 +136,7 @@ def main():
     recorder=None
     if args.record:
         from recording import RenderRecorder
-        recorder=RenderRecorder(window,ROOT/'evidence'/args.record)
+        recorder=RenderRecorder(window,ROOT/'evidence'/args.record,seconds=args.record_seconds)
         def begin_record():
             window.setProperty('recordingActive',True)
             if render_pump:render_pump.stop()  # The recorder supplies its own readbacks.
@@ -152,11 +179,33 @@ def main():
             'window_observations_during_run':{'samples':len(exposure_samples),'exposed_samples':sum(s['exposed'] for s in exposure_samples),'active_samples':sum(s['active'] for s in exposure_samples)},
             'median_frame_ms':float(np.median(clean)) if len(clean) else None,
             'p95_frame_ms':float(np.percentile(clean,95)) if len(clean) else None,
+            'p99_frame_ms':float(np.percentile(clean,99)) if len(clean) else None,
+            'one_percent_low_fps':1000/float(np.percentile(clean,99)) if len(clean) and np.percentile(clean,99)>0 else None,
             'mean_presented_fps_after_warmup':1000/float(np.mean(clean)) if len(clean) else None,
             'messages':messages}
     from PySide6.QtQuick import QQuickItem
     scene=window.findChild(QQuickItem,'nucleusView')
-    report['quick3d_stats']={key:scene.property(key) for key in ('rendererFps','drawCalls','drawnVertices','imageBytes','particleCount')}
+    aura_item = window.findChild(
+        QQuickItem,
+        'globalFireParticleLayer',
+    )
+
+    report['quick3d_stats'] = {
+        key: scene.property(key)
+        for key in (
+            'rendererFps',
+            'drawCalls',
+            'drawnVertices',
+            'imageBytes',
+            'particleCount',
+        )
+    }
+
+    report['quick3d_stats']['orbitalParticleCount'] = (
+        aura_item.property('activeCount')
+        if aura_item is not None
+        else None
+    )
     report['qml_errors']=[m for m in messages if any(s in m.lower() for s in ('failed to compile','failed to find include','shader compilation failed','referenceerror','typeerror','binding loop','cannot assign'))]
     csv_path=ROOT/'evidence'/(Path(args.report).stem+'_frames.csv')
     csv_path.write_text('seconds,frame_interval_ms\n'+'\n'.join(f'{stamp-started:.6f},{interval:.6f}' for stamp,interval in zip(times[1:],delta)))
