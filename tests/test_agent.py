@@ -284,20 +284,29 @@ class TestEVAgent(unittest.TestCase):
 
         self.assertEqual(result.status, AgentStatus.COMPLETED)
 
-        # Check calls to event_bus.publish
+        # Verify exact 4-event lifecycle: ACCEPTED → STARTED → STATUS → COMPLETED
         calls = event_bus.publish.call_args_list
-        self.assertEqual(len(calls), 3)
+        self.assertEqual(len(calls), 4)
 
-        self.assertEqual(calls[0].kwargs['event_type'], EVEventType.ACTION_STARTED)
+        # 1. ACTION_ACCEPTED carries task_id and action in data
+        self.assertEqual(calls[0].kwargs['event_type'], EVEventType.ACTION_ACCEPTED)
         self.assertEqual(calls[0].kwargs['correlation_id'], task.task_id)
+        self.assertEqual(calls[0].kwargs['data']['task_id'], task.task_id)
+        self.assertEqual(calls[0].kwargs['data']['action'], task.action.value)
 
-        self.assertEqual(calls[1].kwargs['event_type'], EVEventType.STATUS)
+        # 2. ACTION_STARTED
+        self.assertEqual(calls[1].kwargs['event_type'], EVEventType.ACTION_STARTED)
         self.assertEqual(calls[1].kwargs['correlation_id'], task.task_id)
 
-        self.assertEqual(calls[2].kwargs['event_type'], EVEventType.ACTION_COMPLETED)
+        # 3. STATUS update
+        self.assertEqual(calls[2].kwargs['event_type'], EVEventType.STATUS)
         self.assertEqual(calls[2].kwargs['correlation_id'], task.task_id)
-        self.assertTrue(calls[2].kwargs['data']['success'])
-        self.assertIn('duration_seconds', calls[2].kwargs['data'])
+
+        # 4. ACTION_COMPLETED with success payload
+        self.assertEqual(calls[3].kwargs['event_type'], EVEventType.ACTION_COMPLETED)
+        self.assertEqual(calls[3].kwargs['correlation_id'], task.task_id)
+        self.assertTrue(calls[3].kwargs['data']['success'])
+        self.assertIn('duration_seconds', calls[3].kwargs['data'])
 
     def test_event_lifecycle_validation_failure(self):
         from core.events import EVEventBus, EVEventType
@@ -314,12 +323,18 @@ class TestEVAgent(unittest.TestCase):
 
         self.assertEqual(result.status, AgentStatus.FAILED)
 
+        # Same 4-event lifecycle even on validation failure
         calls = event_bus.publish.call_args_list
-        self.assertEqual(len(calls), 3)
-        self.assertEqual(calls[0].kwargs['event_type'], EVEventType.ACTION_STARTED)
-        self.assertEqual(calls[1].kwargs['event_type'], EVEventType.STATUS)
-        self.assertEqual(calls[2].kwargs['event_type'], EVEventType.ACTION_COMPLETED)
-        self.assertFalse(calls[2].kwargs['data']['success'])
+        self.assertEqual(len(calls), 4)
+        self.assertEqual(calls[0].kwargs['event_type'], EVEventType.ACTION_ACCEPTED)
+        self.assertEqual(calls[0].kwargs['correlation_id'], task.task_id)
+        self.assertEqual(calls[1].kwargs['event_type'], EVEventType.ACTION_STARTED)
+        self.assertEqual(calls[1].kwargs['correlation_id'], task.task_id)
+        self.assertEqual(calls[2].kwargs['event_type'], EVEventType.STATUS)
+        self.assertEqual(calls[2].kwargs['correlation_id'], task.task_id)
+        self.assertEqual(calls[3].kwargs['event_type'], EVEventType.ACTION_COMPLETED)
+        self.assertEqual(calls[3].kwargs['correlation_id'], task.task_id)
+        self.assertFalse(calls[3].kwargs['data']['success'])
 
     def test_event_lifecycle_tool_exception(self):
         from core.events import EVEventBus, EVEventType
@@ -332,12 +347,18 @@ class TestEVAgent(unittest.TestCase):
 
         self.assertEqual(result.status, AgentStatus.FAILED)
 
+        # Same 4-event lifecycle even on tool exception
         calls = event_bus.publish.call_args_list
-        self.assertEqual(len(calls), 3)
-        self.assertEqual(calls[0].kwargs['event_type'], EVEventType.ACTION_STARTED)
-        self.assertEqual(calls[1].kwargs['event_type'], EVEventType.STATUS)
-        self.assertEqual(calls[2].kwargs['event_type'], EVEventType.ACTION_COMPLETED)
-        self.assertFalse(calls[2].kwargs['data']['success'])
+        self.assertEqual(len(calls), 4)
+        self.assertEqual(calls[0].kwargs['event_type'], EVEventType.ACTION_ACCEPTED)
+        self.assertEqual(calls[0].kwargs['correlation_id'], task.task_id)
+        self.assertEqual(calls[1].kwargs['event_type'], EVEventType.ACTION_STARTED)
+        self.assertEqual(calls[1].kwargs['correlation_id'], task.task_id)
+        self.assertEqual(calls[2].kwargs['event_type'], EVEventType.STATUS)
+        self.assertEqual(calls[2].kwargs['correlation_id'], task.task_id)
+        self.assertEqual(calls[3].kwargs['event_type'], EVEventType.ACTION_COMPLETED)
+        self.assertEqual(calls[3].kwargs['correlation_id'], task.task_id)
+        self.assertFalse(calls[3].kwargs['data']['success'])
 
     def test_no_event_bus(self):
         # Already tested by other tests implicitly, but explicit test here
@@ -360,7 +381,7 @@ class TestEVAgent(unittest.TestCase):
 
         # Agent task succeeds despite telemetry failures
         self.assertEqual(result.status, AgentStatus.COMPLETED)
-        self.assertEqual(event_bus.publish.call_count, 3)
+        self.assertEqual(event_bus.publish.call_count, 4)
 
 if __name__ == '__main__':
     unittest.main()
