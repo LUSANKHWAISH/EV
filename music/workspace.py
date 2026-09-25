@@ -11,16 +11,55 @@ from core.paths import ensure_dir, get_config_dir
 
 SCHEMA = 1
 PRESETS = frozenset(("ceiling-rain", "flow-trace", "segment-stack"))
-DEFAULT_LAYOUT = {
-    "schema": SCHEMA,
-    "layout": "reference-trio",
-    "columns": 12,
-    "panels": [
-        {"id": "rain-1", "preset": "ceiling-rain", "x": 0, "y": 0, "w": 12, "h": 2},
-        {"id": "trace-1", "preset": "flow-trace", "x": 0, "y": 2, "w": 8, "h": 4},
-        {"id": "stack-1", "preset": "segment-stack", "x": 8, "y": 2, "w": 4, "h": 4},
-    ],
+
+PRESET_LAYOUTS = {
+    "reference-trio": {
+        "schema": SCHEMA,
+        "layout": "reference-trio",
+        "columns": 12,
+        "panels": [
+            {"id": "rain-1", "preset": "ceiling-rain", "x": 0, "y": 0, "w": 12, "h": 2},
+            {"id": "trace-1", "preset": "flow-trace", "x": 0, "y": 2, "w": 8, "h": 4},
+            {"id": "stack-1", "preset": "segment-stack", "x": 8, "y": 2, "w": 4, "h": 4},
+        ],
+    },
+    "single-trace": {
+        "schema": SCHEMA,
+        "layout": "single-trace",
+        "columns": 12,
+        "panels": [
+            {"id": "trace-1", "preset": "flow-trace", "x": 0, "y": 0, "w": 12, "h": 6},
+        ],
+    },
+    "split-duo": {
+        "schema": SCHEMA,
+        "layout": "split-duo",
+        "columns": 12,
+        "panels": [
+            {"id": "trace-1", "preset": "flow-trace", "x": 0, "y": 0, "w": 8, "h": 6},
+            {"id": "stack-1", "preset": "segment-stack", "x": 8, "y": 0, "w": 4, "h": 6},
+        ],
+    },
+    "single-rain": {
+        "schema": SCHEMA,
+        "layout": "single-rain",
+        "columns": 12,
+        "panels": [
+            {"id": "rain-1", "preset": "ceiling-rain", "x": 0, "y": 0, "w": 12, "h": 6},
+        ],
+    },
+    "single-stack": {
+        "schema": SCHEMA,
+        "layout": "single-stack",
+        "columns": 12,
+        "panels": [
+            {"id": "stack-1", "preset": "segment-stack", "x": 0, "y": 0, "w": 12, "h": 6},
+        ],
+    },
 }
+
+LAYOUT_NAMES = frozenset(PRESET_LAYOUTS.keys())
+DEFAULT_LAYOUT = PRESET_LAYOUTS["reference-trio"]
 
 
 def _finite_number(value):
@@ -30,7 +69,7 @@ def _finite_number(value):
 def validate_layout(value):
     if not isinstance(value, dict) or value.get("schema") != SCHEMA:
         return False
-    if value.get("layout") != "reference-trio" or value.get("columns") != 12:
+    if value.get("layout") not in LAYOUT_NAMES or value.get("columns") != 12:
         return False
     panels = value.get("panels")
     if not isinstance(panels, list) or not 1 <= len(panels) <= 4:
@@ -62,6 +101,16 @@ def validate_layout(value):
 
 def default_layout():
     return json.loads(json.dumps(DEFAULT_LAYOUT))
+
+
+def get_preset_layout(name: str):
+    if name not in PRESET_LAYOUTS:
+        return default_layout()
+    return json.loads(json.dumps(PRESET_LAYOUTS[name]))
+
+
+def list_preset_layouts():
+    return list(PRESET_LAYOUTS.keys())
 
 
 class WorkspaceStore:
@@ -97,3 +146,7 @@ class WorkspaceStore:
             if os.path.exists(temp_name):
                 os.unlink(temp_name)
         return self.path
+
+    def save_preset(self, name: str):
+        layout = get_preset_layout(name)
+        return self.save(layout)

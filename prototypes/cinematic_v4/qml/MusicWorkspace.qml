@@ -62,6 +62,32 @@ Rectangle {
         id:analyzer;objectName:'musicAnalyzer';y:205;width:musicPage.mainWidth;height:Math.max(160,musicPage.height-355)
         color:'#0a1821';border.color:'#263b45';radius:5;clip:true
         Caption { x:20;y:17;text:'LIVE SPECTRUM';color:musicPage.gold }
+        Row {
+            id: layoutControls
+            objectName: 'musicLayoutControls'
+            x: 130; y: 13; spacing: 6
+            HudButton {
+                objectName: 'layoutTrioBtn'
+                text: 'TRIO'
+                height: 22; width: 55
+                selected: !musicPage.music || !musicPage.music.currentLayout || musicPage.music.currentLayout === 'reference-trio'
+                onClicked: if (musicPage.music) musicPage.music.setLayout('reference-trio')
+            }
+            HudButton {
+                objectName: 'layoutTraceBtn'
+                text: 'TRACE'
+                height: 22; width: 60
+                selected: musicPage.music && musicPage.music.currentLayout === 'single-trace'
+                onClicked: if (musicPage.music) musicPage.music.setLayout('single-trace')
+            }
+            HudButton {
+                objectName: 'layoutSplitBtn'
+                text: 'SPLIT'
+                height: 22; width: 55
+                selected: musicPage.music && musicPage.music.currentLayout === 'split-duo'
+                onClicked: if (musicPage.music) musicPage.music.setLayout('split-duo')
+            }
+        }
         Text { anchors.right:parent.right;anchors.rightMargin:20;y:17;text:musicPage.music.rmsText+' RMS    '+musicPage.music.peakText+' PEAK';color:'#9cb0b8';font.family:'Consolas';font.pixelSize:11 }
         VisualizerBoard {
             id:visualizerBoard

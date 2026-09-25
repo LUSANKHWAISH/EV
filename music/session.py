@@ -10,10 +10,12 @@ from PySide6.QtMultimedia import QAudioBufferOutput, QAudioFormat, QAudioOutput,
 from .analysis import AnalysisWorker
 from .loopback import LoopbackCapture
 from .onsets import BeatEnvelope
+from .workspace import WorkspaceStore, get_preset_layout, list_preset_layouts, PRESET_LAYOUTS, validate_layout
 
 
 class MusicSession(QObject):
     changed = Signal()
+    layoutChanged = Signal()
     analysisChanged = Signal()
     devicesChanged = Signal()
     userAction = Signal()
@@ -22,6 +24,8 @@ class MusicSession(QObject):
     def __init__(self, parent=None, settings=None):
         super().__init__(parent)
         self._settings = settings if settings is not None else QSettings('EV', 'MusicFoundation')
+        self._workspace_store = WorkspaceStore()
+        self._layout = self._workspace_store.load()
         self._active = False
         self._music_open = False
         self._closed = False
@@ -95,6 +99,12 @@ class MusicSession(QObject):
     def status(self): return self._status
     @Property(str, notify=changed)
     def captureState(self): return self._capture_state
+    @Property(str, notify=layoutChanged)
+    def currentLayout(self): return self._layout.get("layout", "reference-trio")
+    @Property('QVariantMap', notify=layoutChanged)
+    def layoutData(self): return self._layout
+    @Property('QVariantList', notify=layoutChanged)
+    def availableLayouts(self): return list_preset_layouts()
     @Property(str, notify=changed)
     def title(self): return self._queue[self._index]['title'] if 0 <= self._index < len(self._queue) else 'Your music, in motion.'
     @Property('QVariantList', notify=changed)
@@ -240,6 +250,29 @@ class MusicSession(QObject):
         self._status = 'Connecting to Windows output…'
         self.capture.start(self._device_id)
         self.changed.emit()
+
+    @Slot(str)
+    def setLayout(self, name):
+        if name in PRESET_LAYOUTS:
+            layout = get_preset_layout(name)
+            self._workspace_store.save(layout)
+            self._layout = layout
+            self.layoutChanged.emit()
+            self.changed.emit()
+
+    @Slot(result=bool)
+    def restoreDefaultLayout(self):
+        default = get_preset_layout("reference-trio")
+        self._workspace_store.save(default)
+        self._layout = default
+        self.layoutChanged.emit()
+        self.changed.emit()
+        return True
+
+    @Slot(str, result=bool)
+    def isPanelVisible(self, preset_name):
+        panels = self._layout.get("panels", [])
+        return any(p.get("preset") == preset_name for p in panels)
 
     @Slot(result=bool)
     def stopCapture(self):

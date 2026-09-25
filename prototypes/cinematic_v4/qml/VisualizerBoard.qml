@@ -5,26 +5,33 @@ Item {
     required property var music
     property real panelGap: 8
 
+    readonly property string currentLayout: root.music && root.music.currentLayout ? root.music.currentLayout : 'reference-trio'
+    readonly property bool rainVisible: currentLayout === 'reference-trio' || currentLayout === 'single-rain'
+    readonly property bool traceVisible: currentLayout === 'reference-trio' || currentLayout === 'single-trace' || currentLayout === 'split-duo'
+    readonly property bool stackVisible: currentLayout === 'reference-trio' || currentLayout === 'split-duo' || currentLayout === 'single-stack'
+
     CeilingRain {
         id: rain
         objectName: 'ceilingRain'
         music: root.music
+        visible: root.rainVisible
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.top: parent.top
-        height: Math.max(48, parent.height * 0.34)
+        height: root.currentLayout === 'single-rain' ? parent.height : Math.max(48, parent.height * 0.34)
     }
 
     FlowTrace {
         id: trace
         objectName: 'flowTrace'
         music: root.music
+        visible: root.traceVisible
         anchors.left: parent.left
-        anchors.right: stack.left
+        anchors.right: root.stackVisible ? stack.left : parent.right
         anchors.leftMargin: 0
-        anchors.rightMargin: root.panelGap
-        anchors.top: rain.bottom
-        anchors.topMargin: root.panelGap
+        anchors.rightMargin: root.stackVisible ? root.panelGap : 0
+        anchors.top: root.rainVisible ? rain.bottom : parent.top
+        anchors.topMargin: root.rainVisible ? root.panelGap : 0
         anchors.bottom: parent.bottom
     }
 
@@ -32,10 +39,12 @@ Item {
         id: stack
         objectName: 'segmentStack'
         music: root.music
+        visible: root.stackVisible
+        anchors.left: root.currentLayout === 'single-stack' ? parent.left : undefined
         anchors.right: parent.right
-        anchors.top: rain.bottom
-        anchors.topMargin: root.panelGap
+        anchors.top: root.rainVisible ? rain.bottom : parent.top
+        anchors.topMargin: root.rainVisible ? root.panelGap : 0
         anchors.bottom: parent.bottom
-        width: Math.max(110, parent.width * 0.27)
+        width: root.currentLayout === 'single-stack' ? parent.width : (root.currentLayout === 'split-duo' ? Math.max(120, parent.width * 0.33) : Math.max(110, parent.width * 0.27))
     }
 }

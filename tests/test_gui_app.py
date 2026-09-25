@@ -50,6 +50,8 @@ def mock_gui_env(request):
     with patch("gui.app.QGuiApplication") as mock_app, \
          patch("gui.app.QQmlApplicationEngine") as mock_engine, \
          patch("gui.app.install_windows_native_chrome"), \
+         patch("gui.app.EVProactiveAwarenessEngine"), \
+         patch("gui.app.EVSystemMonitor"), \
          patch("sys.exit") as mock_exit, \
          patch("sys.argv", ["gui.app"] + (["--classic"] if request.param == "classic" else [])), \
          patch("prototypes.cinematic_v4.integration.configure_cinematic", return_value=Path(__file__).parents[1] / "prototypes/cinematic_v4/qml/ConnectedWindow.qml"), \
