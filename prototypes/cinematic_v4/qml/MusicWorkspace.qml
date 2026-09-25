@@ -7,6 +7,7 @@ Rectangle {
     objectName:'musicWorkspace'
     required property var music
     property bool reactionAllowed:true
+    property bool showEQ:true
     color:'#071119'
     readonly property real queueWidth:width<1100?220:270
     readonly property real mainWidth:width-queueWidth-26
@@ -41,6 +42,7 @@ Rectangle {
             HudButton { objectName:'musicOpen';text:'＋  OPEN TRACKS';accent:true;width:150;onClicked:files.open() }
             HudButton { objectName:'musicInputPlayer';text:'E.V. PLAYER';selected:musicPage.music.inputSource==='player';onClicked:musicPage.music.setInput('player') }
             HudButton { objectName:'musicInputSystem';text:'WINDOWS AUDIO';width:150;selected:musicPage.music.inputSource==='system';onClicked:musicPage.music.setInput('system') }
+            HudButton { objectName:'musicEQToggle';text:musicPage.showEQ?'EQ  ACTIVE':'10-BAND EQ';width:115;selected:musicPage.showEQ;accent:musicPage.showEQ;onClicked:musicPage.showEQ=!musicPage.showEQ }
         }
         Row { spacing:10
             Picker {
@@ -59,7 +61,9 @@ Rectangle {
         }
     }
     Rectangle {
-        id:analyzer;objectName:'musicAnalyzer';y:205;width:musicPage.mainWidth;height:Math.max(160,musicPage.height-355)
+        id:analyzer;objectName:'musicAnalyzer';y:205;width:musicPage.mainWidth
+        readonly property real fullHeight: Math.max(160, musicPage.height-355)
+        height: musicPage.showEQ ? Math.max(110, fullHeight - eqPanel.height - 8) : fullHeight
         color:'#0a1821';border.color:'#263b45';radius:5;clip:true
         Caption { x:20;y:17;text:'LIVE SPECTRUM';color:musicPage.gold }
         Row {
@@ -87,6 +91,14 @@ Rectangle {
                 selected: musicPage.music && musicPage.music.currentLayout === 'split-duo'
                 onClicked: if (musicPage.music) musicPage.music.setLayout('split-duo')
             }
+            HudButton {
+                objectName: 'layoutEQBtn'
+                text: 'EQ'
+                height: 22; width: 45
+                selected: musicPage.showEQ
+                accent: musicPage.showEQ
+                onClicked: musicPage.showEQ = !musicPage.showEQ
+            }
         }
         Text { anchors.right:parent.right;anchors.rightMargin:20;y:17;text:musicPage.music.rmsText+' RMS    '+musicPage.music.peakText+' PEAK';color:'#9cb0b8';font.family:'Consolas';font.pixelSize:11 }
         VisualizerBoard {
@@ -101,6 +113,16 @@ Rectangle {
         Item { x:42;y:parent.height-25;width:parent.width-64
             Repeater { model:['25 Hz','95','360','1.4k','5.3k','20k'];Text { required property string modelData;required property int index;x:index*(parent.width-width)/5;text:modelData;color:'#617f8e';font.family:'Consolas';font.pixelSize:10 } }
         }
+    }
+    EqualizerPanel {
+        id: eqPanel
+        objectName: 'musicEqualizerPanel'
+        visible: musicPage.showEQ
+        x: 0
+        y: analyzer.y + analyzer.height + 8
+        width: musicPage.mainWidth
+        height: musicPage.showEQ ? Math.min(215, Math.max(160, (musicPage.height - 355) * 0.48)) : 0
+        music: musicPage.music
     }
     Column {
         x:musicPage.mainWidth+26;width:musicPage.queueWidth;spacing:12

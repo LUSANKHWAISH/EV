@@ -78,7 +78,8 @@ class TestEqualizerDSPChain:
 
         assert np.all(y == 0.0)
         assert dsp.peak_dbfs == -120.0
-        assert dsp.headroom_db == 120.0
+        assert dsp.dynamic_headroom_db == 120.0
+        assert dsp.headroom_db == pytest.approx(-6.0, abs=0.1)
 
     def test_output_contains_no_nan_or_inf(self):
         dsp = EqualizerDSP(sample_rate=48000, channels=2)
@@ -147,3 +148,44 @@ class TestEqualizerDSPChain:
         assert dsp.peak_dbfs >= 0.0
         # Output must be clamped within [-1.0, 1.0] for hardware safety
         assert np.all(np.abs(y) <= 1.0)
+
+    def test_all_10_band_center_frequencies_and_responses(self):
+        dsp = EqualizerDSP(sample_rate=48000, channels=2)
+        assert len(dsp.bands) == 10
+        expected_centers = [31, 62, 125, 250, 500, 1000, 2000, 4000, 8000, 16000]
+
+        for i, center in enumerate(expected_centers):
+            assert abs(dsp.bands[i].hz - center) < 0.1
+            # Test individual +6 dB boost
+            dsp.reset_flat(force_immediate=True)
+            dsp.set_band_gain(i, 6.0, force_immediate=True)
+            w, resp = sos_freq_response(dsp._current_sos, [center], rate=48000)
+            assert resp[0] == pytest.approx(6.0, abs=0.15), f"Band {center} Hz should boost +6 dB"
+
+    def test_bandwidth_and_q_factor_definition(self):
+        # Q = 1.4142 corresponds to standard 1-octave bandwidth
+        # At f0/sqrt(2) and f0*sqrt(2) for +6 dB peak, gain should be ~+3 dB (+3 dB point)
+        sos = peaking_sos(rate=48000, hz=1000.0, gain_db=6.0, q=1.4142)
+        f_low = 1000.0 / (2.0 ** 0.5)
+        f_high = 1000.0 * (2.0 ** 0.5)
+        _, resp = sos_freq_response(sos, [f_low, 1000.0, f_high], rate=48000)
+        assert resp[1] == pytest.approx(6.0, abs=0.05)
+        # At half-power (3 dB below peak in linear gain, ~3 dB boost)
+        assert resp[0] == pytest.approx(3.0, abs=0.3)
+        assert resp[2] == pytest.approx(3.0, abs=0.3)
+
+    def test_combined_boost_headroom_estimation(self):
+        dsp = EqualizerDSP(sample_rate=48000, channels=2)
+        dsp.reset_flat(force_immediate=True)
+        assert abs(dsp.headroom_db) < 0.1
+
+        # Boost 3 consecutive bands by +6 dB
+        dsp.set_band_gain(4, 6.0, force_immediate=True)  # 500 Hz
+        dsp.set_band_gain(5, 6.0, force_immediate=True)  # 1 kHz
+        dsp.set_band_gain(6, 6.0, force_immediate=True)  # 2 kHz
+
+        peak_boost = dsp.estimate_peak_gain_db()
+        # Due to 1-octave overlap, combined peak is > 6 dB (typically ~8.16 dB)
+        assert peak_boost > 7.5
+        assert dsp.headroom_db < -7.5
+

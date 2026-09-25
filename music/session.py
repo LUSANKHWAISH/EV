@@ -8,9 +8,11 @@ from PySide6.QtCore import QObject, Property, QCoreApplication, QSettings, QTime
 from PySide6.QtMultimedia import QAudioBufferOutput, QAudioFormat, QAudioOutput, QMediaDevices, QMediaPlayer
 
 from .analysis import AnalysisWorker
+from .dsp import EQStore, EQ_10_BAND_FREQUENCIES
 from .loopback import LoopbackCapture
 from .onsets import BeatEnvelope
 from .workspace import WorkspaceStore, get_preset_layout, list_preset_layouts, PRESET_LAYOUTS, validate_layout
+from prototypes.playback_eq.player import EQPlaybackEngine
 
 
 class MusicSession(QObject):
@@ -19,6 +21,7 @@ class MusicSession(QObject):
     analysisChanged = Signal()
     devicesChanged = Signal()
     userAction = Signal()
+    eqChanged = Signal()
     _captureMessage = Signal(int, str, str)
 
     def __init__(self, parent=None, settings=None):
@@ -78,6 +81,22 @@ class MusicSession(QObject):
         self.timer = QTimer(self)
         self.timer.setInterval(33)
         self.timer.timeout.connect(self._tick)
+
+        # Dual-backend playback configuration
+        self._backend = 'media_player'
+        self._eq_store = EQStore()
+        saved_eq = self._eq_store.load()
+        self._eq_player = EQPlaybackEngine(
+            device=self.output.device(),
+            on_state_change=self._dsp_state_changed,
+            on_eof=self._dsp_eof_received,
+            on_pcm_processed=self._dsp_pcm,
+        )
+        self._eq_player.set_all_gains(saved_eq.get('gains', [0.0] * 10))
+        self._eq_player.set_preamp(saved_eq.get('preamp_db', 0.0))
+        self._eq_player.set_bypass(saved_eq.get('bypass', False))
+        self._eq_player.set_volume(0.0 if self.output.isMuted() else self.output.volume())
+
         app = QCoreApplication.instance()
         if app:
             app.aboutToQuit.connect(self.close)
@@ -111,16 +130,63 @@ class MusicSession(QObject):
     def queue(self): return [{'title':row['title'],'index':i} for i,row in enumerate(self._queue)]
     @Property(int, notify=changed)
     def currentIndex(self): return self._index
+    @Property(str, notify=changed)
+    def backend(self): return self._backend
+    @Property('QVariantList', notify=eqChanged)
+    def eqFrequencies(self): return list(EQ_10_BAND_FREQUENCIES)
+    @Property('QVariantList', notify=eqChanged)
+    def eqGains(self): return self._eq_player.get_all_gains()
+    @Property(float, notify=eqChanged)
+    def eqPreamp(self): return self._eq_player.dsp.preamp_db
+    @Property(bool, notify=eqChanged)
+    def eqBypass(self): return self._eq_player.dsp.bypass
     @Property(bool, notify=changed)
-    def playing(self): return self.player.playbackState() == QMediaPlayer.PlaybackState.PlayingState
+    def eqAvailable(self):
+        if 0 <= self._index < len(self._queue):
+            return Path(self._queue[self._index]['path']).suffix.lower() == '.wav'
+        return False
+    @Property(bool, notify=changed)
+    def eqActive(self):
+        return self.eqAvailable and not self.eqBypass and self.playing and self._backend == 'dsp'
+    @Property(str, notify=changed)
+    def eqStatus(self):
+        if not self.hasTrack:
+            return 'No track loaded'
+        path = Path(self._queue[self._index]['path'])
+        ext = path.suffix.upper().lstrip('.')
+        if not self.eqAvailable:
+            return f'Observation Only ({ext})'
+        if self.eqBypass:
+            return 'Bypassed (WAV)'
+        if self.playing:
+            return 'Active (10-Band DSP)'
+        return 'Ready (10-Band DSP)'
+    @Property(float, notify=eqChanged)
+    def eqHeadroom(self): return self._eq_player.headroom_db
+    @Property(bool, notify=analysisChanged)
+    def eqIsClipping(self): return self._backend == 'dsp' and self._eq_player.is_clipping
+    @Property(bool, notify=changed)
+    def playing(self):
+        if self._backend == 'dsp':
+            return self._eq_player.is_playing
+        return self.player.playbackState() == QMediaPlayer.PlaybackState.PlayingState
     @Property(bool, notify=changed)
     def hasTrack(self): return self._index >= 0
     @Property(bool, notify=changed)
-    def seekable(self): return self.player.isSeekable()
+    def seekable(self):
+        if self._backend == 'dsp':
+            return self._eq_player._reader is not None
+        return self.player.isSeekable()
     @Property(float, notify=changed)
-    def position(self): return float(self.player.position())
+    def position(self):
+        if self._backend == 'dsp':
+            return self._eq_player.position_seconds * 1000.0
+        return float(self.player.position())
     @Property(float, notify=changed)
-    def duration(self): return float(self.player.duration())
+    def duration(self):
+        if self._backend == 'dsp':
+            return self._eq_player.duration_seconds * 1000.0
+        return float(self.player.duration())
     @Property(float, notify=changed)
     def volume(self): return self.output.volume()
     @Property(bool, notify=changed)
@@ -320,7 +386,9 @@ class MusicSession(QObject):
     def setOutputDevice(self, index):
         devices = QMediaDevices.audioOutputs()
         if not 0 <= index <= len(devices): return
-        self.output.setDevice(QMediaDevices.defaultAudioOutput() if index == 0 else devices[index-1])
+        dev = QMediaDevices.defaultAudioOutput() if index == 0 else devices[index-1]
+        self.output.setDevice(dev)
+        self._eq_player.set_device(dev)
         self.worker.reset()
         self.changed.emit()
 
@@ -346,47 +414,150 @@ class MusicSession(QObject):
     def playIndex(self, index):
         if not 0 <= index < len(self._queue): return
         self.userAction.emit()
-        self.player.stop()
         self._index = index
         self.worker.reset()
-        self.player.setSource(QUrl.fromLocalFile(self._queue[index]['path']))
-        self.player.play()
+        path_str = self._queue[index]['path']
+        path = Path(path_str)
+        is_wav = path.suffix.lower() == '.wav'
+
+        if is_wav:
+            # Owns output: DSP backend
+            self.player.stop()
+            self.player.setSource(QUrl())
+            self._backend = 'dsp'
+            loaded = self._eq_player.load(path)
+            if loaded:
+                vol = 0.0 if self.output.isMuted() else self.output.volume()
+                self._eq_player.set_volume(vol)
+                self._eq_player.play()
+                self._status = 'Local playback · 10-Band EQ active' if not self.eqBypass else 'Local playback · EQ bypassed'
+            else:
+                self._status = f'DSP load error: {self._eq_player.last_error_message}'
+        else:
+            # Owns output: QMediaPlayer backend
+            self._eq_player.stop()
+            self._backend = 'media_player'
+            self.player.setSource(QUrl.fromLocalFile(path_str))
+            self.player.play()
+            self._status = f'Local playback · Observation only ({path.suffix.upper()})'
+
+        self._sync_active()
         self.changed.emit()
 
     @Slot()
     def togglePlayback(self):
         self.userAction.emit()
-        if self.playing: self.player.pause()
-        elif self.hasTrack: self.player.play()
+        if self._backend == 'dsp':
+            if self._eq_player.is_playing: self._eq_player.pause()
+            elif self._eq_player.is_paused: self._eq_player.play()
+            elif self.hasTrack: self.playIndex(self._index)
+        else:
+            if self.playing: self.player.pause()
+            elif self.hasTrack: self.playIndex(self._index)
 
     @Slot()
     def stop(self):
-        self.player.stop()
+        if self._backend == 'dsp':
+            self._eq_player.stop()
+        else:
+            self.player.stop()
         if self._input == 'player':
             self.worker.reset()
             self._clear_analysis()
+        self._sync_active()
+        self.changed.emit()
 
     @Slot()
-    def next(self): self.playIndex(self._index+1)
+    def next(self):
+        if self._index + 1 < len(self._queue):
+            self.playIndex(self._index + 1)
+
     @Slot()
     def previous(self):
         if self.position > 3000: self.seek(0)
-        else: self.playIndex(max(0,self._index-1))
+        else: self.playIndex(max(0, self._index - 1))
+
     @Slot(float)
     def seek(self, milliseconds):
         if self.seekable and math.isfinite(milliseconds):
             self.worker.reset()
-            self.player.setPosition(int(max(0,min(self.duration,milliseconds))))
+            if self._backend == 'dsp':
+                self._eq_player.seek(milliseconds / 1000.0)
+            else:
+                self.player.setPosition(int(max(0, min(self.duration, milliseconds))))
+            self.changed.emit()
+
     @Slot(float)
     def setVolume(self, value):
         if not math.isfinite(value): return
-        self.output.setVolume(max(0,min(1,value)))
-        self._settings.setValue('volume',self.volume)
+        vol = max(0., min(1., value))
+        self.output.setVolume(vol)
+        self._eq_player.set_volume(0. if self.output.isMuted() else vol)
+        self._settings.setValue('volume', self.volume)
         self.changed.emit()
+
     @Slot(bool)
     def setMuted(self, value):
         self.output.setMuted(value)
+        self._eq_player.set_volume(0. if value else self.output.volume())
         self.changed.emit()
+
+    @Slot(int, float)
+    def setBandGain(self, band_index, gain_db):
+        if not (0 <= band_index < 10) or not math.isfinite(gain_db): return
+        gain = float(np.clip(gain_db, -12.0, 12.0))
+        self._eq_player.set_band_gain(band_index, gain)
+        self._eq_store.set_band_gain(band_index, gain)
+        self.eqChanged.emit()
+        self.changed.emit()
+
+    @Slot(float)
+    def setPreamp(self, db):
+        if not math.isfinite(db): return
+        preamp = float(np.clip(db, -18.0, 18.0))
+        self._eq_player.set_preamp(preamp)
+        self._eq_store.set_preamp(preamp)
+        self.eqChanged.emit()
+        self.changed.emit()
+
+    @Slot(bool)
+    def setBypass(self, bypass):
+        self._eq_player.set_bypass(bool(bypass))
+        self._eq_store.set_bypass(bool(bypass))
+        if self._backend == 'dsp' and self.hasTrack:
+            self._status = 'Local playback · EQ bypassed' if bypass else 'Local playback · 10-Band EQ active'
+        self.eqChanged.emit()
+        self.changed.emit()
+
+    @Slot()
+    def resetFlat(self):
+        self._eq_player.reset_flat()
+        self._eq_store.reset_flat()
+        self.eqChanged.emit()
+        self.changed.emit()
+
+    def _dsp_state_changed(self, state):
+        QTimer.singleShot(0, self._sync_dsp_state)
+
+    def _sync_dsp_state(self):
+        if self._input == 'player' and not self.playing:
+            self.worker.reset()
+        self._sync_active()
+        self.changed.emit()
+
+    def _dsp_eof_received(self):
+        QTimer.singleShot(0, self._handle_dsp_eof)
+
+    def _handle_dsp_eof(self):
+        if self._index + 1 < len(self._queue):
+            self.next()
+        else:
+            self._status = 'End of queue.'
+            self.changed.emit()
+
+    def _dsp_pcm(self, pcm_dsp, rate):
+        if not self._active or self._input != 'player' or not self.playing: return
+        self.worker.push(pcm_dsp, rate, start_time=time.monotonic(), source_id=f'dsp:{self._index}')
 
     @Slot()
     def _playback_changed(self):
@@ -457,6 +628,8 @@ class MusicSession(QObject):
             target = frame[name]*gain if valid else 0.
             tau = .025 if target>self._values[name] else .16
             self._values[name] += (target-self._values[name])*(1-math.exp(-dt/tau))
+        if self._backend == 'dsp' and self.playing:
+            self.changed.emit()
         self.analysisChanged.emit()
 
     @Slot()
@@ -465,6 +638,7 @@ class MusicSession(QObject):
         self._closed = True
         self.timer.stop()
         self.stopCapture()
+        self._eq_player.close()
         self.player.stop()
         self.worker.close()
         self._settings.sync()

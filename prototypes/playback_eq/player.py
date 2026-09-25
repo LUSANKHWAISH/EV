@@ -5,7 +5,7 @@ import math
 from pathlib import Path
 import threading
 import time
-from typing import Callable, Optional
+from typing import Callable, Optional, Sequence
 import numpy as np
 from PySide6.QtCore import QCoreApplication
 from PySide6.QtMultimedia import QAudio, QAudioFormat, QAudioSink, QMediaDevices
@@ -23,10 +23,12 @@ class EQPlaybackEngine:
         chunk_frames: int = 1024,
         on_state_change: Optional[Callable[[str], None]] = None,
         on_eof: Optional[Callable[[], None]] = None,
+        on_pcm_processed: Optional[Callable[[np.ndarray, int], None]] = None,
     ):
         self.chunk_frames = chunk_frames
         self.on_state_change = on_state_change
         self.on_eof = on_eof
+        self.on_pcm_processed = on_pcm_processed
 
         # Hardware audio sink configuration
         self._device = device or QMediaDevices.defaultAudioOutput()
@@ -95,6 +97,24 @@ class EQPlaybackEngine:
         """Set equalizer preamp gain in dB."""
         self.dsp.set_preamp_db(db)
 
+    def set_band_gain(self, band_idx: int, gain_db: float) -> None:
+        """Adjust a specific band's gain (-12 dB to +12 dB)."""
+        self.dsp.set_band_gain(band_idx, gain_db)
+
+    def get_band_gain(self, band_idx: int) -> float:
+        return self.dsp.get_band_gain(band_idx)
+
+    def set_all_gains(self, gains: Sequence[float]) -> None:
+        """Set all 10 band gains simultaneously."""
+        self.dsp.set_all_gains(gains)
+
+    def get_all_gains(self) -> list[float]:
+        return self.dsp.get_all_gains()
+
+    def reset_flat(self) -> None:
+        """Reset all 10 bands and preamp to 0 dB flat response."""
+        self.dsp.reset_flat()
+
     def set_eq_band(self, hz: float, gain_db: float, q: float = 1.0, enabled: bool = True) -> None:
         """Adjust the peaking EQ band parameters."""
         self.dsp.set_eq_band(hz=hz, gain_db=gain_db, q=q, enabled=enabled)
@@ -128,12 +148,33 @@ class EQPlaybackEngine:
                 self.error_count += 1
                 return False
 
+    @property
+    def headroom_db(self) -> float:
+        return self.dsp.headroom_db
+
+    @property
+    def is_clipping(self) -> bool:
+        return self.dsp.is_clipping
+
+    def set_device(self, device) -> None:
+        """Update audio output device."""
+        with self._lock:
+            self._device = device or QMediaDevices.defaultAudioOutput()
+            if self._sink is not None:
+                was_playing = self.is_playing
+                self._init_sink()
+                if was_playing:
+                    self.play()
+
     def _init_sink(self) -> None:
         """Initialize QAudioSink with preferred native format."""
         if self._sink is not None:
             self._sink.stop()
             self._sink = None
             self._io_device = None
+
+        if self._device is None or self._device.isNull():
+            return
 
         fmt = QAudioFormat()
         fmt.setSampleRate(self._sample_rate)
@@ -173,6 +214,11 @@ class EQPlaybackEngine:
 
         if self._sink is None:
             self._init_sink()
+
+        if self._sink is None:
+            self.last_error_message = "No valid audio output device available"
+            self.error_count += 1
+            return False
 
         self._io_device = self._sink.start()
         if self._io_device is None or not self._io_device.isOpen():
@@ -248,7 +294,11 @@ class EQPlaybackEngine:
                 break
 
             # Handle buffer capacity
-            bytes_free = self._sink.bytesFree()
+            try:
+                bytes_free = self._sink.bytesFree()
+            except (RuntimeError, AttributeError):
+                break
+
             if bytes_free < chunk_bytes:
                 # Device buffer is sufficiently filled; sleep briefly to yield CPU
                 time.sleep(0.003)
@@ -263,12 +313,21 @@ class EQPlaybackEngine:
             if len(pcm_raw) == 0:
                 # End of file reached
                 # Allow buffered audio to play out
-                drain_seconds = min(0.3, self._sink.bufferSize() / (self._sample_rate * bytes_per_frame))
-                time.sleep(drain_seconds)
+                try:
+                    drain_seconds = min(0.3, self._sink.bufferSize() / (self._sample_rate * bytes_per_frame))
+                    time.sleep(drain_seconds)
+                except (RuntimeError, AttributeError):
+                    pass
                 break
 
             # Apply real-time equalizer DSP outside GUI thread
             pcm_dsp = self.dsp.process(pcm_raw)
+
+            if self.on_pcm_processed is not None:
+                try:
+                    self.on_pcm_processed(pcm_dsp, self._sample_rate)
+                except Exception:
+                    pass
 
             # Convert to appropriate sink format
             if self._sample_format == QAudioFormat.SampleFormat.Float:
@@ -278,7 +337,11 @@ class EQPlaybackEngine:
                 out_bytes = out_int16.tobytes()
 
             # Push audio to hardware
-            written = self._io_device.write(out_bytes)
+            try:
+                written = self._io_device.write(out_bytes)
+            except (RuntimeError, AttributeError):
+                break
+
             if written > 0:
                 self._position_frames += len(pcm_raw)
             elif written < 0:
@@ -287,16 +350,23 @@ class EQPlaybackEngine:
                 break
 
             # Check for underruns
-            if self._sink.state() == QAudio.State.IdleState and self._position_frames > self.chunk_frames:
-                self.underrun_count += 1
+            try:
+                if self._sink.state() == QAudio.State.IdleState and self._position_frames > self.chunk_frames:
+                    self.underrun_count += 1
+            except (RuntimeError, AttributeError):
+                break
 
         # Playback loop terminated
         if not self._stop_event.is_set():
             # Natural EOF
             with self._lock:
-                if self._sink:
-                    self._sink.stop()
-                    self._io_device = None
+                try:
+                    if self._sink:
+                        self._sink.stop()
+                except (RuntimeError, AttributeError):
+                    pass
+                self._sink = None
+                self._io_device = None
                 self._is_playing = False
                 self._is_paused = False
                 if self._reader:
@@ -304,7 +374,10 @@ class EQPlaybackEngine:
                 self._position_frames = 0
             self._notify_state("stopped")
             if self.on_eof:
-                self.on_eof()
+                try:
+                    self.on_eof()
+                except Exception:
+                    pass
 
     def _notify_state(self, state: str) -> None:
         if self.on_state_change:
