@@ -1,10 +1,10 @@
 # ASTRA HANDOFF — current E.V. state
 
-Snapshot date: 16 September 2026. Workspace: `D:\EV`. Git origin: `https://github.com/LUSANKHWAISH/EV.git` (private when inspected). Starting HEAD before this checkpoint: `8237dbbf7055826806ee82b62520e1e88841d248`, branch `master`. See [checkpoint record](docs/handoff/ASTRA_CHECKPOINT.md) and `git log -1` for the final commit.
+Snapshot date: 16 September 2026 (Updated: 25 September 2026 Baseline Stabilization). Workspace: `D:\EV`. Git origin: `https://github.com/LUSANKHWAISH/EV.git` (private when inspected). Starting HEAD: `a97c09c`, branch `chore/stabilize-baseline`. See [Astra Checkpoint](docs/handoff/ASTRA_CHECKPOINT.md) and [Stabilization Checkpoint (25 Sept 2026)](docs/handoff/STABILIZATION_CHECKPOINT_20260925.md).
 
 ## What the next agent must understand first
 
-The user has accepted the cinematic golden nucleus and main interface, the Music foundation, beat reaction in both modes, startup sound and the restyled provider dialog. Continue from these files. Do not rebuild the accepted core from a generic sphere tutorial. The next requested product work is a real EQ, more instruments and multiple arranged visualizers. This handoff contains plans, not those new features.
+The user has accepted the cinematic golden nucleus and main interface, the Music foundation, beat reaction in both modes, startup sound, the restyled provider dialog, and the three-visualizer studio layout (CeilingRain, FlowTrace, SegmentStack). Continue from these files. Do not rebuild the accepted core from a generic sphere tutorial. The next requested product work is a real EQ, layout switching from the UI, and full voice integration. This handoff contains plans and a stabilized baseline, not those new features.
 
 The working tree also contained earlier provider, bridge, voice-telemetry and classic-interface changes before the Astra cinematic stages. A runnable checkpoint needs their dependencies. The Git checkpoint therefore preserves the current application with **inherited integration work explicitly acknowledged**, rather than asserting that every line was authored by Astra. Old scratch scripts, large previous backup trees, credentials, runtime databases, capture profiles and reference videos are not release content.
 

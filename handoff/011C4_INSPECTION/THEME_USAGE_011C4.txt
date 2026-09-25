@@ -1,0 +1,116 @@
+﻿EV TASK 011C.4 - THEME TOKEN USAGE
+
+==================================================
+FILE: EVCoreLattice.qml
+==================================================
+Theme.luminousPrimary
+Theme.motionStandard
+Theme.stateColor
+
+==================================================
+FILE: EVCoreRing.qml
+==================================================
+Theme.coreRingThickness
+Theme.luminousPrimary
+
+==================================================
+FILE: EVFlagshipStage.qml
+==================================================
+Theme.backgroundDeep
+Theme.easingDeliberate
+Theme.fontFamily
+Theme.fontSizeBody
+Theme.fontSizeLabel
+Theme.fontSizeLabelSmall
+Theme.fontWeightMedium
+Theme.fontWeightRegular
+Theme.fontWeightSemibold
+Theme.letterSpacingWide
+Theme.motionDeliberate
+Theme.motionStandard
+Theme.spacingL
+Theme.spacingSM
+Theme.spacingXS
+Theme.spacingXXS
+Theme.spacingXXXS
+Theme.stateColor
+Theme.stateEnergy
+Theme.textSecondary
+Theme.textTertiary
+
+==================================================
+FILE: EVStatusIndicator.qml
+==================================================
+Theme.fontFamily
+Theme.fontSizeLabel
+Theme.fontSizeLabelSmall
+Theme.fontWeightRegular
+Theme.fontWeightSemibold
+Theme.letterSpacingWide
+Theme.motionStandard
+Theme.spacingLG
+Theme.spacingXS
+Theme.spacingXXS
+Theme.spacingXXXS
+Theme.stateColor
+Theme.textSecondary
+
+==================================================
+FILE: EVTelemetryRail.qml
+==================================================
+Theme.edgeSubtle
+Theme.fontFamily
+Theme.fontSizeLabel
+Theme.fontSizeLabelSmall
+Theme.fontWeightMedium
+Theme.fontWeightRegular
+Theme.fontWeightSemibold
+Theme.hairline
+Theme.letterSpacingWide
+Theme.motionStandard
+Theme.spacingLG
+Theme.spacingSM
+Theme.spacingXS
+Theme.spacingXXS
+Theme.stateColor
+Theme.textPrimary
+Theme.textSecondary
+Theme.textTertiary
+
+==================================================
+FILE: EVTopBar.qml
+==================================================
+Theme.baseUnit
+Theme.borderThin
+Theme.edgeStandard
+Theme.edgeSubtle
+Theme.fontFamily
+Theme.fontSizeLabel
+Theme.fontWeightMedium
+Theme.hairline
+Theme.radiusS
+Theme.surfaceBase
+Theme.surfaceElevated
+Theme.surfaceRaised
+Theme.textPrimary
+Theme.textSecondary
+
+==================================================
+FILE: EVWindow.qml
+==================================================
+Theme.backgroundDeep
+Theme.qml
+Theme.spacingLG
+Theme.spacingMD
+Theme.spacingSM
+Theme.spacingXXXS
+
+==================================================
+FILE: Main.qml
+==================================================
+(no Theme tokens referenced)
+
+==================================================
+FILE: Theme.qml
+==================================================
+(no Theme tokens referenced)

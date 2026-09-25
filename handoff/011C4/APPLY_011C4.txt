@@ -1,0 +1,174 @@
+E.V. TASK 011C.4 — APPLY DESIGN TOKEN / VISUAL CONSISTENCY REFINEMENT
+
+PROJECT:
+D:\EV
+
+PURPOSE:
+Apply the exact supplied 011C.4 token-normalization files.
+Do not design or modify anything independently.
+
+============================================================
+FROZEN CORE GUARD
+============================================================
+
+D:\EV\gui\qml\components\EVIntelligenceCore.qml
+Expected size: 39081 bytes
+Expected SHA-256:
+0a168c0a342b9580b2ce9599d715fe0b59dd9b4bcf3de1efb45aab280b7205bb
+
+If the frozen core differs: STOP. Modify nothing.
+
+============================================================
+CURRENT LIVE BASELINE GUARDS
+============================================================
+
+D:\EV\gui\qml\theme\Theme.qml
+Expected current size: 10069 bytes
+Expected current SHA-256:
+61a9935297346bc52297d0f2869fda927f2ba23d890ffd30e7072b075afc02cb
+
+D:\EV\gui\qml\components\EVWindow.qml
+Expected current size: 5717 bytes
+Expected current SHA-256:
+883a73a4225dde3227ad53a3056ebef96c0247bab575fa9aa504fd5fb8dd6bae
+
+D:\EV\gui\qml\components\EVTopBar.qml
+Expected current size: 8773 bytes
+Expected current SHA-256:
+b2353a957b7958da3303ea844053fbad24997b104b259248eac6ea6135e3162d
+
+D:\EV\gui\qml\components\EVFlagshipStage.qml
+Expected current size: 6851 bytes
+Expected current SHA-256:
+d475a398bc5571498af16f714379018ae0cf893dcaab8457b56477254e6d051c
+
+D:\EV\gui\qml\components\EVStatusIndicator.qml
+Expected current size: 2459 bytes
+Expected current SHA-256:
+0c7ff93f43de7be48902ed00bb5621ecf5bbce7142d27d85eef0e53a4bb67ef1
+
+D:\EV\gui\qml\components\EVTelemetryRail.qml
+Expected current size: 4410 bytes
+Expected current SHA-256:
+69978055e4f2a08181dee7588b0db218bc6b970ed8a1a4dc17592dfdf08d3a65
+
+If ANY current baseline differs: STOP. Modify nothing.
+
+============================================================
+SUPPLIED REPLACEMENT GUARDS
+============================================================
+
+D:\EV\handoff\011C4\Theme_011C4.qml
+Expected size: 10940 bytes
+Expected SHA-256:
+46feca5b83bc9a11b9c123d1020d9a54564f8f75b97d03570c5ef31f1f750c83
+
+D:\EV\handoff\011C4\EVWindow_011C4.qml
+Expected size: 6110 bytes
+Expected SHA-256:
+95469de2c7fad3fc9d0bf5bf478f1686edfa9eecaa03b3d9e37aac16b0c69aac
+
+D:\EV\handoff\011C4\EVTopBar_011C4.qml
+Expected size: 8827 bytes
+Expected SHA-256:
+8cec7dff4d7f83230abbf510339f1759a22ed1eaae4d34e13c785519a2cafe76
+
+D:\EV\handoff\011C4\EVFlagshipStage_011C4.qml
+Expected size: 6981 bytes
+Expected SHA-256:
+cdaf5b838a7ea26ce0faab256a0bee3345f6d144a53d76ce97f1cef8381dd793
+
+D:\EV\handoff\011C4\EVStatusIndicator_011C4.qml
+Expected size: 2474 bytes
+Expected SHA-256:
+a4dab76df9678812da00fe14c294dde9c13491a3d9aebab442a74bb8a4c78b74
+
+D:\EV\handoff\011C4\EVTelemetryRail_011C4.qml
+Expected size: 4468 bytes
+Expected SHA-256:
+f388219fc46af99d58988f9f4b5fbf9cde45266307dc60bd75940aa23c13192f
+
+If ANY supplied replacement differs: STOP. Modify nothing.
+
+============================================================
+BACKUPS
+============================================================
+
+Create exactly:
+D:\EV\gui\qml\theme\Theme.qml.pre-011C4
+D:\EV\gui\qml\components\EVWindow.qml.pre-011C4
+D:\EV\gui\qml\components\EVTopBar.qml.pre-011C4
+D:\EV\gui\qml\components\EVFlagshipStage.qml.pre-011C4
+D:\EV\gui\qml\components\EVStatusIndicator.qml.pre-011C4
+D:\EV\gui\qml\components\EVTelemetryRail.qml.pre-011C4
+
+If ANY exact backup already exists: STOP. Do not overwrite.
+
+============================================================
+EXACT BYTE-FOR-BYTE COPY
+============================================================
+
+D:\EV\handoff\011C4\Theme_011C4.qml
+->
+D:\EV\gui\qml\theme\Theme.qml
+
+D:\EV\handoff\011C4\EVWindow_011C4.qml
+->
+D:\EV\gui\qml\components\EVWindow.qml
+
+D:\EV\handoff\011C4\EVTopBar_011C4.qml
+->
+D:\EV\gui\qml\components\EVTopBar.qml
+
+D:\EV\handoff\011C4\EVFlagshipStage_011C4.qml
+->
+D:\EV\gui\qml\components\EVFlagshipStage.qml
+
+D:\EV\handoff\011C4\EVStatusIndicator_011C4.qml
+->
+D:\EV\gui\qml\components\EVStatusIndicator.qml
+
+D:\EV\handoff\011C4\EVTelemetryRail_011C4.qml
+->
+D:\EV\gui\qml\components\EVTelemetryRail.qml
+
+DO NOT:
+- generate code
+- edit supplied QML
+- redesign
+- refactor anything else
+- optimize
+- repair independently
+- touch EVIntelligenceCore.qml
+- touch EVCoreLattice.qml
+- touch EVCoreRing.qml
+- touch Main.qml
+- touch qmldir
+- touch Python files
+- touch tests
+- change state colors/energy
+- change registered components
+- delete previous backups
+
+============================================================
+POST-COPY VERIFICATION
+============================================================
+
+Recalculate all 6 target sizes/hashes.
+Recalculate the frozen core size/hash.
+
+RETURN ONLY:
+1. frozen R11Q-D2.3 core verified before apply: YES/NO
+2. all 6 current baselines verified: YES/NO
+3. all 6 supplied replacements verified: YES/NO
+4. all 6 backups created: YES/NO
+5. Theme target size + SHA-256
+6. EVWindow target size + SHA-256
+7. EVTopBar target size + SHA-256
+8. EVFlagshipStage target size + SHA-256
+9. EVStatusIndicator target size + SHA-256
+10. EVTelemetryRail target size + SHA-256
+11. all 6 target hashes match supplied files: YES/NO
+12. frozen core unchanged after apply: YES/NO
+13. unrelated project files changed: YES/NO
+14. corruption detected or none

@@ -1,0 +1,20 @@
+﻿E.V. DESKTOP APPLICATION - HANDOFF ARCHIVE CHECKSUMS
+Generated: 2026-09-19 12:03:54
+
+1. EV_APP_HANDOFF_DOCS.zip
+   Description: Contains only the AI_PROJECT_HANDOFF/ documentation and logs
+   Size: 50939 bytes (49.75 KB)
+   SHA-256: AE14BA28ACF9712D403400C1BB091C80498913B0565150886DE641E6A0940795
+   Path: d:\EV\EV_APP_HANDOFF_DOCS.zip
+
+2. EV_APP_SOURCE_SAFE.zip
+   Description: Complete sanitized project source, tests, and handoff docs inside single root folder 'EV/'
+   Size: 7299656 bytes (6.96 MB)
+   SHA-256: DD6B34997A47C4986FD91F2A489D0BA662BB36BC14963D55DA2F0CB2CE42973A
+   Path: d:\EV\EV_APP_SOURCE_SAFE.zip
+
+3. EV_APP_SOURCE_CORE.zip
+   Description: Lean core application source and handoff docs inside single root folder 'EV/' (excludes tests/tools/logs)
+   Size: 6799462 bytes (6.48 MB)
+   SHA-256: F09F8EAAA9F57A2084856E2C4E3ECD2A0174A122290960A310A982EA3337A0DC
+   Path: d:\EV\EV_APP_SOURCE_CORE.zip

@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JARVIS — NEXUS SPHERE CORE</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#000010;width:100vw;height:100vh;overflow:hidden;font-family:'Courier New',monospace;color:#00d4ff;cursor:crosshair}
+canvas{position:fixed;inset:0}
+#bg{z-index:0}#main{z-index:1}
+body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,200,255,.011) 2px,rgba(0,200,255,.011) 4px);pointer-events:none;z-index:99}
+.c{position:fixed;width:52px;height:52px;opacity:.5;z-index:10;pointer-events:none}
+.c::before,.c::after{content:'';position:absolute;background:#00d4ff}
+.c::before{width:2px;height:28px}.c::after{width:28px;height:2px}
+.tl{top:18px;left:18px}.tl::before,.tl::after{top:0;left:0}
+.tr{top:18px;right:18px}.tr::before{top:0;right:0;left:auto}.tr::after{top:0;right:0;left:auto}
+.bl{bottom:18px;left:18px}.bl::before{bottom:0;top:auto;left:0}.bl::after{bottom:0;top:auto;left:0}
+.br{bottom:18px;right:18px}.br::before{bottom:0;top:auto;right:0;left:auto}.br::after{bottom:0;top:auto;right:0;left:auto}
+.hl{position:fixed;font-size:9.5px;letter-spacing:.19em;text-transform:uppercase;color:#00d4ff;opacity:.5;z-index:10;pointer-events:none;line-height:1.65}
+.tw{position:fixed;top:24px;left:50%;transform:translateX(-50%);text-align:center;z-index:10;pointer-events:none}
+.tm{font-size:28px;font-weight:200;letter-spacing:.55em;color:#00d4ff;text-shadow:0 0 24px rgba(0,212,255,.9),0 0 55px rgba(0,100,255,.5),0 0 100px rgba(0,60,200,.3)}
+.ts{font-size:8.5px;letter-spacing:.6em;color:rgba(0,200,255,.35);margin-top:5px;text-transform:uppercase}
+.rd{position:fixed;top:50%;transform:translateY(-50%);z-index:10;pointer-events:none}
+.rd.L{left:24px}.rd.R{right:24px;text-align:right}
+.rl{font-size:8.5px;letter-spacing:.19em;text-transform:uppercase;color:#00d4ff;opacity:.4;margin-bottom:9px;white-space:nowrap}
+#sw{position:fixed;bottom:152px;left:50%;transform:translateX(-50%);text-align:center;z-index:10;pointer-events:none;min-width:340px}
+#js{font-size:10.5px;letter-spacing:.28em;text-transform:uppercase;color:#00ffaa;text-shadow:0 0 14px #00ffaa;animation:sb 3s ease-in-out infinite}
+#jt{margin-top:8px;font-size:12px;color:rgba(0,210,255,.65);letter-spacing:.1em;min-height:20px;font-style:italic}
+.ds{display:flex;gap:10px;justify-content:center;margin-top:8px}
+.d{width:4px;height:4px;border-radius:50%;background:#00d4ff;animation:dp 2s ease-in-out infinite}
+.d:nth-child(2){animation-delay:.33s}.d:nth-child(3){animation-delay:.66s}
+@keyframes sb{0%,100%{opacity:1}50%{opacity:.35}}
+@keyframes dp{0%,100%{opacity:.12}50%{opacity:1}}
+#wfc{position:fixed;bottom:134px;left:50%;transform:translateX(-50%);z-index:10;pointer-events:none;opacity:0;transition:opacity .4s}
+#wfc.vis{opacity:1}
+#vu{position:fixed;bottom:174px;left:50%;transform:translateX(-50%);width:130px;height:2px;background:rgba(0,200,255,.08);z-index:10;pointer-events:none;overflow:hidden}
+#vub{height:100%;width:0%;background:linear-gradient(to right,#00ff88,#00aaff);transition:width .06s}
+.ctrl{position:fixed;bottom:34px;left:50%;transform:translateX(-50%);display:flex;gap:12px;align-items:center;z-index:20}
+.cb{width:56px;height:56px;border-radius:50%;border:1.5px solid rgba(0,200,255,.4);background:rgba(0,12,30,.88);color:#00d4ff;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;transition:all .3s;backdrop-filter:blur(14px);box-shadow:0 0 16px rgba(0,80,200,.18),inset 0 0 16px rgba(0,40,100,.22)}
+.cb:hover{border-color:#00d4ff;box-shadow:0 0 28px rgba(0,200,255,.45),inset 0 0 20px rgba(0,80,200,.28)}
+.cb.on{border-color:#00ff88;color:#00ff88;animation:cp 1.1s ease-in-out infinite}
+@keyframes cp{0%,100%{box-shadow:0 0 32px rgba(0,255,136,.5)}50%{box-shadow:0 0 52px rgba(0,255,136,.8)}}
+.cb .ic{font-size:20px;line-height:1}.cb .lb{font-size:7px;letter-spacing:.12em;text-transform:uppercase;opacity:.65}
+.sf{display:flex;gap:8px;align-items:center}
+.sf input{width:220px;padding:11px 15px;background:rgba(0,12,30,.88);border:1px solid rgba(0,200,255,.28);color:#00d4ff;font-family:'Courier New',monospace;font-size:10.5px;letter-spacing:.12em;outline:none;backdrop-filter:blur(14px);transition:border-color .3s}
+.sf input:focus{border-color:#00d4ff}
+.sf input::placeholder{color:rgba(0,200,255,.28)}
+.sb2{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);display:flex;gap:18px;align-items:center;z-index:10;pointer-events:none}
+.sd{width:4px;height:4px;border-radius:50%;background:#00ff88;animation:dp 2s ease-in-out infinite}
+.sd:nth-child(3){animation-delay:.7s}
+.st{font-size:8.5px;letter-spacing:.22em;text-transform:uppercase;color:#00d4ff;opacity:.4}
+</style>
+</head>
+<body>
+<canvas id="bg"></canvas>
+<canvas id="main"></canvas>
+<div class="c tl"></div><div class="c tr"></div><div class="c bl"></div><div class="c br"></div>
+<div class="hl" style="top:22px;left:76px">JARVIS NEXUS<br><span style="opacity:.35;font-size:7.5px">SPHERE v7.0</span></div>
+<div class="hl" style="top:22px;right:76px;text-align:right">STARK INDUSTRIES<br><span style="opacity:.35;font-size:7.5px">MARK XIII • 4K</span></div>
+<div class="hl" style="bottom:22px;left:76px">POWER: 100%</div>
+<div class="hl" style="bottom:22px;right:76px;text-align:right">LINK: SECURE</div>
+<div class="tw"><div class="tm">JARVIS</div><div class="ts">Nexus Sphere Core</div></div>
+<div class="rd L"><div class="rl">AI ━━━ ONLINE</div><div class="rl">NEURAL ━ ACTIVE</div><div class="rl">RINGS ━━ 9-ORBIT</div><div class="rl">THREAT ━ NONE</div><div class="rl">MODE ━━ NEXUS</div></div>
+<div class="rd R"><div class="rl">OUTPUT ━ 3.00 GW</div><div class="rl">TEMP ━━ 5800 K</div><div class="rl">FIELD ━━ STABLE</div><div class="rl">SYNC ━━ 99.9%</div><div class="rl">UPTIME ━ <span id="upt">00:00:00</span></div></div>
+<div id="sw"><div id="js">● ALL SYSTEMS NOMINAL</div><div id="jt"></div><div class="ds"><div class="d"></div><div class="d"></div><div class="d"></div></div></div>
+<div id="vu"><div id="vub"></div></div>
+<canvas id="wfc" width="300" height="26"></canvas>
+<div class="sb2"><div class="sd"></div><div class="st">All systems nominal • Space=Surge • L=Listen • S=Speak</div><div class="sd"></div></div>
+<div class="ctrl">
+  <button class="cb" id="mb" onclick="toggleMic()"><span class="ic">🎤</span><span class="lb">Listen</span></button>
+  <div class="sf"><input type="text" id="si" placeholder="Command JARVIS..." onkeydown="if(event.key==='Enter')speakText()"></div>
+  <button class="cb" id="sb" onclick="speakText()"><span class="ic">🔊</span><span class="lb">Speak</span></button>
+  <button class="cb" onclick="surge()" style="width:50px;height:50px"><span class="ic" style="font-size:18px">⚡</span><span class="lb">Surge</span></button>
+</div>
+<script>
+'use strict';
+const bgC=document.getElementById('bg'),mainC=document.getElementById('main'),wfC=document.getElementById('wfc');
+const bgX=bgC.getContext('2d'),ctx=mainC.getContext('2d'),wfX=wfC.getContext('2d');
+const dpr=Math.max(window.devicePixelRatio||1,1);
+let W=window.innerWidth,H=window.innerHeight,CX=W/2,CY=H/2;
+function rsz(c){c.width=W*dpr;c.height=H*dpr;c.style.width=W+'px';c.style.height=H+'px';}
+rsz(bgC);bgX.scale(dpr,dpr);rsz(mainC);ctx.scale(dpr,dpr);
+window.addEventListener('resize',()=>{W=window.innerWidth;H=window.innerHeight;CX=W/2;CY=H/2;rsz(bgC);bgX.scale(dpr,dpr);rsz(mainC);ctx.scale(dpr,dpr);drawBG();});
+
+// BACKGROUND
+const STARS=Array.from({length:320},()=>({x:Math.random(),y:Math.random(),r:Math.random()*1.4+.2,a:Math.random()}));
+const NUBS=[{x:.3,y:.35,r:.3,c:'rgba(18,0,55,.55)'},{x:.7,y:.65,r:.24,c:'rgba(0,18,72,.42)'},{x:.5,y:.5,r:.42,c:'rgba(0,28,78,.32)'},{x:.12,y:.72,r:.2,c:'rgba(38,0,72,.28)'},{x:.88,y:.28,r:.22,c:'rgba(0,8,62,.24)'},{x:.6,y:.18,r:.18,c:'rgba(55,0,88,.2)'}];
+function drawBG(){
+  bgX.fillStyle='#000010';bgX.fillRect(0,0,W,H);
+  for(const n of NUBS){const g=bgX.createRadialGradient(n.x*W,n.y*H,0,n.x*W,n.y*H,n.r*Math.min(W,H));g.addColorStop(0,n.c);g.addColorStop(1,'rgba(0,0,0,0)');bgX.fillStyle=g;bgX.fillRect(0,0,W,H);}
+  for(const s of STARS){bgX.beginPath();bgX.arc(s.x*W,s.y*H,s.r,0,Math.PI*2);bgX.fillStyle=`rgba(190,215,255,${.12+s.a*.55})`;bgX.fill();}
+}
+drawBG();
+
+// 3D PROJECTION
+let rotX=.32,rotY=0,velX=0,velY=0,drag=false,pmx=0,pmy=0,autoSpin=true;
+let breathe=0,t=0;
+function project(x,y,z){
+  let y1=y*Math.cos(rotX)-z*Math.sin(rotX),z1=y*Math.sin(rotX)+z*Math.cos(rotX);
+  let x2=x*Math.cos(rotY)+z1*Math.sin(rotY),z2=-x*Math.sin(rotY)+z1*Math.cos(rotY);
+  const SZ=Math.min(W,H)*.38*(1+Math.sin(breathe)*.028),D=5,sc=D/(D+z2+4);
+  return{sx:CX+x2*sc*SZ,sy:CY+y1*sc*SZ,sz:z2};
+}
+
+// RING DEFINITIONS
+const RINGS=[
+  {r:.52,tx:0,      ty:0,       spd:.013, c:[0,222,255],lw:2.8},
+  {r:.52,tx:1.571,  ty:0,       spd:-.010,c:[0,200,255],lw:2.4},
+  {r:.52,tx:1.047,  ty:0,       spd:.011, c:[20,215,255],lw:2.2},
+  {r:.52,tx:.785,   ty:1.047,   spd:-.011,c:[0,212,255],lw:2.0},
+  {r:.82,tx:.524,   ty:0,       spd:.006, c:[0,165,255],lw:1.6},
+  {r:.82,tx:-.785,  ty:.785,    spd:-.007,c:[0,155,255],lw:1.5},
+  {r:.82,tx:1.571,  ty:.524,    spd:.005, c:[0,175,255],lw:1.4},
+  {r:1.1, tx:0,     ty:0,       spd:.003, c:[0,105,225],lw:1.0},
+  {r:1.1, tx:1.047, ty:.262,    spd:-.004,c:[0,95,215], lw:.85},
+];
+RINGS.forEach(r=>{r.ph=Math.random()*Math.PI*2;});
+const NA=[0,Math.PI*.5,Math.PI,Math.PI*1.5];
+
+function getRingPt(ring,angle){
+  const lt=angle+ring.ph;
+  let x=Math.cos(lt)*ring.r,y=0,z=Math.sin(lt)*ring.r;
+  let y1=y*Math.cos(ring.tx)-z*Math.sin(ring.tx),z1=y*Math.sin(ring.tx)+z*Math.cos(ring.tx);
+  let x2=x*Math.cos(ring.ty)+z1*Math.sin(ring.ty),z2=-x*Math.sin(ring.ty)+z1*Math.cos(ring.ty);
+  return project(x2,y1,z2);
+}
+
+function getRingPts(ring,N){
+  const pts=[];
+  for(let i=0;i<=N;i++)pts.push(getRingPt(ring,(i/N)*Math.PI*2));
+  return pts;
+}
+
+// LIGHTNING
+const BOLTS=[];
+function spawnBolt(p1,p2){BOLTS.push({x1:p1.sx,y1:p1.sy,x2:p2.sx,y2:p2.sy,life:1,d:.04+Math.random()*.06});}
+function fractal(cx,x1,y1,x2,y2,r,dep){
+  if(dep===0){cx.lineTo(x2,y2);return;}
+  const mx=(x1+x2)/2+(Math.random()-.5)*r,my=(y1+y2)/2+(Math.random()-.5)*r;
+  fractal(cx,x1,y1,mx,my,r*.52,dep-1);
+  if(dep>2&&Math.random()<.3){
+    const bx=mx+(Math.random()-.5)*r*1.4,by=my+(Math.random()-.5)*r*1.4;
+    cx.save();cx.globalAlpha*=.4;cx.lineWidth*=.55;cx.beginPath();cx.moveTo(mx,my);fractal(cx,mx,my,bx,by,r*.38,dep-2);cx.stroke();cx.restore();cx.beginPath();cx.moveTo(mx,my);
+  }
+  fractal(cx,mx,my,x2,y2,r*.52,dep-1);
+}
+
+// PARTICLES
+const PARTS=[];
+function spawnPart(x,y,boost){
+  const a=Math.random()*Math.PI*2,sp=.3+Math.random()*2.2+(boost||0);
+  PARTS.push({x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp-.22,life:1,d:.013+Math.random()*.02,sz:Math.random()*2.5+.6});
+}
+
+// AUDIO
+let aCtx=null,analyser=null,tData=null,micStream=null,micOn=false,amplitude=0;
+let droneStarted=false;
+
+function initDrone(){
+  if(droneStarted)return;droneStarted=true;
+  try{
+    const dc=new(window.AudioContext||window.webkitAudioContext)();
+    const o1=dc.createOscillator(),o2=dc.createOscillator(),gn=dc.createGain(),fl=dc.createBiquadFilter();
+    o1.type='sine';o1.frequency.value=55;o2.type='sine';o2.frequency.value=110;
+    fl.type='lowpass';fl.frequency.value=350;gn.gain.value=0;
+    [o1,o2].forEach(o=>{o.connect(fl);o.start();});
+    fl.connect(gn);gn.connect(dc.destination);
+    gn.gain.linearRampToValueAtTime(.05,dc.currentTime+2);
+  }catch(e){}
+}
+async function startMic(){
+  initDrone();
+  try{
+    const stream=await navigator.mediaDevices.getUserMedia({audio:true});
+    micStream=stream;aCtx=new(window.AudioContext||window.webkitAudioContext)();
+    const src=aCtx.createMediaStreamSource(stream);analyser=aCtx.createAnalyser();
+    analyser.fftSize=512;tData=new Uint8Array(analyser.frequencyBinCount);
+    src.connect(analyser);micOn=true;
+    document.getElementById('mb').classList.add('on');
+    setStatus('LISTENING','●','#00ff88','#00ff88');startRec();
+  }catch(e){setStatus('MIC DENIED','■','#ff4444','#ff4444');setTimeout(()=>setStatus('ALL SYSTEMS NOMINAL','●','#00ffaa','#00ffaa'),3000);}
+}
+function stopMic(){
+  if(micStream)micStream.getTracks().forEach(t=>t.stop());
+  if(aCtx)aCtx.close();
+  aCtx=null;analyser=null;tData=null;micStream=null;micOn=false;amplitude=0;
+  document.getElementById('mb').classList.remove('on');
+  document.getElementById('wfc').classList.remove('vis');
+  document.getElementById('vub').style.width='0%';
+  stopRec();setStatus('ALL SYSTEMS NOMINAL','●','#00ffaa','#00ffaa');
+}
+function toggleMic(){micOn?stopMic():startMic();}
+function readAudio(){
+  if(!analyser||!tData)return;
+  analyser.getByteTimeDomainData(tData);
+  let s=0;for(let i=0;i<tData.length;i++){const v=(tData[i]-128)/128;s+=v*v;}
+  amplitude=Math.sqrt(s/tData.length);
+  document.getElementById('vub').style.width=Math.min(100,amplitude*600)+'%';
+  if(amplitude>.008){
+    document.getElementById('wfc').classList.add('vis');
+    wfX.clearRect(0,0,300,26);wfX.strokeStyle='#00ff88';wfX.lineWidth=1.5;wfX.shadowColor='#00ff88';wfX.shadowBlur=7;
+    wfX.beginPath();for(let i=0;i<tData.length;i++){const x=(i/tData.length)*300,y=13+((tData[i]-128)/128)*10;i===0?wfX.moveTo(x,y):wfX.lineTo(x,y);}wfX.stroke();
+  }else document.getElementById('wfc').classList.remove('vis');
+}
+
+// SPEECH
+let recog=null;
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+if(SR){recog=new SR();recog.continuous=true;recog.interimResults=true;recog.lang='en-US';
+  recog.onresult=e=>{const last=e.results[e.results.length-1];document.getElementById('jt').textContent='“'+last[0].transcript+'”';if(last.isFinal)handleCmd(last[0].transcript.toLowerCase().trim());};
+  recog.onend=()=>{if(micOn&&!spk)try{recog.start();}catch(e){}};}
+function startRec(){if(recog)try{recog.start();}catch(e){}}
+function stopRec(){if(recog)try{recog.stop();}catch(e){}}
+const REPS=['Understood. Processing your request.','Of course. Right away.','Acknowledged. Running analysis.','Certainly. Executing protocol.'];
+function handleCmd(cmd){
+  if(/hello|hi /.test(cmd))jSpeak('Good day. Nexus sphere core online. All systems nominal.');
+  else if(/status|report/.test(cmd))jSpeak('All systems nominal. Nine orbital rings active. Sphere core stable at full output.');
+  else if(/power|activate|surge/.test(cmd)){jSpeak('Power surge initiated.');surge();}
+  else if(/shutdown|sleep/.test(cmd))jSpeak('Entering standby. All monitors remain active.');
+  else if(/scan|analyz/.test(cmd))jSpeak('Scan complete. No anomalies detected. Orbital paths stable.');
+  else if(/who|name/.test(cmd))jSpeak('I am JARVIS. Just A Rather Very Intelligent System, at your service.');
+  else if(/tony|stark/.test(cmd))jSpeak('Mr. Stark is unavailable. I am managing all active systems.');
+  else if(/time/.test(cmd))jSpeak('The current time is '+new Date().toLocaleTimeString());
+  else if(/ring|sphere|orbit/.test(cmd))jSpeak('The Nexus Core features nine concentric orbital rings at varying inclinations, surrounding a central energy sphere.');
+  else if(cmd.length>4)jSpeak(REPS[Math.floor(Math.random()*REPS.length)]);
+}
+let spk=false;
+function jSpeak(text){
+  if(!window.speechSynthesis)return;
+  window.speechSynthesis.cancel();
+  const u=new SpeechSynthesisUtterance(text);
+  u.rate=.88;u.pitch=.8;u.volume=1;
+  const vs=window.speechSynthesis.getVoices();
+  const v=vs.find(v=>v.name.includes('Daniel')||v.name.includes('Alex')||v.name.includes('UK')||v.name.includes('Rishi'));
+  if(v)u.voice=v;
+  u.onstart=()=>{spk=true;setStatus('SPEAKING','●','#00aaff','#00aaff');document.getElementById('sb').classList.add('on');document.getElementById('jt').textContent='"'+text+'"';};
+  u.onend=()=>{spk=false;document.getElementById('sb').classList.remove('on');setStatus(micOn?'LISTENING':'ALL SYSTEMS NOMINAL','●',micOn?'#00ff88':'#00ffaa',micOn?'#00ff88':'#00ffaa');setTimeout(()=>{if(!micOn)document.getElementById('jt').textContent='';},3500);};
+  window.speechSynthesis.speak(u);
+}
+function speakText(){const el=document.getElementById('si');jSpeak(el.value.trim()||'J.A.R.V.I.S. Nexus Core online. Sphere initialized. All orbital rings nominal.');el.value='';}
+function setStatus(txt,dot,col,sh){const el=document.getElementById('js');el.textContent=dot+' '+txt;el.style.color=col;el.style.textShadow='0 0 14px '+sh;}
+
+// SURGE
+let surgeLevel=0;
+function surge(){surgeLevel=1;initDrone();}
+
+// UPTIME
+let secs=0;
+setInterval(()=>{secs++;const el=document.getElementById('upt');if(el)el.textContent=[Math.floor(secs/3600),Math.floor(secs%3600/60),secs%60].map(n=>String(n).padStart(2,'0')).join(':');},1000);
+
+// DRAW: HEX GRID on sphere
+function drawHexGrid(cx,cy,r){
+  ctx.save();
+  ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.clip();
+  ctx.translate(cx,cy);ctx.rotate(t*.07);
+  const hr=r*.125,hh=hr*1.732;
+  ctx.strokeStyle='rgba(0,200,255,.09)';ctx.lineWidth=.55;
+  for(let row=-7;row<=7;row++){
+    for(let col=-7;col<=7;col++){
+      const hx=col*hh*2+(row%2)*hh,hy=row*hr*1.5;
+      if(Math.hypot(hx,hy)>r*1.05)continue;
+      ctx.beginPath();
+      for(let i=0;i<6;i++){const a=(i/6)*Math.PI*2+Math.PI/6;const px=hx+hr*.9*Math.cos(a),py=hy+hr*.9*Math.sin(a);i===0?ctx.moveTo(px,py):ctx.lineTo(px,py);}
+      ctx.closePath();ctx.stroke();
+    }
+  }
+  ctx.restore();
+}
+
+// DRAW: SPHERE
+function drawSphere(sg,amp){
+  const SPH=Math.min(W,H)*.118*(1+Math.sin(breathe)*.03);
+  // Outer bloom
+  const og=ctx.createRadialGradient(CX,CY,0,CX,CY,SPH*5.5);
+  og.addColorStop(0,`rgba(0,110,255,${.12+sg*.16+amp*.06})`);
+  og.addColorStop(.4,`rgba(0,55,200,${.05+sg*.05})`);
+  og.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.beginPath();ctx.arc(CX,CY,SPH*5.5,0,Math.PI*2);ctx.fillStyle=og;ctx.fill();
+  // Hex grid
+  drawHexGrid(CX,CY,SPH*.97);
+  // Main sphere
+  ctx.save();
+  ctx.shadowColor='#0088ff';ctx.shadowBlur=65+sg*45;
+  const mg=ctx.createRadialGradient(CX-SPH*.22,CY-SPH*.22,0,CX,CY,SPH);
+  mg.addColorStop(0,'rgba(255,255,255,.97)');
+  mg.addColorStop(.06,'rgba(230,248,255,.91)');
+  mg.addColorStop(.22,'rgba(80,205,255,.83)');
+  mg.addColorStop(.48,`rgba(0,135,255,${.65+sg*.25+amp*.15})`);
+  mg.addColorStop(.78,'rgba(0,42,185,.3)');
+  mg.addColorStop(1,'rgba(0,0,12,0)');
+  ctx.beginPath();ctx.arc(CX,CY,SPH,0,Math.PI*2);ctx.fillStyle=mg;ctx.fill();
+  ctx.restore();
+  // Specular
+  ctx.save();
+  const spec=ctx.createRadialGradient(CX-SPH*.32,CY-SPH*.32,0,CX-SPH*.18,CY-SPH*.18,SPH*.6);
+  spec.addColorStop(0,'rgba(255,255,255,.48)');spec.addColorStop(.5,'rgba(200,240,255,.1)');spec.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.beginPath();ctx.arc(CX,CY,SPH,0,Math.PI*2);ctx.fillStyle=spec;ctx.fill();
+  ctx.restore();
+  // Spark
+  ctx.save();ctx.shadowColor='#ffffff';ctx.shadowBlur=35;ctx.fillStyle='rgba(255,255,255,.96)';
+  ctx.beginPath();ctx.arc(CX,CY,4.5+sg*5,0,Math.PI*2);ctx.fill();ctx.restore();
+}
+
+// DRAW: RING HALF (front/back split)
+function drawRingHalf(ring,pts,back){
+  const [cr,cg,cb]=ring.c;
+  const alpha=back?.2:.9,lw=back?ring.lw*.38:ring.lw,blur=back?5:26;
+  ctx.save();
+  ctx.shadowColor=`rgb(${cr},${cg},${cb})`;ctx.shadowBlur=blur;
+  ctx.strokeStyle=`rgba(${cr},${cg},${cb},${alpha})`;
+  ctx.lineWidth=lw;ctx.lineCap='round';
+  ctx.beginPath();
+  for(let i=0;i<pts.length-1;i++){
+    const p1=pts[i],p2=pts[i+1];
+    if((p1.sz>0)===back&&(p2.sz>0)===back){ctx.moveTo(p1.sx,p1.sy);ctx.lineTo(p2.sx,p2.sy);}
+  }
+  ctx.stroke();ctx.restore();
+}
+
+// DRAW: RING NODES
+function drawRingNodes(ring,sg){
+  const [cr,cg,cb]=ring.c;
+  for(const na of NA){
+    const p=getRingPt(ring,na);
+    if(p.sz>0.1)continue;
+    ctx.save();
+    ctx.shadowColor=`rgb(${cr},${cg},${cb})`;ctx.shadowBlur=18;
+    ctx.fillStyle=`rgba(${Math.min(255,cr+80)},${Math.min(255,cg+80)},${Math.min(255,cb+60)},.95)`;
+    ctx.beginPath();ctx.arc(p.sx,p.sy,3.5+sg*2,0,Math.PI*2);ctx.fill();
+    ctx.strokeStyle=`rgba(${cr},${cg},${cb},.45)`;ctx.lineWidth=1;ctx.shadowBlur=10;
+    ctx.beginPath();ctx.arc(p.sx,p.sy,6+sg*4,0,Math.PI*2);ctx.stroke();
+    ctx.restore();
+  }
+}
+
+// DRAW: ENERGY BEAMS
+function drawBeams(sg,amp){
+  for(const ring of RINGS){
+    for(const na of [0,Math.PI]){
+      const p=getRingPt(ring,na);
+      if(p.sz>0)continue;
+      const ba=.1+sg*.28+amp*.07;
+      const gr=ctx.createLinearGradient(CX,CY,p.sx,p.sy);
+      gr.addColorStop(0,`rgba(255,255,255,${ba*.9})`);gr.addColorStop(.4,`rgba(0,180,255,${ba*.5})`);gr.addColorStop(1,'rgba(0,80,200,0)');
+      ctx.save();ctx.shadowColor='#00aaff';ctx.shadowBlur=18+sg*10;ctx.strokeStyle=gr;ctx.lineWidth=1.1+sg;
+      ctx.beginPath();ctx.moveTo(CX,CY);ctx.lineTo(p.sx,p.sy);ctx.stroke();ctx.restore();
+    }
+  }
+}
+
+// DRAW: ORBIT GUIDES
+let ot1=0,ot2=0;
+function drawOrbits(){
+  const SZ=Math.min(W,H)*.38;
+  ctx.save();ctx.translate(CX,CY);ctx.rotate(ot1);
+  ctx.beginPath();ctx.ellipse(0,0,SZ*.54,SZ*.54*.32,Math.PI*.2,0,Math.PI*2);
+  ctx.strokeStyle='rgba(0,100,255,.1)';ctx.lineWidth=.7;ctx.setLineDash([5,10]);ctx.shadowColor='#0055cc';ctx.shadowBlur=5;ctx.stroke();
+  ctx.setLineDash([]);const dx=Math.cos(ot1*4)*SZ*.54,dy=Math.sin(ot1*4)*SZ*.54*.32;
+  ctx.shadowColor='#00aaff';ctx.shadowBlur=12;ctx.fillStyle='rgba(0,200,255,.7)';
+  ctx.beginPath();ctx.arc(dx,dy,2.5,0,Math.PI*2);ctx.fill();ctx.restore();
+  ctx.save();ctx.translate(CX,CY);ctx.rotate(ot2+1.2);
+  ctx.beginPath();ctx.ellipse(0,0,SZ*.84,SZ*.84*.26,Math.PI*.5,0,Math.PI*2);
+  ctx.strokeStyle='rgba(80,0,200,.08)';ctx.lineWidth=.6;ctx.setLineDash([3,9]);ctx.shadowColor='#5000cc';ctx.shadowBlur=4;ctx.stroke();
+  ctx.setLineDash([]);const dx2=Math.cos(ot2*3)*SZ*.84,dy2=Math.sin(ot2*3)*SZ*.84*.26;
+  ctx.shadowColor='#8040ff';ctx.shadowBlur=10;ctx.fillStyle='rgba(130,60,255,.7)';
+  ctx.beginPath();ctx.arc(dx2,dy2,2,0,Math.PI*2);ctx.fill();ctx.restore();
+}
+
+// AUDIO VIZ RING BARS around sphere
+function drawAudioBars(amp){
+  if(amp<.01)return;
+  const SPH=Math.min(W,H)*.118;
+  const N=48,barMaxH=SPH*.6;
+  for(let i=0;i<N;i++){
+    const angle=(i/N)*Math.PI*2;
+    const barH=(Math.sin(i*3.7+t*5)*amp*1.5+amp)*barMaxH;
+    const x1=CX+Math.cos(angle)*(SPH+4),y1=CY+Math.sin(angle)*(SPH+4);
+    const x2=CX+Math.cos(angle)*(SPH+4+barH),y2=CY+Math.sin(angle)*(SPH+4+barH);
+    ctx.save();
+    ctx.strokeStyle=`rgba(0,255,136,${.5+amp*.5})`;ctx.lineWidth=2.5;ctx.shadowColor='#00ff88';ctx.shadowBlur=8;
+    ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();ctx.restore();
+  }
+}
+
+// MAIN LOOP
+let boltT=0,allNodePts=[];
+function frame(){
+  requestAnimationFrame(frame);
+  t+=.016;breathe+=.011;surgeLevel=Math.max(0,surgeLevel-.016);
+  if(autoSpin&&!drag)rotY+=.0045;
+  if(!drag){velX*=.91;velY*=.91;if(!autoSpin){rotX+=velX;rotY+=velY;}}
+  rotX=Math.max(-1.45,Math.min(1.45,rotX));
+  ot1+=.004;ot2+=.0028;
+  for(const ring of RINGS)ring.ph+=ring.spd;
+  readAudio();
+
+  // Compute ring points (cached per frame)
+  const allPts=RINGS.map(r=>getRingPts(r,80));
+
+  // Collect all node positions for lightning
+  allNodePts=[];
+  for(const ring of RINGS)for(const na of NA){const p=getRingPt(ring,na);allNodePts.push(p);}
+
+  // Lightning spawn
+  boltT--;
+  if(boltT<=0){
+    boltT=55+Math.floor(Math.random()*90);
+    if(allNodePts.length>1){
+      const i1=Math.floor(Math.random()*allNodePts.length);
+      let i2=Math.floor(Math.random()*allNodePts.length);
+      while(i2===i1)i2=Math.floor(Math.random()*allNodePts.length);
+      spawnBolt(allNodePts[i1],allNodePts[i2]);
+    }
+  }
+
+  // Particles
+  if(Math.random()<.2+amplitude*2+surgeLevel*.5){
+    const p=allNodePts[Math.floor(Math.random()*allNodePts.length)]||{sx:CX,sy:CY};
+    spawnPart(p.sx,p.sy,amplitude*3+surgeLevel*2.5);
+  }
+
+  // RENDER
+  ctx.clearRect(0,0,W,H);
+
+  // Ambient
+  const ag=ctx.createRadialGradient(CX,CY,40,CX,CY,Math.min(W,H)*.48);
+  ag.addColorStop(0,`rgba(0,100,255,${.13+surgeLevel*.17+amplitude*.08})`);
+  ag.addColorStop(.5,`rgba(0,45,165,${.05+surgeLevel*.05})`);
+  ag.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.beginPath();ctx.arc(CX,CY,Math.min(W,H)*.48,0,Math.PI*2);ctx.fillStyle=ag;ctx.fill();
+
+  // Orbit guides
+  drawOrbits();
+
+  // BACK HALVES of all rings
+  for(let i=0;i<RINGS.length;i++)drawRingHalf(RINGS[i],allPts[i],true);
+
+  // SPHERE (occludes back ring portions)
+  drawSphere(surgeLevel,amplitude);
+
+  // FRONT HALVES of all rings
+  for(let i=0;i<RINGS.length;i++)drawRingHalf(RINGS[i],allPts[i],false);
+
+  // Energy beams
+  drawBeams(surgeLevel,amplitude);
+
+  // Ring nodes
+  for(const ring of RINGS)drawRingNodes(ring,surgeLevel);
+
+  // Audio bars
+  drawAudioBars(amplitude);
+
+  // Lightning
+  for(let i=BOLTS.length-1;i>=0;i--){
+    const b=BOLTS[i];b.life-=b.d;
+    if(b.life<=0){BOLTS.splice(i,1);continue;}
+    ctx.save();ctx.globalAlpha=b.life*.88;
+    ctx.shadowColor='#80e8ff';ctx.shadowBlur=15;
+    ctx.strokeStyle='rgba(200,245,255,.9)';ctx.lineWidth=.75+surgeLevel*.4;
+    ctx.beginPath();ctx.moveTo(b.x1,b.y1);
+    fractal(ctx,b.x1,b.y1,b.x2,b.y2,38+Math.random()*18,4);
+    ctx.stroke();ctx.restore();
+  }
+
+  // Particles
+  for(let i=PARTS.length-1;i>=0;i--){
+    const p=PARTS[i];
+    p.x+=p.vx;p.y+=p.vy;p.vy+=.022;p.life-=p.d;
+    if(p.life<=0){PARTS.splice(i,1);continue;}
+    ctx.save();ctx.globalAlpha=p.life;
+    ctx.shadowColor='#00aaff';ctx.shadowBlur=9;
+    ctx.fillStyle=`rgba(150,215,255,${p.life})`;
+    ctx.beginPath();ctx.arc(p.x,p.y,p.sz*p.life,0,Math.PI*2);ctx.fill();ctx.restore();
+  }
+}
+
+// INTERACTION
+mainC.addEventListener('mousedown',e=>{drag=true;autoSpin=false;pmx=e.clientX;pmy=e.clientY;velX=0;velY=0;initDrone();});
+window.addEventListener('mousemove',e=>{if(!drag)return;const dx=e.clientX-pmx,dy=e.clientY-pmy;velX=dy*.005;velY=dx*.005;rotX+=velX;rotY+=velY;pmx=e.clientX;pmy=e.clientY;});
+window.addEventListener('mouseup',()=>{drag=false;const c=()=>{velX*=.88;velY*=.88;if(!autoSpin&&!drag){rotX+=velX;rotY+=velY;}if(Math.abs(velX)>.001||Math.abs(velY)>.001)requestAnimationFrame(c);else setTimeout(()=>{autoSpin=true;},2400);};requestAnimationFrame(c);});
+mainC.addEventListener('dblclick',surge);
+mainC.addEventListener('touchstart',e=>{drag=true;autoSpin=false;pmx=e.touches[0].clientX;pmy=e.touches[0].clientY;velX=0;velY=0;initDrone();},{passive:true});
+window.addEventListener('touchmove',e=>{if(!drag)return;const dx=e.touches[0].clientX-pmx,dy=e.touches[0].clientY-pmy;velX=dy*.005;velY=dx*.005;rotX+=velX;rotY+=velY;pmx=e.touches[0].clientX;pmy=e.touches[0].clientY;},{passive:true});
+window.addEventListener('touchend',()=>{drag=false;setTimeout(()=>{autoSpin=true;},2400);});
+document.addEventListener('keydown',e=>{if(e.target.tagName==='INPUT')return;if(e.code==='Space'){e.preventDefault();surge();initDrone();}else if(e.code==='KeyL')toggleMic();else if(e.code==='KeyS')speakText();else if(e.code==='KeyR')autoSpin=!autoSpin;});
+
+// INIT
+frame();
+window.speechSynthesis.onvoiceschanged=()=>{};
+setTimeout(()=>{jSpeak('J.A.R.V.I.S. Nexus Core online. Nine orbital rings initialized. Sphere core stable. Ready to assist.');},1800);
+</script>
+</body>
+</html>

@@ -1,0 +1,31 @@
+{
+  "files": {
+    "APPLY_R11Q2.txt": {
+      "bytes": 1055,
+      "sha256": "c5ff5097af2310a3240aca30dccae42abb9adde1c75ddc444be35a0db8352421"
+    },
+    "EVIntelligenceCore_R11Q2_EV_CRYSTAL.qml": {
+      "bytes": 39285,
+      "sha256": "e61e4cf355050b8615f374090314bc93c20a4ac37b81eb540c7277a3278010d3"
+    },
+    "README_R11Q2.txt": {
+      "bytes": 1134,
+      "sha256": "546ff3b5cbbf94d5ce1adc3613c0eae353f852a7139241b46e302ca10caa35ef"
+    }
+  },
+  "static_checks": {
+    "braces": true,
+    "parentheses": true,
+    "brackets": true,
+    "theme_import": true,
+    "public_state_contract": true,
+    "voice_hooks": true,
+    "view3d": true,
+    "crystal_shell": true,
+    "gold_filaments": true,
+    "particles_3d": true,
+    "no_aether_brand": true,
+    "no_runtime_loader": true,
+    "no_glb": true
+  }
+}

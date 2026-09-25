@@ -1,0 +1,41 @@
+{
+  "baseline": {
+    "name": "R11Q-D2",
+    "bytes": 28958,
+    "sha256": "d1efd95f239dfb5bbb72710238db226923ee452e36b885ec4af92b5be1dc7c2d"
+  },
+  "candidate": {
+    "name": "R11Q-D2.2 Orbital Tracers + Satellite Nodes",
+    "bytes": 39073,
+    "sha256": "f01f304468df9df18918fa3910004d0b395c54ff563cc813addb6bc1e13e9b04"
+  },
+  "files": {
+    "APPLY_R11QD22.txt": {
+      "bytes": 2219,
+      "sha256": "48941d6608d71aab646594adfd7669a5fdbe6abd2beeb1d900c9073d2bbaf0bd"
+    },
+    "EVIntelligenceCore_R11QD22_ORBITAL_TRACERS.qml": {
+      "bytes": 39073,
+      "sha256": "f01f304468df9df18918fa3910004d0b395c54ff563cc813addb6bc1e13e9b04"
+    },
+    "README_R11QD22.txt": {
+      "bytes": 1196,
+      "sha256": "5513c158a3bde5d6b3daf431690c9e114b159b6f0bb89eef187e07fedae3e2db"
+    }
+  },
+  "static_checks": {
+    "braces": true,
+    "parentheses": true,
+    "brackets": true,
+    "baseline_sha_verified_before_patch": true,
+    "public_contract": true,
+    "theme_energy": true,
+    "theme_color": true,
+    "satellite_nodes_6": true,
+    "rear_orbit_canvas": true,
+    "front_orbit_canvas": true,
+    "existing_particles_24_preserved": true,
+    "no_runtime_loader_usage": true,
+    "no_glb": true
+  }
+}

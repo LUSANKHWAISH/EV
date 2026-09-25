@@ -1,0 +1,170 @@
+import QtQuick 2.15
+import "../theme"
+import ".." as Main
+
+// EVFlagshipStage - The main flagship screen that hosts the intelligence core
+// and surrounding telemetry and status fields.
+Item {
+    id: root
+    // This item will be sized to fill the window in EVWindow.qml
+    width: 1280
+    height: 720
+
+    // Properties for external control (passed to core)
+    property string visualMode: "STANDARD"
+    property string themeProfile: "EV_CORE"
+    // Current state from guiBridge
+    property var state: null
+
+    // Background: near-black with subtle radial luminance
+    Rectangle {
+        id: background
+        anchors.fill: parent
+        color: Theme.backgroundDeep
+        // Subtle radial gradient (simulated by layered opacity)
+        Rectangle {
+            anchors.fill: parent
+            gradient: Gradient {
+                GradientStop { position: 0.0; color: "#00000000" }
+                GradientStop { position: 0.7; color: "#00000000" }
+                GradientStop { position: 1.0; color: "#11000000" }
+            }
+            // Blend mode not available in QtQuick 2.15, so we simulate with opacity
+            opacity: 0.2
+        }
+    }
+
+    // Left telemetry field (sparse)
+    Item {
+        id: leftTelemetry
+        anchors.left: parent.left
+        anchors.top: parent.top
+        anchors.bottom: parent.bottom
+        // Responsive width: collapse to icon width on narrow screens
+        width: parent.width < 1000 ? parent.width * 0.05 : parent.width * 0.15
+        Behavior on width {
+            NumberAnimation { duration: Theme.motionStandard }
+        }
+        EVTelemetryRail {
+            id: telemetryRail
+            anchors.fill: parent
+            state: root.state
+            // Show system identity and runtime hints
+        }
+    }
+
+    // Central intelligence core
+    EVIntelligenceCore {
+        id: intelligenceCore
+        // Anchor to the sides of the telemetry fields and top/bottom with margins
+        anchors.left: leftTelemetry.right
+        anchors.right: rightOperationalField.left
+        anchors.top: parent.top
+        anchors.bottom: bottomStrip.top
+        anchors.margins: Theme.spacingMD
+        // Pass through mode and theme
+        visualMode: root.visualMode
+        themeProfile: root.themeProfile
+        state: root.state
+    }
+
+    // Right operational field
+    Item {
+        id: rightOperationalField
+        anchors.right: parent.right
+        anchors.top: parent.top
+        anchors.bottom: parent.bottom
+        // Responsive width
+        width: parent.width < 1000 ? parent.width * 0.05 : parent.width * 0.15
+        Behavior on width {
+            NumberAnimation { duration: Theme.motionStandard }
+        }
+        // Placeholder for state indicators, verification context, etc.
+        // We'll show a structured field
+        Column {
+            anchors.centerIn: parent
+            spacing: Theme.spacingXS
+            Text {
+                text: "STATE"
+                font.pointSize: Theme.fontSizeLabel
+                color: Theme.textSecondary
+            }
+            Text {
+                text: typeof guiBridge !== "undefined" ? guiBridge.currentState : "IDLE"
+                font.pointSize: Theme.fontSizeBody
+                color: Theme.textPrimary
+            }
+            Text {
+                text: "MODE: " + (typeof guiBridge !== "undefined" && guiBridge.visualMode !== "undefined" ? guiBridge.visualMode : "STANDARD")
+                font.pointSize: Theme.fontSizeLabel
+                color: Theme.textSecondary
+            }
+            Text {
+                text: "PROFILE: " + (typeof guiBridge !== "undefined" && guiBridge.themeProfile !== "undefined" ? guiBridge.themeProfile : "EV_CORE")
+                font.pointSize: Theme.fontSizeLabel
+                color: Theme.textSecondary
+            }
+        }
+    }
+
+    // Bottom contextual status strip
+    Item {
+        id: bottomStrip
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+        // Responsive height
+        height: parent.width < 1000 ? Theme.spacingLG : Theme.spacingLG * 2
+        Behavior on height {
+            NumberAnimation { duration: Theme.motionStandard }
+        }
+        Rectangle {
+            anchors.fill: parent
+            color: Qt.darker(Theme.backgroundBase, 1.2)
+            opacity: 0.8
+        }
+        // Current state description
+        Text {
+            id: stateDescription
+            anchors.verticalCenter: parent.verticalCenter
+            anchors.left: parent.left
+            anchors.margins: Theme.spacingSM
+            font.pointSize: Theme.fontSizeLabel
+            color: Theme.textSecondary
+            text: typeof guiBridge !== "undefined" ? guiBridge.getStateDescription(guiBridge.currentState) : ""
+            elide: Text.ElideRight
+        }
+        // Right side: system/mode/profile
+        Row {
+            anchors.verticalCenter: parent.verticalCenter
+            anchors.right: parent.right
+            anchors.margins: Theme.spacingSM
+            spacing: Theme.spacingXXS
+            Text {
+                text: "SYSTEM"
+                font.pointSize: Theme.fontSizeLabel
+                color: Theme.textSecondary
+            }
+            Text {
+                text: "|"
+                font.pointSize: Theme.fontSizeLabel
+                color: Theme.textSecondary
+            }
+            Text {
+                text: "MODE: " + (typeof guiBridge !== "undefined" && guiBridge.visualMode !== "undefined" ? guiBridge.visualMode : "STANDARD")
+                font.pointSize: Theme.fontSizeLabel
+                color: Theme.textSecondary
+            }
+            Text {
+                text: "|"
+                font.pointSize: Theme.fontSizeLabel
+                color: Theme.textSecondary
+            }
+            Text {
+                text: "PROFILE: " + (typeof guiBridge !== "undefined" && guiBridge.themeProfile !== "undefined" ? guiBridge.themeProfile : "EV_CORE")
+                font.pointSize: Theme.fontSizeLabel
+                color: Theme.textSecondary
+            }
+        }
+    }
+}

@@ -1,0 +1,118 @@
+{
+  "seed": 9416,
+  "meshes": {
+    "shell_0": {
+      "vertices": 2170,
+      "triangles": 3280
+    },
+    "shell_1": {
+      "vertices": 3140,
+      "triangles": 4760
+    },
+    "shell_2": {
+      "vertices": 2845,
+      "triangles": 4288
+    },
+    "band_outer": {
+      "vertices": 688,
+      "triangles": 966
+    },
+    "band_mid": {
+      "vertices": 708,
+      "triangles": 996
+    },
+    "band_inner": {
+      "vertices": 700,
+      "triangles": 984
+    },
+    "rails": {
+      "vertices": 1300,
+      "triangles": 986
+    },
+    "core_filaments": {
+      "vertices": 3381,
+      "triangles": 4480
+    },
+    "streams": {
+      "vertices": 1812,
+      "triangles": 2400
+    },
+    "energy_ribbons": {
+      "vertices": 4320,
+      "triangles": 4272
+    },
+    "plates": {
+      "vertices": 240,
+      "triangles": 120
+    },
+    "circuit_routes": {
+      "vertices": 33440,
+      "triangles": 16720
+    },
+    "circuit_routes_low": {
+      "vertices": 11168,
+      "triangles": 5584
+    },
+    "peripheral_schematics": {
+      "vertices": 5216,
+      "triangles": 2608
+    },
+    "neural_paths": {
+      "vertices": 15600,
+      "triangles": 15360
+    },
+    "neural_paths_low": {
+      "vertices": 3936,
+      "triangles": 3840
+    },
+    "flow_band_outer": {
+      "vertices": 964,
+      "triangles": 1380
+    },
+    "flow_band_mid": {
+      "vertices": 956,
+      "triangles": 1368
+    },
+    "launch_trail": {
+      "vertices": 194,
+      "triangles": 192
+    },
+    "gold_discharges": {
+      "vertices": 1920,
+      "triangles": 1728
+    },
+    "gold_discharges_low": {
+      "vertices": 640,
+      "triangles": 576
+    },
+    "energy_ribbons_low": {
+      "vertices": 1176,
+      "triangles": 1152
+    }
+  },
+  "textures": {
+    "circuit.png": {
+      "width": 2048,
+      "height": 1024,
+      "format": "RGBA8"
+    },
+    "circuit_low.png": {
+      "width": 1024,
+      "height": 512,
+      "format": "RGBA8"
+    },
+    "bands.png": {
+      "width": 2048,
+      "height": 256,
+      "format": "RGBA8"
+    },
+    "flow.png": {
+      "width": 512,
+      "height": 256,
+      "format": "RGBA8"
+    }
+  },
+  "flow_seed": 160926,
+  "discharge_seed": 16092648,
+  "inner_filament_seed": 16092624
+}

@@ -1,0 +1,49 @@
+﻿============================= test session starts =============================
+platform win32 -- Python 3.12.10, pytest-9.1.1, pluggy-1.6.0 -- D:\EV\.venv\Scripts\python.exe
+rootdir: D:\EV
+configfile: pytest.ini
+plugins: anyio-4.14.2
+collecting ... collected 40 items
+
+tests/test_paths.py::TestPathResolutionSourceMode::test_resource_root_source_mode PASSED [  2%]
+tests/test_paths.py::TestPathResolutionSourceMode::test_qml_root_source_mode PASSED [  5%]
+tests/test_paths.py::TestPathResolutionSourceMode::test_models_dir_source_mode PASSED [  7%]
+tests/test_paths.py::TestPathResolutionSourceMode::test_wakeword_model_dir_source_mode PASSED [ 10%]
+tests/test_paths.py::TestPathResolutionSourceMode::test_asr_model_dir_source_mode PASSED [ 12%]
+tests/test_paths.py::TestPathResolutionFrozenMode::test_resource_root_frozen_meipass PASSED [ 15%]
+tests/test_paths.py::TestPathResolutionFrozenMode::test_resource_root_frozen_standalone PASSED [ 17%]
+tests/test_paths.py::TestUserDataPathResolution::test_user_data_root_default_windows PASSED [ 20%]
+tests/test_paths.py::TestUserDataPathResolution::test_user_data_root_override PASSED [ 22%]
+tests/test_paths.py::TestUserDataPathResolution::test_granular_directory_overrides PASSED [ 25%]
+tests/test_paths.py::TestUserDataPathResolution::test_ensure_dir PASSED  [ 27%]
+tests/test_paths.py::TestNoHardcodedProductionPaths::test_production_modules_have_no_hardcoded_dev_drive PASSED [ 30%]
+tests/test_provider_config.py::test_dpapi_encryption_decryption_roundtrip PASSED [ 32%]
+tests/test_provider_config.py::test_dpapi_empty_string_handling PASSED   [ 35%]
+tests/test_provider_config.py::test_mask_key PASSED                      [ 37%]
+tests/test_provider_config.py::test_credential_store_isolation PASSED    [ 40%]
+tests/test_provider_config.py::test_config_store_initialization_and_single_active_invariant PASSED [ 42%]
+tests/test_provider_config.py::test_custom_openai_compatible_provider PASSED [ 45%]
+tests/test_provider_config.py::test_connection_test_success_and_failures PASSED [ 47%]
+tests/test_provider_config.py::test_gemini_connection_test PASSED        [ 50%]
+tests/test_provider_config.py::test_extract_api_key_intent PASSED        [ 52%]
+tests/test_provider_config.py::test_identify_provider_from_key PASSED    [ 55%]
+tests/test_provider_config.py::test_auto_detect_and_test_provider PASSED [ 57%]
+tests/test_provider_config.py::test_configure_provider_from_key_known_and_activation_safety PASSED [ 60%]
+tests/test_provider_config.py::test_configure_provider_from_key_unknown_clarification PASSED [ 62%]
+tests/test_action_pipeline.py::TestActionPipelineMatrix::test_matrix_a_read_only_flow PASSED [ 65%]
+tests/test_action_pipeline.py::TestActionPipelineMatrix::test_matrix_b_mutating_flow_approved PASSED [ 67%]
+tests/test_action_pipeline.py::TestActionPipelineMatrix::test_matrix_c_mutating_flow_denied PASSED [ 70%]
+tests/test_action_pipeline.py::TestActionPipelineMatrix::test_matrix_d_verification_failure_rollback PASSED [ 72%]
+tests/test_action_pipeline.py::TestActionPipelineMatrix::test_matrix_e_unknown_mutation_zero_blind_retry PASSED [ 75%]
+tests/test_action_pipeline.py::TestActionPipelineMatrix::test_matrix_f_cancellation PASSED [ 77%]
+tests/test_action_pipeline.py::TestActionPipelineMatrix::test_matrix_g_diagnosis_telemetry PASSED [ 80%]
+tests/test_action_pipeline.py::TestActionPipelineMatrix::test_matrix_h_recovery_proposal_safe_ordering PASSED [ 82%]
+tests/test_action_pipeline.py::TestActionPipelineMatrix::test_matrix_i_voice_input_routing PASSED [ 85%]
+tests/test_action_pipeline.py::TestActionPipelineMatrix::test_matrix_j_memory_isolation PASSED [ 87%]
+tests/test_action_pipeline.py::TestActionPipelineMatrix::test_matrix_k_event_correlation_and_sanitization PASSED [ 90%]
+tests/test_action_pipeline.py::TestActionPipelineMatrix::test_matrix_l_security_anti_bypass PASSED [ 92%]
+tests/test_action_pipeline.py::TestActionPipelineMatrix::test_matrix_m_conversational_clarification_success PASSED [ 95%]
+tests/test_action_pipeline.py::TestActionPipelineMatrix::test_matrix_m_conversational_explanation_success PASSED [ 97%]
+tests/test_action_pipeline.py::TestActionPipelineMatrix::test_matrix_m_routing_failure_returns_failed_status PASSED [100%]
+
+============================= 40 passed in 16.56s =============================

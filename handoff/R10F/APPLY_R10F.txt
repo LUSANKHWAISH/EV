@@ -1,0 +1,70 @@
+E.V. TASK 011C.2R10F — APPLY CHATGPT FLAGSHIP FORGE CORE
+
+PROJECT:
+D:\EV
+
+ChatGPT has already generated the QML implementation and authored GLB assets.
+You are ONLY the executor/file applier.
+
+SOURCE QML:
+D:\EV\handoff\R10F\EVIntelligenceCore_R10F_FLAGSHIP.qml
+
+SOURCE ASSETS:
+D:\EV\handoff\R10F\assets\
+
+TARGET QML:
+D:\EV\gui\qml\components\EVIntelligenceCore.qml
+
+TARGET ASSET DIRECTORY:
+D:\EV\gui\qml\assets\
+
+STEP 1 — BACKUP CURRENT CORE
+Create:
+D:\EV\gui\qml\components\EVIntelligenceCore.qml.pre-R10F
+
+STEP 2 — COPY QML EXACTLY
+Replace the complete contents of the target QML with the exact source QML.
+
+STEP 3 — COPY THESE 8 ASSETS EXACTLY
+- ev_core_flagship_left.glb
+- ev_core_flagship_right.glb
+- ev_core_flagship_rear.glb
+- ev_core_flagship_collar.glb
+- ev_core_flagship_void.glb
+- ev_core_flagship_halo.glb
+- ev_core_flagship_stream.glb
+- ev_core_flagship_nodes.glb
+
+Copy them into:
+D:\EV\gui\qml\assets\
+
+Do not delete older R9/R10 assets.
+
+DO NOT:
+- generate code
+- redesign
+- optimise
+- refactor
+- reformat the supplied QML
+- edit the GLB assets
+- restore any old straight diagonal bridge
+- modify EVFlagshipStage.qml
+- modify Theme.qml
+- modify EVWindow.qml
+- modify Python files
+- modify tests
+- modify qmldir
+- modify any other project file
+
+REPORT ONLY:
+1. pre-R10F backup created
+2. QML copied exactly
+3. all 8 GLBs copied
+4. source/target byte size for QML and every GLB
+5. source/target SHA-256 for QML and every GLB
+6. confirmation every source/target pair matches
+7. confirmation no other project files changed
+8. any copy corruption detected
+
+Do NOT claim Windows tests pass.
+The user will run Windows validation locally.

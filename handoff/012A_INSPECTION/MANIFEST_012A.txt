@@ -1,0 +1,218 @@
+﻿E.V. TASK 012A - LIVE BACKEND INSPECTION
+
+PROJECT:
+D:\EV
+
+PURPOSE:
+Read-only source collection for Task 012 Persistent Task History.
+
+PROJECT SOURCE MODIFIED:
+NO
+
+GUI/QML FILES TOUCHED:
+NO
+
+============================================================
+COPIED FILES
+============================================================
+
+SOURCE:
+D:\EV\core\models.py
+
+COPIED AS:
+models.py
+
+BYTE SIZE:
+7897
+
+SHA-256:
+13e6431599a2bcbf115981c1664d9a7dabb677a8e3a53cd2fea30dd822967763
+
+------------------------------------------------------------
+
+SOURCE:
+D:\EV\core\agent.py
+
+COPIED AS:
+agent.py
+
+BYTE SIZE:
+8376
+
+SHA-256:
+39b9b67700d2328d7ec13e955aa4e3d3f1a9fd9401f7934106252b2e16169ea7
+
+------------------------------------------------------------
+
+SOURCE:
+D:\EV\core\verifier.py
+
+COPIED AS:
+verifier.py
+
+BYTE SIZE:
+22354
+
+SHA-256:
+1ce52a192d68d9061740ebfc4f128f88a1f0e955bfcba4ac2b5211336609b88e
+
+------------------------------------------------------------
+
+SOURCE:
+D:\EV\core\backup.py
+
+COPIED AS:
+backup.py
+
+BYTE SIZE:
+26070
+
+SHA-256:
+bac36201d8e6303de2baf8c5bb8a0f1f732f13596946343de20ebc622dc3cb95
+
+------------------------------------------------------------
+
+SOURCE:
+D:\EV\core\risk.py
+
+COPIED AS:
+risk.py
+
+BYTE SIZE:
+20233
+
+SHA-256:
+1ea2a483dee53d9d5cba998c0171ff736eb5cef0ac2dbd4127a5f60295f7aa40
+
+------------------------------------------------------------
+
+SOURCE:
+D:\EV\core\events.py
+
+COPIED AS:
+events.py
+
+BYTE SIZE:
+12282
+
+SHA-256:
+efb8d9f5a0c933f5f51474c537e501a3c80020bb45db0024d10defb9c7e2d04b
+
+------------------------------------------------------------
+
+SOURCE:
+D:\EV\config\settings.py
+
+COPIED AS:
+settings.py
+
+BYTE SIZE:
+1977
+
+SHA-256:
+b1945b2d07c30f6e4959071438ac7e73571bdc802fbbda83c10f4273feab3452
+
+------------------------------------------------------------
+
+SOURCE:
+D:\EV\tests\test_agent.py
+
+COPIED AS:
+test_agent.py
+
+BYTE SIZE:
+9702
+
+SHA-256:
+cc61b64d7790499afa9f62b4073fd8165d03cc51239a1ae0b39d36d1c2d11fb0
+
+------------------------------------------------------------
+
+SOURCE:
+D:\EV\tests\test_verifier.py
+
+COPIED AS:
+test_verifier.py
+
+BYTE SIZE:
+18847
+
+SHA-256:
+65477dd2d880969beeb944875d59e801021ddf4bc46d2b203a0d7144dd8a72fb
+
+------------------------------------------------------------
+
+SOURCE:
+D:\EV\tests\test_backup.py
+
+COPIED AS:
+test_backup.py
+
+BYTE SIZE:
+35857
+
+SHA-256:
+78f7f6ae7f0b10d46f98a0f4d3a1ba619d11e253192075486f0d50126be2a07b
+
+------------------------------------------------------------
+
+SOURCE:
+D:\EV\tests\test_risk.py
+
+COPIED AS:
+test_risk.py
+
+BYTE SIZE:
+26214
+
+SHA-256:
+3f23cf9644e35bc981f8b2044fbd69ccf779c4b70a325fad9acfdc2d09e460f8
+
+------------------------------------------------------------
+
+SOURCE:
+D:\EV\tests\test_events.py
+
+COPIED AS:
+test_events.py
+
+BYTE SIZE:
+31655
+
+SHA-256:
+077eaf8e458508091c27a025387a024f8dab203c8d7f0ede1a8e68666ba43869
+
+------------------------------------------------------------
+
+SOURCE:
+D:\EV\requirements.txt
+
+COPIED AS:
+requirements.txt
+
+BYTE SIZE:
+37
+
+SHA-256:
+8748aed8b7c667a46d46762380ff86aefe815c208f82704a0f2a81016e430613
+
+------------------------------------------------------------
+
+SOURCE:
+D:\EV\.gitignore
+
+COPIED AS:
+.gitignore
+
+BYTE SIZE:
+222
+
+SHA-256:
+90b631169cb92bd15db0cfe9265aea13311033520af50b550bb721b1614b010e
+
+------------------------------------------------------------
+
+============================================================
+MISSING REQUESTED FILES
+============================================================
+NONE

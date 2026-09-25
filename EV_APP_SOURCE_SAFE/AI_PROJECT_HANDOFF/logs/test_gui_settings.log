@@ -1,0 +1,19 @@
+﻿============================= test session starts =============================
+platform win32 -- Python 3.12.10, pytest-9.1.1, pluggy-1.6.0 -- D:\EV\.venv\Scripts\python.exe
+rootdir: D:\EV
+configfile: pytest.ini
+plugins: anyio-4.14.2
+collecting ... collected 10 items
+
+tests/test_gui_settings.py::test_topbar_has_settings_button_and_object_name PASSED [ 10%]
+tests/test_gui_settings.py::test_bridge_settings_toggle PASSED           [ 20%]
+tests/test_gui_settings.py::test_bridge_provider_list_json_and_masked_keys PASSED [ 30%]
+tests/test_gui_settings.py::test_bridge_set_active_provider PASSED       [ 40%]
+tests/test_gui_settings.py::test_bridge_save_custom_provider PASSED      [ 50%]
+tests/test_gui_settings.py::test_bridge_test_connection_reporting PASSED [ 60%]
+tests/test_gui_settings.py::test_qml_settings_overlay_instantiates PASSED [ 70%]
+tests/test_gui_settings.py::test_core_style_persistence_and_switching PASSED [ 80%]
+tests/test_gui_settings.py::test_available_style_presets_contract PASSED [ 90%]
+tests/test_gui_settings.py::test_only_one_core_active_in_intelligence_core PASSED [100%]
+
+============================= 10 passed in 24.53s =============================

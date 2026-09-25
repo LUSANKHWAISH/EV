@@ -1,0 +1,30 @@
+{
+  "EVIntelligenceCore_R9.qml": {
+    "bytes": 16097,
+    "sha256": "926249b9f44620ba5237142642f21f3bc337296de7f0379e61efb7dea207503e"
+  },
+  "assets/ev_core_r9_a.glb": {
+    "bytes": 94284,
+    "sha256": "623287a02c8e822cafdd22e1ca9077d4729e04e50806e4bfadf63800b453fb6d"
+  },
+  "assets/ev_core_r9_b.glb": {
+    "bytes": 94280,
+    "sha256": "6f44fb737e08f857a340e6c9845af09af8bb7b5a845f6643c6e64d07fbfe8394"
+  },
+  "assets/ev_core_r9_c.glb": {
+    "bytes": 94284,
+    "sha256": "991822acabfae17aea23eeb13345b4fa9099cfc8ac01992af8ec29d723f2cc50"
+  },
+  "assets/ev_core_r9_d.glb": {
+    "bytes": 94288,
+    "sha256": "77887ebe6fdce66231836bc5158cdaf765ad46a9af151ee6a8aea193355296be"
+  },
+  "assets/ev_core_r9_e.glb": {
+    "bytes": 94284,
+    "sha256": "04e022b295cc0016896423f1f5861ef36a2bbf577ebf8cb749e648062960b8d4"
+  },
+  "assets/ev_core_r9_shard.glb": {
+    "bytes": 2500,
+    "sha256": "a2ccdbdb47f7c174b0f7a9039acdce527bf117523e50cae6869bb37f8207c085"
+  }
+}

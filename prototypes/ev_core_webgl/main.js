@@ -1,0 +1,1077 @@
+// ============================================================================
+// E.V. INTELLIGENCE CORE — GPT ASTRA ARCHITECTURE
+// Faithfully recreates the visual design from OpenAI GPT Astra:
+// - Grand-design 2-arm logarithmic spiral
+// - Heterogeneous star hierarchy:
+//     * Hero Stars with 4-point optical diffraction cross glints
+//     * Medium bright stellar bodies
+//     * Fine volumetric stardust cloud
+// - Soft translucent nebular nucleus with sparkling star cluster
+// - 70/30 cool white/ice-blue to warm golden peach/amber palette
+// - Near face-on ~75° default perspective with full 3D Steadicam orbit
+// ============================================================================
+
+// ----------------------------------------------------------------------------
+// CONFIGURATION
+// ----------------------------------------------------------------------------
+const CONFIG = {
+    heroStarCount: 220,
+    mediumStarCount: 3400,
+    dustCount: 44000,
+    nucleusCount: 1200,
+    bgStarCount: 1500,
+    globeRadius: 5.4,
+    coreRadius: 1.6,
+    rotationSpeed: 0.016,
+    // Elevated ~12° cinematic front perspective looking at the 3D globe orb
+    camBaseX: 0.0,
+    camBaseY: 2.8,
+    camBaseZ: 14.8
+};
+
+// ----------------------------------------------------------------------------
+// STATES & TONAL HARMONY
+// ----------------------------------------------------------------------------
+const STATES = {
+    IDLE:      { energy: 1.0,  speedMul: 1.0,  tint: 0xffffff, shift: new THREE.Color(0x002244) },
+    LISTENING: { energy: 1.45, speedMul: 0.0,  tint: 0xa5e8ff, shift: new THREE.Color(0x004466) },
+    THINKING:  { energy: 1.85, speedMul: 2.2,  tint: 0x70d4ff, shift: new THREE.Color(0x005588) },
+    PLANNING:  { energy: 1.25, speedMul: 1.2,  tint: 0xbfe8ff, shift: new THREE.Color(0x003366) },
+    APPROVAL:  { energy: 1.15, speedMul: 0.6,  tint: 0xffcc66, shift: new THREE.Color(0x443300) },
+    EXECUTING: { energy: 2.1,  speedMul: 2.8,  tint: 0xffffff, shift: new THREE.Color(0x0033aa) },
+    VERIFYING: { energy: 1.55, speedMul: 1.8,  tint: 0x6ee7b7, shift: new THREE.Color(0x006644) },
+    SPEAKING:  { energy: 1.75, speedMul: 0.25, tint: 0xe0f2fe, shift: new THREE.Color(0x004488) },
+    SUCCESS:   { energy: 2.2,  speedMul: 1.2,  tint: 0x86efac, shift: new THREE.Color(0x008855) },
+    FAILED:    { energy: 0.85, speedMul: 0.5,  tint: 0xfca5a5, shift: new THREE.Color(0x551100) },
+    SLEEP:     { energy: 0.26, speedMul: 0.08, tint: 0x64748b, shift: new THREE.Color(0x000511) }
+};
+
+let currentState = 'IDLE';
+let currentEnergy = STATES.IDLE.energy;
+let targetEnergy = STATES.IDLE.energy;
+let currentSpeedMul = STATES.IDLE.speedMul;
+let targetSpeedMul = STATES.IDLE.speedMul;
+let currentColorShift = new THREE.Color().copy(STATES.IDLE.shift);
+let targetColorShift = new THREE.Color().copy(STATES.IDLE.shift);
+
+// ----------------------------------------------------------------------------
+// SCENE, CAMERA, RENDERER
+// ----------------------------------------------------------------------------
+const container = document.getElementById('canvas-container') || document.body;
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x020408);
+
+const camera = new THREE.PerspectiveCamera(
+    46, window.innerWidth / window.innerHeight, 0.1, 200
+);
+camera.position.set(CONFIG.camBaseX, CONFIG.camBaseY, CONFIG.camBaseZ);
+camera.lookAt(0, 0, 0);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setClearColor(0x020408, 1);
+container.appendChild(renderer.domElement);
+
+const galaxyGroup = new THREE.Group();
+scene.add(galaxyGroup);
+
+// ----------------------------------------------------------------------------
+// PROCEDURAL TEXTURES (Hero Glint + Soft Dot + Nebular Glow)
+// ----------------------------------------------------------------------------
+// 1. Hero Star Texture: Brilliant core + soft halo + 4-point diffraction cross spikes
+function makeHeroStarTexture() {
+    const size = 128;
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = size;
+    const ctx = canvas.getContext('2d');
+    const c = size / 2;
+
+    // Soft outer glow
+    const g = ctx.createRadialGradient(c, c, 0, c, c, size / 2);
+    g.addColorStop(0.0, 'rgba(255, 255, 255, 1.0)');
+    g.addColorStop(0.12, 'rgba(230, 245, 255, 0.85)');
+    g.addColorStop(0.35, 'rgba(140, 210, 255, 0.35)');
+    g.addColorStop(0.70, 'rgba(20, 80, 180, 0.08)');
+    g.addColorStop(1.0, 'rgba(0, 0, 0, 0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, size, size);
+
+    // 4-point diffraction cross spikes
+    ctx.save();
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.95)';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(6, c); ctx.lineTo(size - 6, c);
+    ctx.moveTo(c, 6); ctx.lineTo(c, size - 6);
+    ctx.stroke();
+
+    // Subtle wider flare base
+    ctx.strokeStyle = 'rgba(200, 235, 255, 0.45)';
+    ctx.lineWidth = 2.8;
+    ctx.beginPath();
+    ctx.moveTo(24, c); ctx.lineTo(size - 24, c);
+    ctx.moveTo(c, 24); ctx.lineTo(c, size - 24);
+    ctx.stroke();
+    ctx.restore();
+
+    // Hot incandescent pinpoint core
+    const coreG = ctx.createRadialGradient(c, c, 0, c, c, 8);
+    coreG.addColorStop(0.0, 'rgba(255, 255, 255, 1.0)');
+    coreG.addColorStop(0.6, 'rgba(255, 255, 255, 0.9)');
+    coreG.addColorStop(1.0, 'rgba(255, 255, 255, 0)');
+    ctx.fillStyle = coreG;
+    ctx.beginPath();
+    ctx.arc(c, c, 8, 0, Math.PI * 2);
+    ctx.fill();
+
+    return new THREE.CanvasTexture(canvas);
+}
+const heroStarTex = makeHeroStarTexture();
+
+// 2. Medium & Stardust Texture: Soft Gaussian Dot
+function makeDotTexture() {
+    const size = 64;
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = size;
+    const ctx = canvas.getContext('2d');
+    const c = size / 2;
+
+    const g = ctx.createRadialGradient(c, c, 0, c, c, size / 2);
+    g.addColorStop(0.0, 'rgba(255, 255, 255, 1.0)');
+    g.addColorStop(0.25, 'rgba(255, 255, 255, 0.9)');
+    g.addColorStop(0.65, 'rgba(220, 242, 255, 0.3)');
+    g.addColorStop(1.0, 'rgba(0, 0, 0, 0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, size, size);
+    return new THREE.CanvasTexture(canvas);
+}
+const dotTex = makeDotTexture();
+
+// 3. Central Nebular Core Texture: Soft Translucent Milky Cloud
+function makeNebulaGlowTexture() {
+    const size = 256;
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = size;
+    const ctx = canvas.getContext('2d');
+    const c = size / 2;
+
+    const g = ctx.createRadialGradient(c, c, 0, c, c, size / 2);
+    g.addColorStop(0.0, 'rgba(255, 255, 255, 0.85)');
+    g.addColorStop(0.15, 'rgba(235, 245, 255, 0.60)');
+    g.addColorStop(0.35, 'rgba(160, 215, 255, 0.22)');
+    g.addColorStop(0.65, 'rgba(40, 110, 200, 0.05)');
+    g.addColorStop(1.0, 'rgba(0, 0, 0, 0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, size, size);
+    return new THREE.CanvasTexture(canvas);
+}
+const nebulaGlowTex = makeNebulaGlowTexture();
+
+// ----------------------------------------------------------------------------
+// ASTRA COLOR PALETTE (70% Cool White/Ice Blue, 30% Warm Golden Peach/Amber)
+// ----------------------------------------------------------------------------
+const astraCoolColors = [
+    new THREE.Color(0xffffff), // Pure white
+    new THREE.Color(0xeef7ff), // Diamond white
+    new THREE.Color(0xd0e8ff), // Soft ice blue
+    new THREE.Color(0x9fc8f5), // Platinum blue
+    new THREE.Color(0x70abed), // Electric blue
+];
+const astraWarmColors = [
+    new THREE.Color(0xf6ad55), // Warm peach gold
+    new THREE.Color(0xed8936), // Amber copper
+    new THREE.Color(0xdd6b20), // Deep warm amber
+    new THREE.Color(0xfbd38d), // Pale golden champagne
+];
+
+function pickAstraColor(isHero) {
+    if (isHero) {
+        return Math.random() < 0.75 
+            ? astraCoolColors[Math.floor(Math.random() * 3)] 
+            : astraWarmColors[Math.floor(Math.random() * 2)];
+    }
+    return Math.random() < 0.70 
+        ? astraCoolColors[Math.floor(Math.random() * astraCoolColors.length)]
+        : astraWarmColors[Math.floor(Math.random() * astraWarmColors.length)];
+}
+
+// ----------------------------------------------------------------------------
+// GLSL SHADER (Differential Keplerian Flow + ACES Filmic Tone Mapping)
+// ----------------------------------------------------------------------------
+const particleVertexShader = `
+    attribute float size;
+    attribute vec3 customColor;
+    attribute float radius;
+    attribute float initialAngle;
+    attribute float randomSeed;
+    attribute float layerType; // 0: Nucleus, 1: Hero, 2: Medium, 3: Dust, 4: Background
+
+    varying vec3 vColor;
+    varying float vAlpha;
+    varying float vGlowBoost;
+
+    uniform float time;
+    uniform float energy;
+    uniform float pulse;
+    uniform float speedMul;
+    uniform float uAccumRotation;
+    uniform float uVoiceGlow;
+    uniform vec3 uMouseWorld;
+    uniform float uMouseRadius;
+    uniform float uMouseStrength;
+
+    void main() {
+        vColor = customColor;
+
+        // Pass voice glow intensity to fragment shader (extended radius into mantle)
+        if (layerType == 0.0) {
+            vGlowBoost = uVoiceGlow * 3.8;
+        } else if (layerType == 2.0 || layerType == 3.0) {
+            float innerProx = max(0.0, 1.0 - radius / 3.8);
+            vGlowBoost = uVoiceGlow * innerProx * 2.2;
+        } else {
+            vGlowBoost = 0.0;
+        }
+
+        // Differential planetary rotation: inner core & surface bands rotate smoothly around polar Y-axis
+        float angVel = 0.0;
+        if (layerType == 4.0) {
+            angVel = 0.003; // background stars barely drift
+        } else if (layerType == 0.0) {
+            angVel = 0.22;  // core rotates briskly
+        } else {
+            // Planetary latitude differential rotation
+            angVel = 0.16 / sqrt(max(0.6, radius * 0.45));
+        }
+
+        // Monotonic forward-accumulated planetary angle (completely freezes when listening to voice)
+        float curAngle = angVel * uAccumRotation;
+
+        // Rotate original 3D spherical position around polar Y-axis (Planet axial rotation)
+        float c = cos(curAngle);
+        float s = sin(curAngle);
+        vec3 pos;
+        if (layerType == 4.0) {
+            pos = position;
+        } else {
+            pos.x = position.x * c - position.z * s;
+            pos.z = position.x * s + position.z * c;
+            pos.y = position.y;
+            // Subtle harmonic latitude ripple
+            pos.y += sin(pos.x * 0.8 + time * 1.2) * 0.03 * energy;
+        }
+
+        // Sub-bass respiration pulse: gentle 3D spherical breathing
+        float rScale = 1.0 + (pulse - 1.0) * (layerType == 0.0 ? 0.85 : 0.40);
+        pos *= rScale;
+
+        vec4 worldPos = modelMatrix * vec4(pos, 1.0);
+
+        // MAGNETIC CURSOR ATTRACTION: Particles pull straight towards cursor in 3D (attaching to cursor)
+        vec3 toCursor = uMouseWorld - worldPos.xyz;
+        float dist = length(toCursor);
+        if (dist < uMouseRadius && uMouseStrength > 0.001) {
+            float normDist = dist / uMouseRadius;
+            float falloff = (1.0 - normDist) * (1.0 - normDist);
+            vec3 pullDir = normalize(toCursor + vec3(0.0001));
+            // Pull particles towards cursor so they attach to it
+            worldPos.xyz += pullDir * (falloff * uMouseStrength * 2.5);
+        }
+
+        // Individual optical twinkling
+        float twinkle = sin(time * 6.0 + randomSeed * 45.0) * 0.15 + 0.85;
+
+        vec4 mvPosition = viewMatrix * worldPos;
+
+        // Size with perspective attenuation + voice glow flaring for nucleus stars
+        float scaleMul = (layerType == 1.0) ? 3.4 : ((layerType == 2.0) ? 1.45 : 0.85);
+        if (layerType == 0.0) {
+            scaleMul *= (1.0 + uVoiceGlow * 0.65);
+        }
+        gl_PointSize = size * scaleMul * (28.0 / -mvPosition.z) * twinkle * (1.0 + energy * 0.2);
+        gl_PointSize = clamp(gl_PointSize, 1.0, 72.0);
+
+        gl_Position = projectionMatrix * mvPosition;
+
+        if (layerType == 1.0) vAlpha = 0.98;
+        else if (layerType == 0.0) vAlpha = min(1.0, 0.92 + uVoiceGlow * 0.08);
+        else if (layerType == 2.0) vAlpha = 0.88;
+        else if (layerType == 3.0) vAlpha = 0.75;
+        else vAlpha = 0.40;
+    }
+`;
+
+const particleFragmentShader = `
+    varying vec3 vColor;
+    varying float vAlpha;
+    varying float vGlowBoost;
+
+    uniform vec3 colorShift;
+    uniform float energy;
+    uniform sampler2D uTexture;
+
+    // ACES Filmic Tone Mapping Curve
+    vec3 ACESFilm(vec3 x) {
+        float a = 2.51;
+        float b = 0.03;
+        float c = 2.43;
+        float d = 0.59;
+        float e = 0.14;
+        return clamp((x * (a * x + b)) / (x * (c * x + d) + e), 0.0, 1.0);
+    }
+
+    void main() {
+        vec4 texColor = texture2D(uTexture, gl_PointCoord);
+        if (texColor.a < 0.02) discard;
+
+        vec3 baseCol = vColor + colorShift * energy * 0.65;
+        vec3 glowColor = vec3(0.92, 0.98, 1.0) * vGlowBoost;
+        vec3 hdrCol = (baseCol + glowColor) * texColor.a * (1.3 + energy * 0.4 + vGlowBoost * 1.3);
+
+        vec3 toneMapped = ACESFilm(hdrCol);
+        gl_FragColor = vec4(toneMapped, min(1.0, vAlpha + vGlowBoost * 0.12) * texColor.a);
+    }
+`;
+
+// ----------------------------------------------------------------------------
+// MULTI-TIER GEOMETRY GENERATION
+// ----------------------------------------------------------------------------
+const uniformsTemplate = {
+    time: { value: 0.0 },
+    energy: { value: currentEnergy },
+    pulse: { value: 1.0 },
+    speedMul: { value: currentSpeedMul },
+    uAccumRotation: { value: 0.0 },
+    colorShift: { value: currentColorShift },
+    uVoiceGlow: { value: 0.0 },
+    uMouseWorld: { value: new THREE.Vector3(999, 999, 999) },
+    uMouseRadius: { value: 4.2 },
+    uMouseStrength: { value: 0.0 }
+};
+
+// Material 1: Hero Stars (Uses 4-point cross diffraction texture)
+const heroMaterial = new THREE.ShaderMaterial({
+    uniforms: Object.assign({}, uniformsTemplate, { uTexture: { value: heroStarTex } }),
+    vertexShader: particleVertexShader,
+    fragmentShader: particleFragmentShader,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+    transparent: true
+});
+
+// Material 2: Standard Stars (Medium stars, dust motes, core cluster, background)
+const standardMaterial = new THREE.ShaderMaterial({
+    uniforms: Object.assign({}, uniformsTemplate, { uTexture: { value: dotTex } }),
+    vertexShader: particleVertexShader,
+    fragmentShader: particleFragmentShader,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+    transparent: true
+});
+
+let combinedGeometry = null;
+let heroPoints = null;
+let standardPoints = null;
+
+function buildGlobeOrb() {
+    // ------------------------------------------------------------------------
+    // 1. HERO STARS (220 prominent glinting jewels along 3 helical surface ribbons)
+    // ------------------------------------------------------------------------
+    const heroPos = new Float32Array(CONFIG.heroStarCount * 3);
+    const heroCol = new Float32Array(CONFIG.heroStarCount * 3);
+    const heroSizes = new Float32Array(CONFIG.heroStarCount);
+    const heroRadii = new Float32Array(CONFIG.heroStarCount);
+    const heroAngles = new Float32Array(CONFIG.heroStarCount);
+    const heroSeeds = new Float32Array(CONFIG.heroStarCount);
+    const heroLayers = new Float32Array(CONFIG.heroStarCount);
+
+    for (let i = 0; i < CONFIG.heroStarCount; i++) {
+        const u = i / CONFIG.heroStarCount;
+        // Progression from North pole to South pole
+        const phi = 0.12 * Math.PI + u * 0.76 * Math.PI + (Math.random() - 0.5) * 0.06;
+        const ribbon = i % 3;
+        const theta = ribbon * (Math.PI * 2.0 / 3.0) + 3.2 * phi + (Math.random() - 0.5) * 0.08;
+        const r = CONFIG.globeRadius * (0.97 + Math.random() * 0.06);
+
+        heroPos[i * 3 + 0] = r * Math.sin(phi) * Math.cos(theta);
+        heroPos[i * 3 + 1] = r * Math.cos(phi);
+        heroPos[i * 3 + 2] = r * Math.sin(phi) * Math.sin(theta);
+
+        const c = pickAstraColor(true);
+        heroCol[i * 3 + 0] = c.r;
+        heroCol[i * 3 + 1] = c.g;
+        heroCol[i * 3 + 2] = c.b;
+
+        heroSizes[i] = 2.6 + Math.random() * 2.2;
+        heroRadii[i] = r;
+        heroAngles[i] = theta;
+        heroSeeds[i] = Math.random();
+        heroLayers[i] = 1.0; // Hero
+    }
+
+    const heroGeo = new THREE.BufferGeometry();
+    heroGeo.setAttribute('position', new THREE.BufferAttribute(heroPos, 3));
+    heroGeo.setAttribute('customColor', new THREE.BufferAttribute(heroCol, 3));
+    heroGeo.setAttribute('size', new THREE.BufferAttribute(heroSizes, 1));
+    heroGeo.setAttribute('radius', new THREE.BufferAttribute(heroRadii, 1));
+    heroGeo.setAttribute('initialAngle', new THREE.BufferAttribute(heroAngles, 1));
+    heroGeo.setAttribute('randomSeed', new THREE.BufferAttribute(heroSeeds, 1));
+    heroGeo.setAttribute('layerType', new THREE.BufferAttribute(heroLayers, 1));
+
+    heroPoints = new THREE.Points(heroGeo, heroMaterial);
+    galaxyGroup.add(heroPoints);
+
+    // ------------------------------------------------------------------------
+    // 2. STANDARD PARTICLES (Medium stars + Stardust + Nucleus + Background)
+    // ------------------------------------------------------------------------
+    const stdTotal = CONFIG.mediumStarCount + CONFIG.dustCount + 
+                     CONFIG.nucleusCount + CONFIG.bgStarCount;
+
+    const stdPos = new Float32Array(stdTotal * 3);
+    const stdCol = new Float32Array(stdTotal * 3);
+    const stdSizes = new Float32Array(stdTotal);
+    const stdRadii = new Float32Array(stdTotal);
+    const stdAngles = new Float32Array(stdTotal);
+    const stdSeeds = new Float32Array(stdTotal);
+    const stdLayers = new Float32Array(stdTotal);
+
+    let idx = 0;
+
+    // A. NUCLEUS CLUSTER (1,200 sparkling pinpoint core stars in 3D sphere)
+    for (let i = 0; i < CONFIG.nucleusCount; i++) {
+        const u = Math.random();
+        const r = CONFIG.coreRadius * Math.cbrt(u);
+        const theta = Math.random() * Math.PI * 2;
+        const phi = Math.acos(2 * Math.random() - 1);
+
+        stdPos[idx * 3 + 0] = r * Math.sin(phi) * Math.cos(theta);
+        stdPos[idx * 3 + 1] = r * Math.cos(phi);
+        stdPos[idx * 3 + 2] = r * Math.sin(phi) * Math.sin(theta);
+
+        const c = Math.random() < 0.85 
+            ? new THREE.Color(0xffffff).lerp(new THREE.Color(0xdef2ff), Math.random() * 0.5)
+            : astraWarmColors[0];
+
+        stdCol[idx * 3 + 0] = c.r;
+        stdCol[idx * 3 + 1] = c.g;
+        stdCol[idx * 3 + 2] = c.b;
+
+        stdSizes[idx] = 1.0 + Math.random() * 0.8;
+        stdRadii[idx] = r;
+        stdAngles[idx] = theta;
+        stdSeeds[idx] = Math.random();
+        stdLayers[idx] = 0.0; // Nucleus
+        idx++;
+    }
+
+    // B. MEDIUM BRIGHT STARS (3,400 glowing orbs defining planetary surface bands & mantle)
+    for (let i = 0; i < CONFIG.mediumStarCount; i++) {
+        let r, phi, theta;
+        if (Math.random() < 0.70) {
+            // Surface shell & latitude bands
+            r = CONFIG.globeRadius * (0.88 + Math.random() * 0.16);
+            phi = Math.acos(2 * Math.random() - 1);
+            theta = Math.random() * Math.PI * 2;
+        } else {
+            // Inner mantle
+            r = CONFIG.coreRadius + Math.random() * (CONFIG.globeRadius * 0.88 - CONFIG.coreRadius);
+            phi = Math.acos(2 * Math.random() - 1);
+            theta = Math.random() * Math.PI * 2;
+        }
+
+        stdPos[idx * 3 + 0] = r * Math.sin(phi) * Math.cos(theta);
+        stdPos[idx * 3 + 1] = r * Math.cos(phi);
+        stdPos[idx * 3 + 2] = r * Math.sin(phi) * Math.sin(theta);
+
+        const c = pickAstraColor(false);
+        stdCol[idx * 3 + 0] = c.r;
+        stdCol[idx * 3 + 1] = c.g;
+        stdCol[idx * 3 + 2] = c.b;
+
+        stdSizes[idx] = 0.95 + Math.random() * 0.85;
+        stdRadii[idx] = r;
+        stdAngles[idx] = theta;
+        stdSeeds[idx] = Math.random();
+        stdLayers[idx] = 2.0; // Medium
+        idx++;
+    }
+
+    // C. FINE STARDUST (44,000 microscopic volumetric cloud motes forming solid globe)
+    for (let i = 0; i < CONFIG.dustCount; i++) {
+        let r, phi, theta;
+        const p = Math.random();
+        if (p < 0.55) {
+            // Dense outer atmospheric crust
+            r = CONFIG.globeRadius * (0.86 + Math.random() * 0.18);
+        } else if (p < 0.85) {
+            // Mantle
+            r = CONFIG.coreRadius + Math.random() * (CONFIG.globeRadius * 0.86 - CONFIG.coreRadius);
+        } else {
+            // Deep core
+            r = CONFIG.coreRadius * Math.cbrt(Math.random());
+        }
+
+        phi = Math.acos(2 * Math.random() - 1);
+        theta = Math.random() * Math.PI * 2;
+
+        stdPos[idx * 3 + 0] = r * Math.sin(phi) * Math.cos(theta);
+        stdPos[idx * 3 + 1] = r * Math.cos(phi);
+        stdPos[idx * 3 + 2] = r * Math.sin(phi) * Math.sin(theta);
+
+        const c = pickAstraColor(false);
+        stdCol[idx * 3 + 0] = c.r;
+        stdCol[idx * 3 + 1] = c.g;
+        stdCol[idx * 3 + 2] = c.b;
+
+        stdSizes[idx] = 0.42 + Math.random() * 0.42;
+        stdRadii[idx] = r;
+        stdAngles[idx] = theta;
+        stdSeeds[idx] = Math.random();
+        stdLayers[idx] = 3.0; // Dust
+        idx++;
+    }
+
+    // D. BACKGROUND DEEP COSMIC STARS (1,500 distant twinkling stars)
+    for (let i = 0; i < CONFIG.bgStarCount; i++) {
+        const r = 14.0 + Math.random() * 16.0;
+        const phi = Math.acos(2 * Math.random() - 1);
+        const theta = Math.random() * Math.PI * 2;
+
+        stdPos[idx * 3 + 0] = r * Math.sin(phi) * Math.cos(theta);
+        stdPos[idx * 3 + 1] = r * Math.cos(phi);
+        stdPos[idx * 3 + 2] = r * Math.sin(phi) * Math.sin(theta);
+
+        const c = Math.random() < 0.8 ? astraCoolColors[2] : astraWarmColors[1];
+        stdCol[idx * 3 + 0] = c.r;
+        stdCol[idx * 3 + 1] = c.g;
+        stdCol[idx * 3 + 2] = c.b;
+
+        stdSizes[idx] = 0.35 + Math.random() * 0.45;
+        stdRadii[idx] = r;
+        stdAngles[idx] = theta;
+        stdSeeds[idx] = Math.random();
+        stdLayers[idx] = 4.0; // Background
+        idx++;
+    }
+
+    const stdGeo = new THREE.BufferGeometry();
+    stdGeo.setAttribute('position', new THREE.BufferAttribute(stdPos, 3));
+    stdGeo.setAttribute('customColor', new THREE.BufferAttribute(stdCol, 3));
+    stdGeo.setAttribute('size', new THREE.BufferAttribute(stdSizes, 1));
+    stdGeo.setAttribute('radius', new THREE.BufferAttribute(stdRadii, 1));
+    stdGeo.setAttribute('initialAngle', new THREE.BufferAttribute(stdAngles, 1));
+    stdGeo.setAttribute('randomSeed', new THREE.BufferAttribute(stdSeeds, 1));
+    stdGeo.setAttribute('layerType', new THREE.BufferAttribute(stdLayers, 1));
+
+    standardPoints = new THREE.Points(stdGeo, standardMaterial);
+    galaxyGroup.add(standardPoints);
+
+    combinedGeometry = stdGeo;
+}
+
+buildGlobeOrb();
+
+// ----------------------------------------------------------------------------
+// TRANSLUCENT NEBULAR CORE GLOW (Soft Optical Atmosphere, No Hard Borders)
+// ----------------------------------------------------------------------------
+const nebulaMat = new THREE.SpriteMaterial({
+    map: nebulaGlowTex,
+    blending: THREE.AdditiveBlending,
+    transparent: true,
+    depthWrite: false,
+    opacity: 0.55
+});
+const nebulaCore = new THREE.Sprite(nebulaMat);
+nebulaCore.scale.set(4.8, 4.8, 1);
+galaxyGroup.add(nebulaCore);
+
+// Faint hot inner core spark
+const innerGlowMat = new THREE.SpriteMaterial({
+    map: nebulaGlowTex,
+    blending: THREE.AdditiveBlending,
+    transparent: true,
+    depthWrite: false,
+    opacity: 0.75
+});
+const innerGlow = new THREE.Sprite(innerGlowMat);
+innerGlow.scale.set(2.0, 2.0, 1);
+galaxyGroup.add(innerGlow);
+
+// Radiant voice aura that blooms when user speaks
+const voiceAuraMat = new THREE.SpriteMaterial({
+    map: nebulaGlowTex,
+    blending: THREE.AdditiveBlending,
+    transparent: true,
+    depthWrite: false,
+    opacity: 0.0
+});
+const voiceAura = new THREE.Sprite(voiceAuraMat);
+voiceAura.scale.set(7.5, 7.5, 1);
+galaxyGroup.add(voiceAura);
+
+// Soft environmental point light
+const coreLight = new THREE.PointLight(0xd8f2ff, 1.8, 20);
+galaxyGroup.add(coreLight);
+
+// ----------------------------------------------------------------------------
+// STEADICAM CAMERA PHYSICS & INTERACTION
+// ----------------------------------------------------------------------------
+let mouseX = 0, mouseY = 0;
+let isDragging = false;
+let prevPointerX = 0, prevPointerY = 0;
+
+let orbitRadius = Math.hypot(CONFIG.camBaseX, CONFIG.camBaseY, CONFIG.camBaseZ);
+let orbitPhi = Math.acos(CONFIG.camBaseY / orbitRadius);
+let orbitTheta = Math.atan2(CONFIG.camBaseX, CONFIG.camBaseZ);
+
+let targetOrbitTheta = orbitTheta;
+let targetOrbitPhi = orbitPhi;
+let targetOrbitRadius = orbitRadius;
+
+let lastMouseMoveTime = 0;
+let currentMouseStrength = 0.0;
+let targetMouseStrength = 0.0;
+
+const mouseRaycaster = new THREE.Raycaster();
+const globeSphere = new THREE.Sphere(new THREE.Vector3(0, 0, 0), CONFIG.globeRadius);
+const cameraPlane = new THREE.Plane();
+const mouseWorldPoint = new THREE.Vector3();
+
+window.addEventListener('mousemove', (e) => {
+    mouseX = (e.clientX / window.innerWidth - 0.5) * 2;
+    mouseY = (e.clientY / window.innerHeight - 0.5) * 2;
+
+    const ndcX = (e.clientX / window.innerWidth) * 2 - 1;
+    const ndcY = -(e.clientY / window.innerHeight) * 2 + 1;
+
+    mouseRaycaster.setFromCamera(new THREE.Vector2(ndcX, ndcY), camera);
+    const ray = mouseRaycaster.ray;
+
+    let hit = false;
+    // Test direct 3D intersection on the globe sphere
+    if (ray.intersectSphere(globeSphere, mouseWorldPoint)) {
+        hit = true;
+        targetMouseStrength = 1.0;
+    } else {
+        // Fallback: camera-facing plane through origin to attract particles even when hovering near the limb
+        cameraPlane.setFromNormalAndCoplanarPoint(
+            camera.getWorldDirection(new THREE.Vector3()).negate(),
+            new THREE.Vector3(0, 0, 0)
+        );
+        if (ray.intersectPlane(cameraPlane, mouseWorldPoint)) {
+            const distFromCenter = mouseWorldPoint.length();
+            if (distFromCenter < CONFIG.globeRadius * 1.6) {
+                hit = true;
+                targetMouseStrength = Math.max(0.0, 1.0 - (distFromCenter - CONFIG.globeRadius) / (CONFIG.globeRadius * 0.6));
+            }
+        }
+    }
+
+    if (hit) {
+        heroMaterial.uniforms.uMouseWorld.value.copy(mouseWorldPoint);
+        standardMaterial.uniforms.uMouseWorld.value.copy(mouseWorldPoint);
+    }
+    lastMouseMoveTime = performance.now();
+});
+
+window.addEventListener('mouseleave', () => {
+    targetMouseStrength = 0.0;
+});
+
+container.addEventListener('pointerdown', (e) => {
+    if (e.target.closest('#mic-panel') || e.target.closest('#debug-overlay')) return;
+    isDragging = true;
+    prevPointerX = e.clientX;
+    prevPointerY = e.clientY;
+    try { container.setPointerCapture(e.pointerId); } catch (_) {}
+});
+
+container.addEventListener('pointermove', (e) => {
+    if (!isDragging) return;
+    const dx = e.clientX - prevPointerX;
+    const dy = e.clientY - prevPointerY;
+    prevPointerX = e.clientX;
+    prevPointerY = e.clientY;
+
+    targetOrbitTheta -= dx * 0.005;
+    targetOrbitPhi = Math.max(0.12, Math.min(Math.PI - 0.12, targetOrbitPhi - dy * 0.005));
+});
+
+function endDrag(e) {
+    if (isDragging) {
+        isDragging = false;
+        try { container.releasePointerCapture(e.pointerId); } catch (_) {}
+    }
+}
+container.addEventListener('pointerup', endDrag);
+container.addEventListener('pointercancel', endDrag);
+
+container.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    targetOrbitRadius = Math.max(6.0, Math.min(28.0, targetOrbitRadius + Math.sign(e.deltaY) * 1.4));
+}, { passive: false });
+
+container.addEventListener('dblclick', () => {
+    targetOrbitRadius = Math.hypot(CONFIG.camBaseX, CONFIG.camBaseY, CONFIG.camBaseZ);
+    targetOrbitPhi = Math.acos(CONFIG.camBaseY / targetOrbitRadius);
+    targetOrbitTheta = Math.atan2(CONFIG.camBaseX, CONFIG.camBaseZ);
+});
+
+// ----------------------------------------------------------------------------
+// STATE MANAGEMENT & HUD
+// ----------------------------------------------------------------------------
+function updateHUD(name) {
+    const label = document.getElementById('current-state-label') || document.getElementById('stateLabel');
+    if (label) label.textContent = `STATE: ${name}`;
+}
+
+const keyMap = {
+    '1':'IDLE', '2':'LISTENING', '3':'THINKING', '4':'PLANNING', '5':'APPROVAL',
+    '6':'EXECUTING', '7':'VERIFYING', '8':'SPEAKING', '9':'SUCCESS', '0':'FAILED',
+    's':'SLEEP', 'S':'SLEEP'
+};
+
+window.addEventListener('keydown', (e) => {
+    const s = keyMap[e.key];
+    if (s) EVCore.setState({ state: s });
+});
+
+const EVCore = {
+    setState: function(config) {
+        let name = 'IDLE';
+        if (typeof config === 'string') {
+            name = config;
+        } else if (config && config.state) {
+            name = typeof config.state === 'string' ? config.state : (config.state.name || 'IDLE');
+        }
+        name = name.toUpperCase();
+        if (STATES[name]) {
+            currentState = name;
+            targetEnergy = STATES[name].energy;
+            targetSpeedMul = STATES[name].speedMul;
+            targetColorShift.copy(STATES[name].shift);
+            nebulaCore.material.color.set(STATES[name].tint);
+            coreLight.color.set(STATES[name].tint);
+            updateHUD(name);
+        }
+    },
+    setSpeechLevel: function(level) {
+        targetSpeechLevel = Math.max(0.0, Math.min(1.0, level));
+    },
+    speak: function(text) {
+        if (!('speechSynthesis' in window)) return;
+        window.speechSynthesis.cancel();
+        const utter = new SpeechSynthesisUtterance(text);
+        utter.rate = 1.0;
+        utter.pitch = 1.0;
+        EVCore.setState('SPEAKING');
+
+        utter.onboundary = () => {
+            targetSpeechLevel = 0.85 + Math.random() * 0.15;
+        };
+        utter.onend = () => {
+            targetSpeechLevel = 0.0;
+            EVCore.setState('IDLE');
+        };
+        utter.onerror = () => {
+            targetSpeechLevel = 0.0;
+            EVCore.setState('IDLE');
+        };
+        window.speechSynthesis.speak(utter);
+    }
+};
+
+let currentSpeechLevel = 0.0;
+let targetSpeechLevel = 0.0;
+
+// ----------------------------------------------------------------------------
+// MICROPHONE INFRASTRUCTURE (Web Audio API)
+// ----------------------------------------------------------------------------
+let audioContext = null;
+let analyser = null;
+let audioDataArray = null;
+let micStream = null;
+let isMicActive = false;
+let currentMicLevel = 0.0;
+let targetMicLevel = 0.0;
+
+const micToggleBtn = document.getElementById('mic-toggle-btn');
+const micBtnLabel = document.getElementById('mic-btn-label');
+const micVuBar = document.getElementById('mic-vu-bar');
+const micStatusNote = document.getElementById('mic-status-note');
+
+function showMicStatus(text, statusClass) {
+    if (!micStatusNote) return;
+    micStatusNote.innerText = text;
+    micStatusNote.className = 'mic-note ' + (statusClass || '');
+}
+
+async function initMicrophone() {
+    if (isMicActive) {
+        disableMicrophone();
+        return;
+    }
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        showMicStatus("Microphone API not supported in this browser", "denied");
+        return;
+    }
+    try {
+        micStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        audioContext = new AudioContextClass();
+        if (audioContext.state === 'suspended') {
+            await audioContext.resume();
+        }
+        const source = audioContext.createMediaStreamSource(micStream);
+        analyser = audioContext.createAnalyser();
+        analyser.fftSize = 256;
+        analyser.smoothingTimeConstant = 0.88; // Organic acoustic smoothing
+        source.connect(analyser);
+        audioDataArray = new Uint8Array(analyser.frequencyBinCount);
+        isMicActive = true;
+        if (micToggleBtn) micToggleBtn.classList.add('active');
+        if (micBtnLabel) micBtnLabel.innerText = "MIC ACTIVE";
+        showMicStatus("Live microphone input active", "active");
+    } catch (err) {
+        isMicActive = false;
+        if (micToggleBtn) micToggleBtn.classList.add('denied');
+        showMicStatus("Mic access denied — voice reactivity disabled", "denied");
+    }
+}
+
+function disableMicrophone() {
+    if (micStream) {
+        micStream.getTracks().forEach(t => t.stop());
+        micStream = null;
+    }
+    if (audioContext && audioContext.state !== 'closed') {
+        audioContext.close();
+        audioContext = null;
+    }
+    isMicActive = false;
+    analyser = null;
+    targetMicLevel = 0.0;
+    currentMicLevel = 0.0;
+    if (micToggleBtn) {
+        micToggleBtn.classList.remove('active');
+        micToggleBtn.classList.remove('denied');
+    }
+    if (micBtnLabel) micBtnLabel.innerText = "ENABLE MIC";
+    if (micVuBar) micVuBar.style.width = '0%';
+    showMicStatus("Voice reactivity: Standby", "");
+}
+
+if (micToggleBtn) {
+    micToggleBtn.addEventListener('click', () => {
+        if (!isMicActive) initMicrophone();
+        else disableMicrophone();
+    });
+}
+
+function updateMicrophone() {
+    if (!isMicActive || !analyser || !audioDataArray) {
+        targetMicLevel = 0.0;
+    } else {
+        analyser.getByteFrequencyData(audioDataArray);
+        // Focus on human vocal formants (approx 85 Hz to 4500 Hz: bins 1 to 28)
+        const minBin = 1;
+        const maxBin = Math.min(audioDataArray.length, 28);
+        let vocalSum = 0;
+        for (let i = minBin; i < maxBin; i++) {
+            vocalSum += audioDataArray[i];
+        }
+        const vocalAvg = vocalSum / (maxBin - minBin);
+
+        // Highly sensitive soft noise gate:
+        // Ambient noise is ~2-3. Normal speech is ~14-28.
+        const rawSignal = Math.max(0.0, (vocalAvg - 3.5) / 30.0);
+        // Non-linear perceptual power curve (x^0.72):
+        // Brings out subtle whisper/conversational nuances while preserving loud vocal headroom
+        targetMicLevel = Math.min(1.0, Math.pow(rawSignal, 0.72));
+    }
+
+    // Dual-rate organic envelope follower:
+    // Responsive attack (0.12) to catch syllables + silky smooth trailing decay (0.035)
+    const rate = (targetMicLevel > currentMicLevel) ? 0.12 : 0.035;
+    currentMicLevel += (targetMicLevel - currentMicLevel) * rate;
+
+    if (micVuBar) {
+        micVuBar.style.width = `${Math.round(currentMicLevel * 100)}%`;
+    }
+}
+
+// ----------------------------------------------------------------------------
+// RESIZE
+// ----------------------------------------------------------------------------
+window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// ----------------------------------------------------------------------------
+// ANIMATION LOOP — Astra Cosmic Motion & Fluid Respiration
+// ----------------------------------------------------------------------------
+const clock = new THREE.Clock();
+let accumRotation = 0.0;
+let smoothRotationSpeed = STATES.IDLE.speedMul;
+let smoothVoiceGlow = 0.0;
+
+function animate() {
+    requestAnimationFrame(animate);
+    const dt = Math.min(clock.getDelta(), 0.1); // Prevent huge time steps on focus change
+    const t = clock.getElapsedTime();
+
+    updateMicrophone();
+    if (window._simulatedMicLevel !== undefined) {
+        currentMicLevel = window._simulatedMicLevel;
+    }
+
+    // Smooth state interpolation
+    currentEnergy += (targetEnergy - currentEnergy) * 0.08;
+    currentSpeedMul += (targetSpeedMul - currentSpeedMul) * 0.08;
+    currentColorShift.lerp(targetColorShift, 0.08);
+
+    // Speech envelope tracking for EV vocalization
+    currentSpeechLevel += (targetSpeechLevel - currentSpeechLevel) * 0.16;
+
+    // ------------------------------------------------------------------------
+    // VOICE REACTIVITY (Dual-mode: User Listening + EV Speaking):
+    // 1. Reacts when user speaks into microphone
+    // 2. Reacts when EV speaks (TTS audio stream or syllable cadence)
+    // ------------------------------------------------------------------------
+    let userVoice = currentMicLevel;
+    let evVoice = 0.0;
+
+    if (currentState === 'SPEAKING') {
+        if (targetSpeechLevel > 0.01) {
+            evVoice = currentSpeechLevel;
+        } else {
+            // Realistic multi-harmonic speech prosody & syllable cadence (3.5 - 5 Hz)
+            const syllablePulse = Math.sin(t * 9.2) * 0.28 + Math.sin(t * 15.0) * 0.12;
+            const phraseProsody = Math.sin(t * 2.4) * 0.18;
+            // Base speaking radiance floor (0.38) + active vocal articulation (up to 0.95)
+            evVoice = Math.min(1.0, Math.max(0.38, 0.58 + syllablePulse + phraseProsody));
+        }
+    } else if (targetSpeechLevel > 0.01) {
+        evVoice = currentSpeechLevel;
+    }
+
+    const rawVoice = Math.max(
+        userVoice, 
+        evVoice, 
+        (currentState === 'LISTENING' ? 0.85 : 0.0)
+    );
+
+    // Silky smooth visual envelope interpolator: perfectly eliminates any micro-jitter
+    smoothVoiceGlow += (rawVoice - smoothVoiceGlow) * 0.12;
+    const voiceGlow = smoothVoiceGlow;
+
+    // Poly-rhythmic breathing with silky mic/speech modulation
+    const subBass = 1.0 + Math.sin(t * 1.2) * 0.025 * currentEnergy;
+    const micPulse = 1.0 + voiceGlow * 0.12; // Gentle 12% max respiration swell
+    const totalPulse = subBass * micPulse;
+
+    // Rotation decelerates promptly to calm/zero as voice/speech is detected
+    const voiceListeningDamping = (voiceGlow > 0.015) ? Math.max(0.0, 1.0 - voiceGlow * 4.0) : 1.0;
+    const targetEffectiveSpeed = (currentState === 'LISTENING') ? 0.0 : (currentSpeedMul * voiceListeningDamping);
+
+    // Smoothly decelerate to zero (no backward spin, pure graceful deceleration)
+    smoothRotationSpeed += (targetEffectiveSpeed - smoothRotationSpeed) * 0.15;
+    if (smoothRotationSpeed < 0.0002) smoothRotationSpeed = 0.0;
+
+    // Strictly monotonic forward accumulation:
+    // When smoothRotationSpeed == 0.0, accumRotation freezes completely in place!
+    accumRotation += dt * smoothRotationSpeed * (0.85 + currentEnergy * 0.3);
+
+    // Dynamic spring-back: if mouse stops moving for > 280ms, gracefully return particles to rest track
+    if (performance.now() - lastMouseMoveTime > 280) {
+        targetMouseStrength = 0.0;
+    }
+    currentMouseStrength += (targetMouseStrength - currentMouseStrength) * 0.08;
+
+    [heroMaterial, standardMaterial].forEach(mat => {
+        mat.uniforms.time.value = t;
+        mat.uniforms.energy.value = currentEnergy;
+        mat.uniforms.pulse.value = totalPulse;
+        mat.uniforms.speedMul.value = smoothRotationSpeed;
+        mat.uniforms.uAccumRotation.value = accumRotation;
+        mat.uniforms.uVoiceGlow.value = voiceGlow;
+        mat.uniforms.uMouseStrength.value = currentMouseStrength;
+        mat.uniforms.colorShift.value.copy(currentColorShift);
+    });
+
+    // Core glow blooms dynamically with voice:
+    // 1. Translucent Nebula core: scales and deepens opacity
+    const coreExpansion = 4.4 + voiceGlow * 4.0;
+    nebulaCore.scale.set(
+        coreExpansion * totalPulse * currentEnergy,
+        coreExpansion * totalPulse * currentEnergy,
+        1
+    );
+    nebulaMat.opacity = 0.50 + voiceGlow * 0.48;
+
+    // 2. Hot incandescent inner spark flares up radiantly
+    const sparkExpansion = 1.8 + voiceGlow * 2.6;
+    innerGlow.scale.set(
+        sparkExpansion * totalPulse,
+        sparkExpansion * totalPulse,
+        1
+    );
+    innerGlowMat.opacity = 0.70 + voiceGlow * 0.30;
+
+    // 3. Wide voice aura blooms softly through the planet globe
+    const auraExpansion = 5.5 + voiceGlow * 5.5;
+    voiceAura.scale.set(
+        auraExpansion * totalPulse,
+        auraExpansion * totalPulse,
+        1
+    );
+    voiceAuraMat.opacity = voiceGlow * 0.80;
+
+    // 4. Point light illuminates the surrounding 3D stars brilliantly
+    coreLight.intensity = (1.8 + currentEnergy * 0.6) + voiceGlow * 8.5;
+
+    // Steadicam camera physics & subtle autonomous zero-g micro-drift
+    orbitTheta += (targetOrbitTheta - orbitTheta) * 0.05;
+    orbitPhi += (targetOrbitPhi - orbitPhi) * 0.05;
+    orbitRadius += (targetOrbitRadius - orbitRadius) * 0.05;
+
+    const driftX = Math.sin(t * 0.35) * 0.18;
+    const driftY = Math.cos(t * 0.28) * 0.10;
+
+    const orbitX = orbitRadius * Math.sin(orbitPhi) * Math.sin(orbitTheta);
+    const orbitY = orbitRadius * Math.cos(orbitPhi);
+    const orbitZ = orbitRadius * Math.sin(orbitPhi) * Math.cos(orbitTheta);
+
+    // Subtle parallax response across the whole viewport
+    const targetCamX = orbitX + mouseX * 1.5 + driftX;
+    const targetCamY = orbitY - mouseY * 0.9 + driftY;
+
+    camera.position.x += (targetCamX - camera.position.x) * 0.04;
+    camera.position.y += (targetCamY - camera.position.y) * 0.04;
+    camera.position.z += (orbitZ - camera.position.z) * 0.04;
+    camera.lookAt(0, 0, 0);
+
+    renderer.render(scene, camera);
+}
+animate();
+
+// ----------------------------------------------------------------------------
+// RUNTIME EXPORTS
+// ----------------------------------------------------------------------------
+window.EVCore = EVCore;
+window.STATES = STATES;
+Object.defineProperty(window, 'currentState', { get: () => currentState });
+window.renderer = renderer;
+window.camera = camera;
+window.fieldGeometry = combinedGeometry;
+window.galaxyGeometry = combinedGeometry;
+window.standardMaterial = standardMaterial;
+window.heroMaterial = heroMaterial;
+window.coreLight = coreLight;
+window.nebulaCore = nebulaCore;
+window.initMicrophone = initMicrophone;
+window.disableMicrophone = disableMicrophone;
+window.setMicLevel = (val) => { window._simulatedMicLevel = val; };

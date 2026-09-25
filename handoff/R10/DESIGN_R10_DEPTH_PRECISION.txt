@@ -1,0 +1,42 @@
+E.V. TASK 011C.2R10 — DEPTH / COLOR / PRECISION REVISION
+
+This is still R10. It is not a new flagship stage and not R11.
+
+GOALS
+- preserve the Engineered Singularity direction
+- remove the long straight diagonal computation bridge completely
+- make Z-depth obvious at normal GUI scale
+- make graphite shells readable with stepped faces, inset lands and edge highlights
+- deepen the central cognition aperture into a tunnel rather than a flat disk
+- separate energy into front / middle / rear depth planes
+- use cool-white / cyan / amber identity lighting plus the current E.V. state color
+- strengthen state-driven physical motion without decorative HUD noise
+
+STRUCTURAL CHANGES
+- 4 outer authored containment shells across strongly different Z planes
+- 4 secondary mid shells on independent depth planes
+- deep cognition tunnel with rear chamber + thick collar + front lip
+- segmented inner collar with front/rear separation
+- 6 depth vanes connecting shell layers
+- 6 segmented emissive halo arcs distributed across front/mid/rear depth
+- 2 curved energy crescents replacing the rejected straight bridge
+- sparse cognition nodes across multiple Z planes
+- 3 state-colored orbit points + verifying scan beacon in QML
+
+COLOR
+- primary shell: dark graphite
+- raised inset faces: medium graphite
+- edge lands: steel/blue graphite
+- cool energy: cyan/ice blue
+- primary bright energy: restrained white
+- warm counter-energy: amber/orange
+- dynamic E.V. state color remains concentrated in the cognition chamber
+
+DEPTH
+The authored GLB stack spans well over 100 world units in Z.
+The QML presentation uses a stronger 3/4 artifact rotation (-16.5 degrees Y,
+-6.5 degrees X) so the shell thickness and front/rear parallax are visible.
+
+NO STRAIGHT CROSS-BAR
+The old ev_core_r10s_bridge.glb is not referenced anywhere by this QML.
+No long cube/trace is used across the singularity.

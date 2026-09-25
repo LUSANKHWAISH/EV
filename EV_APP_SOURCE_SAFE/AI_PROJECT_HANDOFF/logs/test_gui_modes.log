@@ -1,0 +1,48 @@
+﻿============================= test session starts =============================
+platform win32 -- Python 3.12.10, pytest-9.1.1, pluggy-1.6.0 -- D:\EV\.venv\Scripts\python.exe
+rootdir: D:\EV
+configfile: pytest.ini
+plugins: anyio-4.14.2
+collecting ... collected 39 items
+
+tests/test_gui_performance.py::test_telemetry_first_snapshot_emits_changed_signals PASSED [  2%]
+tests/test_gui_performance.py::test_telemetry_unchanged_snapshot_suppresses_duplicate_signals PASSED [  5%]
+tests/test_gui_performance.py::test_telemetry_changed_value_emits_specific_changed_signal PASSED [  7%]
+tests/test_gui_performance.py::test_sleep_mode_stops_master_phase_animation PASSED [ 10%]
+tests/test_gui_performance.py::test_preset_loader_single_child_and_clean_destruction PASSED [ 12%]
+tests/test_gui_performance.py::test_flagship_visual_uses_view3d_and_profile_animation_gate PASSED [ 15%]
+tests/test_gui_performance.py::test_approval_overlay_declarative_binding_invariance PASSED [ 17%]
+tests/test_gui_performance.py::test_protected_flagship_stage_hash_intact PASSED [ 20%]
+tests/test_gui_modes.py::test_experience_mode_propagation_to_bridge[STANDARD] PASSED [ 23%]
+tests/test_gui_modes.py::test_experience_mode_propagation_to_bridge[AI] PASSED [ 25%]
+tests/test_gui_modes.py::test_experience_mode_propagation_to_bridge[WORK] PASSED [ 28%]
+tests/test_gui_modes.py::test_experience_mode_propagation_to_bridge[MUSIC] PASSED [ 30%]
+tests/test_gui_modes.py::test_experience_mode_propagation_to_bridge[SYSTEM] PASSED [ 33%]
+tests/test_gui_modes.py::test_experience_mode_propagation_to_bridge[APPROVAL] PASSED [ 35%]
+tests/test_gui_modes.py::test_experience_mode_propagation_to_bridge[SLEEP] PASSED [ 38%]
+tests/test_gui_modes.py::test_experience_mode_indicator_in_top_bar PASSED [ 41%]
+tests/test_gui_modes.py::test_experience_mode_has_no_execution_side_effects PASSED [ 43%]
+tests/test_gui_modes.py::test_visual_preset_loader_resolution[EV_CORE] PASSED [ 46%]
+tests/test_gui_modes.py::test_visual_preset_loader_resolution[MINIMAL] PASSED [ 48%]
+tests/test_gui_modes.py::test_visual_preset_loader_resolution[AMBIENT] PASSED [ 51%]
+tests/test_gui_modes.py::test_visual_preset_loader_resolution[FOCUSED] PASSED [ 53%]
+tests/test_gui_modes.py::test_visual_preset_loader_resolution[ALERT] PASSED [ 56%]
+tests/test_gui_modes.py::test_unknown_preset_safe_fallback PASSED        [ 58%]
+tests/test_gui_modes.py::test_loader_destroys_previous_child_no_duplicate PASSED [ 61%]
+tests/test_gui_modes.py::test_sequential_preset_switching PASSED         [ 64%]
+tests/test_gui_modes.py::test_rapid_preset_switching_stress PASSED       [ 66%]
+tests/test_gui_modes.py::test_state_propagation_in_each_preset[EV_CORE] PASSED [ 69%]
+tests/test_gui_modes.py::test_state_propagation_in_each_preset[MINIMAL] PASSED [ 71%]
+tests/test_gui_modes.py::test_state_propagation_in_each_preset[AMBIENT] PASSED [ 74%]
+tests/test_gui_modes.py::test_state_propagation_in_each_preset[FOCUSED] PASSED [ 76%]
+tests/test_gui_modes.py::test_state_propagation_in_each_preset[ALERT] PASSED [ 79%]
+tests/test_gui_modes.py::test_modes_and_presets_do_not_alter_execution_authority PASSED [ 82%]
+tests/test_gui_modes.py::test_alert_preset_does_not_imply_or_grant_approval PASSED [ 84%]
+tests/test_gui_modes.py::test_approval_overlay_dominance PASSED          [ 87%]
+tests/test_gui_modes.py::test_protected_files_hashes_untouched PASSED    [ 89%]
+tests/test_gui_modes.py::test_qml_diagnostics_clean PASSED               [ 92%]
+tests/test_gui_modes.py::test_topbar_and_core_responsive_at_target_resolutions[800-600] PASSED [ 94%]
+tests/test_gui_modes.py::test_topbar_and_core_responsive_at_target_resolutions[1280-720] PASSED [ 97%]
+tests/test_gui_modes.py::test_topbar_and_core_responsive_at_target_resolutions[1920-1080] PASSED [100%]
+
+============================= 39 passed in 19.99s =============================

@@ -1,0 +1,129 @@
+E.V. TASK 011C — APPLY R11Q-D2.3 ORBITAL PRESENCE POLISH
+
+PROJECT:
+D:\EV
+
+PURPOSE:
+Apply a surgical visibility polish to the already-approved R11Q-D2.2 orbital layer.
+
+THIS REVISION CHANGES ONLY:
+- 6 satellite nodes: about 40% larger
+- satellite emissive brightness: about 20% stronger
+- 3 rear orbital paths: about 60% more visible + slightly thicker
+- 3 foreground tracer arcs: about 30% brighter + slightly longer
+- existing 24 micro-particles: about 18% dimmer
+
+NOT CHANGED:
+- core topology
+- camera
+- lighting
+- orbit radii
+- satellite speed
+- satellite count
+- orbit path count
+- existing 24-particle count
+- state contract
+- Theme integration
+- surrounding UI
+
+SOURCE:
+D:\EV\handoff\R11QD23\EVIntelligenceCore_R11QD23_ORBITAL_PRESENCE.qml
+
+TARGET:
+D:\EV\gui\qml\components\EVIntelligenceCore.qml
+
+EXPECTED CURRENT LIVE R11Q-D2.2:
+Size: 39073 bytes
+SHA-256:
+f01f304468df9df18918fa3910004d0b395c54ff563cc813addb6bc1e13e9b04
+
+EXPECTED R11Q-D2.3 SOURCE:
+Size: 39081 bytes
+SHA-256:
+0a168c0a342b9580b2ce9599d715fe0b59dd9b4bcf3de1efb45aab280b7205bb
+
+
+STEP 1 — VERIFY CURRENT LIVE R11Q-D2.2
+
+Calculate byte size and SHA-256 of:
+
+D:\EV\gui\qml\components\EVIntelligenceCore.qml
+
+It MUST be exactly:
+
+39073 bytes
+
+SHA-256:
+f01f304468df9df18918fa3910004d0b395c54ff563cc813addb6bc1e13e9b04
+
+If either differs:
+STOP.
+Do not modify anything.
+
+
+STEP 2 — VERIFY SUPPLIED R11Q-D2.3 SOURCE
+
+Calculate byte size and SHA-256 of:
+
+D:\EV\handoff\R11QD23\EVIntelligenceCore_R11QD23_ORBITAL_PRESENCE.qml
+
+It MUST match the expected R11Q-D2.3 size/hash above.
+
+If either differs:
+STOP.
+Do not modify anything.
+
+
+STEP 3 — BACKUP CURRENT R11Q-D2.2
+
+Create exactly:
+
+D:\EV\gui\qml\components\EVIntelligenceCore.qml.pre-R11QD23
+
+If this exact backup already exists:
+STOP.
+Do not overwrite it.
+
+
+STEP 4 — EXACT COPY
+
+Copy SOURCE to TARGET byte-for-byte.
+
+DO NOT:
+- generate code
+- edit supplied QML
+- redesign
+- refactor
+- optimize
+- repair independently
+- change core geometry
+- change camera
+- change lighting
+- change orbit radii
+- change satellite speeds
+- add/remove satellite nodes
+- add/remove orbital paths
+- change EVFlagshipStage.qml
+- change EVWindow.qml
+- change Theme.qml
+- change Python files
+- change tests
+- change qmldir
+- add GLB/Blender assets
+- delete older backups
+
+
+STEP 5 — VERIFY TARGET
+
+Return ONLY:
+
+1. live R11Q-D2.2 verified: YES/NO
+2. R11Q-D2.3 source verified: YES/NO
+3. backup created
+4. source size
+5. target size
+6. source SHA-256
+7. target SHA-256
+8. hashes match: YES/NO
+9. no unrelated project files changed: YES/NO
+10. corruption detected or none

@@ -1,0 +1,4 @@
+# Test execution dependencies for E.V.
+-r requirements.txt
+pytest>=8.0
+Pillow>=10.0

@@ -1,0 +1,14 @@
+{
+  "BUILD_R11_VECTOR_REACTOR.py": {
+    "bytes": 21153,
+    "sha256": "9ba4cb1d10999b428275b473653e8b7487a027560b95191bc37ef71273e4ef37"
+  },
+  "README_R11.txt": {
+    "bytes": 1175,
+    "sha256": "310b9b9de50d15c8b3c9b43f7b90f9b064b49869f1fb2ad85613c0648bf26491"
+  },
+  "RUN_R11_FORGE.ps1": {
+    "bytes": 2144,
+    "sha256": "6168ecd49bbade9490db0189947605e33830879c63ae01e3c957552b00837972"
+  }
+}

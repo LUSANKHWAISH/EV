@@ -1,0 +1,248 @@
+{
+  "quick3d_stats": {
+    "rendererFps": 1,
+    "coreDrawCalls": 28.0,
+    "coreParticleCount": 3072,
+    "auraParticleCount": 1400,
+    "auraDrawCalls": 1
+  },
+  "resolutions": {
+    "1920x1080": {
+      "assistant_core": [
+        540.0,
+        540.0,
+        728.0,
+        178.2
+      ],
+      "music_core": [
+        540.0,
+        540.0,
+        728.0,
+        178.2
+      ],
+      "aura_dims": [
+        1920.0,
+        1080.0
+      ]
+    },
+    "1600x900": {
+      "assistant_core": [
+        540.0,
+        540.0,
+        727.9117303703704,
+        178.15878911666667
+      ],
+      "music_core": [
+        540.0,
+        540.0,
+        727.9117303703704,
+        178.15878911666667
+      ],
+      "aura_dims": [
+        1600.0,
+        900.0
+      ]
+    },
+    "1366x768": {
+      "assistant_core": [
+        539.9320367407407,
+        539.9320367407407,
+        727.7436962299856,
+        178.07325323515232
+      ],
+      "music_core": [
+        539.9320367407407,
+        539.9320367407407,
+        727.7436962299856,
+        178.07325323515232
+      ],
+      "aura_dims": [
+        1366.0,
+        768.0
+      ]
+    },
+    "1100x760": {
+      "assistant_core": [
+        539.8658720128418,
+        539.8658720128418,
+        727.5132519687327,
+        178.07325323515232
+      ],
+      "music_core": [
+        539.8658720128418,
+        539.8658720128418,
+        727.5132519687327,
+        178.07325323515232
+      ],
+      "aura_dims": [
+        1100.0,
+        760.0
+      ]
+    }
+  },
+  "aura_analysis": {
+    "total_particle_pixels": 5171,
+    "bright_core_pixels": 2526,
+    "green_pixels": 0,
+    "white_pixels": 0,
+    "connected_component_cores": 804,
+    "local_maximum_centers": 1029,
+    "effective_core_count": 1029,
+    "max_core_size_px": 8,
+    "p95_core_size_px": 4.0
+  },
+  "qml_errors": [],
+  "checks": [
+    {
+      "check": "aura_item_found",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "nucleus_item_found",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "asst_aura_fills_stage_1920x1080",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "asst_aura_origin_1920x1080",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "music_core_shrunk_1920x1080",
+      "passed": false,
+      "detail": "w=540.0, h=540.0"
+    },
+    {
+      "check": "music_aura_unmoved_1920x1080",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "asst_restored_1920x1080",
+      "passed": true,
+      "detail": "w=540.0, expected=540.0"
+    },
+    {
+      "check": "asst_aura_fills_stage_1600x900",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "asst_aura_origin_1600x900",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "music_core_shrunk_1600x900",
+      "passed": false,
+      "detail": "w=540.0, h=540.0"
+    },
+    {
+      "check": "music_aura_unmoved_1600x900",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "asst_restored_1600x900",
+      "passed": true,
+      "detail": "w=540.0, expected=540.0"
+    },
+    {
+      "check": "asst_aura_fills_stage_1366x768",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "asst_aura_origin_1366x768",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "music_core_shrunk_1366x768",
+      "passed": false,
+      "detail": "w=539.9, h=539.9"
+    },
+    {
+      "check": "music_aura_unmoved_1366x768",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "asst_restored_1366x768",
+      "passed": true,
+      "detail": "w=539.9, expected=539.9"
+    },
+    {
+      "check": "asst_aura_fills_stage_1100x760",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "asst_aura_origin_1100x760",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "music_core_shrunk_1100x760",
+      "passed": false,
+      "detail": "w=539.9, h=539.9"
+    },
+    {
+      "check": "music_aura_unmoved_1100x760",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "asst_restored_1100x760",
+      "passed": true,
+      "detail": "w=539.9, expected=539.9"
+    },
+    {
+      "check": "no_green_particles",
+      "passed": true,
+      "detail": "green_pixels=0"
+    },
+    {
+      "check": "no_white_particles",
+      "passed": true,
+      "detail": "white_pixels=0"
+    },
+    {
+      "check": "sampled_cores_at_least_900",
+      "passed": true,
+      "detail": "components=804, local_max=1029"
+    },
+    {
+      "check": "p95_core_size_between_3_and_7px",
+      "passed": true,
+      "detail": "p95=4.0px"
+    },
+    {
+      "check": "max_core_size_below_8px",
+      "passed": true,
+      "detail": "max=8px"
+    },
+    {
+      "check": "drag_zoom_isolated_from_aura",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "aura_draw_calls_is_1",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "no_qml_or_shader_errors",
+      "passed": true,
+      "detail": []
+    }
+  ],
+  "all_passed": false
+}

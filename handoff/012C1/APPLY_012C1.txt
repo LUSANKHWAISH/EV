@@ -1,0 +1,1 @@
+Before applying, verify live hashes and the accepted history hash. Create non-overwriting backups, then copy agent_012C1.py to core/agent.py and test_agent_012C1.py to tests/test_agent.py byte-for-byte. Verify hashes and that only the two permitted files changed. Do not apply automatically.

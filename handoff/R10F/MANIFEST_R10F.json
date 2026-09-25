@@ -1,0 +1,188 @@
+{
+  "EVIntelligenceCore_R10F_FLAGSHIP.qml": {
+    "bytes": 15941,
+    "sha256": "579685c35964408c80eb16f37168f2cf415038d5df1e62ea299c92637580ae8f"
+  },
+  "assets/ev_core_flagship_collar.glb": {
+    "bytes": 34680,
+    "sha256": "b6e964ed92fd8b76ece482e6d4026653433bb786219ac89d9a53e245dd38d3f9",
+    "bounds": [
+      [
+        -92.3895263671875,
+        -44.85236740112305,
+        3.0
+      ],
+      [
+        97.04112243652344,
+        69.96379089355469,
+        31.97989845275879
+      ]
+    ],
+    "geometry_count": 2,
+    "watertight_by_geometry": [
+      true,
+      true
+    ]
+  },
+  "assets/ev_core_flagship_halo.glb": {
+    "bytes": 88276,
+    "sha256": "aa31eb0000d32432e351da0e8ed31cf16e4f3797c9ebe8ce9f946f0b584d82a9",
+    "bounds": [
+      [
+        -103.51630401611328,
+        -96.1162109375,
+        13.653321266174316
+      ],
+      [
+        102.68018341064453,
+        77.4894027709961,
+        41.629634857177734
+      ]
+    ],
+    "geometry_count": 3,
+    "watertight_by_geometry": [
+      true,
+      true,
+      true
+    ]
+  },
+  "assets/ev_core_flagship_left.glb": {
+    "bytes": 44436,
+    "sha256": "348bf485e9d4c2e56efb3536fe82cf6106c0e23b0d1e2ffd0084b2a88857758c",
+    "bounds": [
+      [
+        -209.7107391357422,
+        -136.27691650390625,
+        0.0
+      ],
+      [
+        -60.00821304321289,
+        159.66366577148438,
+        62.3253288269043
+      ]
+    ],
+    "geometry_count": 5,
+    "watertight_by_geometry": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "assets/ev_core_flagship_nodes.glb": {
+    "bytes": 16340,
+    "sha256": "d12c869706bb96880fe53ad7a63503e75691ebee0630bb747e27fd55fa4a4b5d",
+    "bounds": [
+      [
+        -51.20000076293945,
+        -52.5,
+        -23.799999237060547
+      ],
+      [
+        46.599998474121094,
+        58.79999923706055,
+        21.200000762939453
+      ]
+    ],
+    "geometry_count": 5,
+    "watertight_by_geometry": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "assets/ev_core_flagship_rear.glb": {
+    "bytes": 30584,
+    "sha256": "e7da761631271eca725594c69ad2db57030bd0f6ed6011c493c1fcbb012039ee",
+    "bounds": [
+      [
+        -69.9022216796875,
+        -202.80369567871094,
+        -98.0
+      ],
+      [
+        233.6680908203125,
+        150.93646240234375,
+        -31.5
+      ]
+    ],
+    "geometry_count": 7,
+    "watertight_by_geometry": [
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "assets/ev_core_flagship_right.glb": {
+    "bytes": 34824,
+    "sha256": "92609c6804db7931f4bb2e7c70093c00c01d46a1f5750a4ae0a0a0b41546a687",
+    "bounds": [
+      [
+        64.46559143066406,
+        -45.808467864990234,
+        23.477039337158203
+      ],
+      [
+        238.9342803955078,
+        165.5585174560547,
+        76.92964935302734
+      ]
+    ],
+    "geometry_count": 4,
+    "watertight_by_geometry": [
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "assets/ev_core_flagship_stream.glb": {
+    "bytes": 91824,
+    "sha256": "bb20cc25d56cc1954f3cbd99c00c45bdee00b48e54dddde017ad24c5389c5dc5",
+    "bounds": [
+      [
+        -222.54637145996094,
+        -131.17222595214844,
+        -52.33375930786133
+      ],
+      [
+        227.26895141601562,
+        -29.805490493774414,
+        81.33747863769531
+      ]
+    ],
+    "geometry_count": 2,
+    "watertight_by_geometry": [
+      true,
+      true
+    ]
+  },
+  "assets/ev_core_flagship_void.glb": {
+    "bytes": 99528,
+    "sha256": "55f16042352585d1312580c6a3cc2e6d5127a7884eb878add68783bf54204711",
+    "bounds": [
+      [
+        -67.0,
+        -61.63999938964844,
+        -97.95999908447266
+      ],
+      [
+        67.0,
+        61.63999938964844,
+        8.0
+      ]
+    ],
+    "geometry_count": 2,
+    "watertight_by_geometry": [
+      false,
+      true
+    ]
+  }
+}

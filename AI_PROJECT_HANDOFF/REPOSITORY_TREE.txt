@@ -1,0 +1,3170 @@
+﻿d:\EV\
+├── .agents/
+│   └── rules/
+│       └── clean_reporting_format.md
+├── AI_PROJECT_HANDOFF/
+│   ├── logs/
+│   │   ├── compileall.log
+│   │   ├── test_core_suite.log
+│   │   ├── test_gui_modes.log
+│   │   ├── test_gui_settings.log
+│   │   ├── test_music_foundation.log
+│   │   ├── test_music_suite.log
+│   │   └── test_music_workspace.log
+│   ├── 00_START_HERE.md
+│   ├── 01_PROJECT_STATUS.md
+│   ├── 02_ARCHITECTURE.md
+│   ├── 03_SETUP_AND_COMMANDS.md
+│   ├── 04_TEST_AND_BUILD_RESULTS.md
+│   ├── 05_NEXT_DEVELOPMENT_PLAN.md
+│   ├── 06_FILE_MANIFEST.md
+│   ├── 07_GIT_STATUS.md
+│   ├── 08_QUESTIONS_FOR_OWNER.md
+│   ├── 09_AGENT_CONTINUATION_PROMPT.md
+│   └── REPOSITORY_TREE.txt
+├── config/
+│   ├── __init__.py
+│   └── settings.py
+├── core/
+│   ├── __init__.py
+│   ├── action_pipeline.py
+│   ├── agent.py
+│   ├── agent.py.pre-012C1
+│   ├── asr.py
+│   ├── asr_faster_whisper.py
+│   ├── backup.py
+│   ├── backup.py.bak
+│   ├── brain_context.py
+│   ├── brain_converter.py
+│   ├── brain_models.py
+│   ├── brain_prompts.py
+│   ├── brain_provider.py
+│   ├── brain_provider_manager.py
+│   ├── brain_router.py
+│   ├── brain_router.py.bak_settings
+│   ├── brain_validator.py
+│   ├── cancellation.py
+│   ├── conversation.py
+│   ├── diagnostics.py
+│   ├── events.py
+│   ├── experience.py
+│   ├── history.py
+│   ├── history.py.pre-012B1
+│   ├── logging_config.py
+│   ├── memory.py
+│   ├── models.py
+│   ├── models.py.pre-012B
+│   ├── orchestrator.py
+│   ├── paths.py
+│   ├── plan.py
+│   ├── plan_executor.py
+│   ├── plan_validator.py
+│   ├── proactive_awareness.py
+│   ├── provider_config.py
+│   ├── recovery.py
+│   ├── resolver.py
+│   ├── risk.py
+│   ├── risk_intelligence.py
+│   ├── system_monitor.py
+│   ├── task_queue.py
+│   ├── transaction.py
+│   ├── tts.py
+│   ├── verifier.py
+│   ├── voice_capture.py
+│   ├── voice_manager.py
+│   ├── voice_vad.py
+│   ├── voice_wakeword.py
+│   ├── voice_wakeword_openwakeword.py
+│   └── wake_verifier.py
+├── data/
+│   ├── ev_history.sqlite3
+│   └── ev_memory.sqlite3
+├── deps/
+├── docs/
+│   ├── plans/
+│   │   ├── 2026-09-16-cinematic-nucleus.md
+│   │   ├── 2026-09-16-core-flow-and-projection.md
+│   │   ├── 2026-09-16-core-reaction-motion.md
+│   │   ├── 2026-09-16-fire-energy-restore.md
+│   │   ├── 2026-09-16-inner-filament-refinement.md
+│   │   ├── 2026-09-16-music-mode-roadmap.md
+│   │   ├── 2026-09-16-shape-shift.md
+│   │   ├── 2026-09-16-startup-audio.md
+│   │   ├── ASTRA_ASSISTANT_FUTURE_PLAN.md
+│   │   └── ASTRA_MUSIC_STUDIO_PLAN.md
+│   └── reports/
+│       ├── 2026-09-16-cinematic-nucleus.md
+│       ├── 2026-09-16-core-flow-and-projection.md
+│       ├── 2026-09-16-core-reaction-motion.md
+│       ├── 2026-09-16-fire-energy-restore.md
+│       ├── 2026-09-16-fire-gold-refresh.md
+│       ├── 2026-09-16-inner-filament-refinement.md
+│       ├── 2026-09-16-main-app-cinematic-acceptance.md
+│       ├── 2026-09-16-music-beat-response.md
+│       ├── 2026-09-16-music-foundation.md
+│       ├── 2026-09-16-music-reaction-all-modes.md
+│       ├── 2026-09-16-settings-cinematic-redesign.md
+│       ├── 2026-09-16-shape-shift.md
+│       └── 2026-09-16-startup-audio.md
+├── gui/
+│   ├── qml/
+│   │   ├── assets/
+│   │   │   ├── astra_hero_star.png
+│   │   │   ├── astra_nebula_glow.png
+│   │   │   ├── astra_stardust_dot.png
+│   │   │   ├── ev_core_flagship_collar.glb
+│   │   │   ├── ev_core_flagship_halo.glb
+│   │   │   ├── ev_core_flagship_left.glb
+│   │   │   ├── ev_core_flagship_nodes.glb
+│   │   │   ├── ev_core_flagship_rear.glb
+│   │   │   ├── ev_core_flagship_right.glb
+│   │   │   ├── ev_core_flagship_stream.glb
+│   │   │   ├── ev_core_flagship_void.glb
+│   │   │   ├── ev_core_r10_a.glb
+│   │   │   ├── ev_core_r10_b.glb
+│   │   │   ├── ev_core_r10_c.glb
+│   │   │   ├── ev_core_r10_d.glb
+│   │   │   ├── ev_core_r10_e.glb
+│   │   │   ├── ev_core_r10_f.glb
+│   │   │   ├── ev_core_r10_shard.glb
+│   │   │   ├── ev_core_r10dp_depth_vanes.glb
+│   │   │   ├── ev_core_r10dp_energy_streams.glb
+│   │   │   ├── ev_core_r10dp_halo_amber_rear.glb
+│   │   │   ├── ev_core_r10dp_halo_cool_front.glb
+│   │   │   ├── ev_core_r10dp_halo_cool_mid.glb
+│   │   │   ├── ev_core_r10dp_halo_warm_front.glb
+│   │   │   ├── ev_core_r10dp_halo_white_front.glb
+│   │   │   ├── ev_core_r10dp_halo_white_rear.glb
+│   │   │   ├── ev_core_r10dp_inner_collar.glb
+│   │   │   ├── ev_core_r10dp_mid_ne.glb
+│   │   │   ├── ev_core_r10dp_mid_nw.glb
+│   │   │   ├── ev_core_r10dp_mid_se.glb
+│   │   │   ├── ev_core_r10dp_mid_sw.glb
+│   │   │   ├── ev_core_r10dp_nodes.glb
+│   │   │   ├── ev_core_r10dp_outer_ne.glb
+│   │   │   ├── ev_core_r10dp_outer_nw.glb
+│   │   │   ├── ev_core_r10dp_outer_se.glb
+│   │   │   ├── ev_core_r10dp_outer_sw.glb
+│   │   │   ├── ev_core_r10dp_void_tunnel.glb
+│   │   │   ├── ev_core_r10s_bridge.glb
+│   │   │   ├── ev_core_r10s_halo_cool_a.glb
+│   │   │   ├── ev_core_r10s_halo_cool_b.glb
+│   │   │   ├── ev_core_r10s_halo_warm.glb
+│   │   │   ├── ev_core_r10s_halo_white.glb
+│   │   │   ├── ev_core_r10s_inner_b.glb
+│   │   │   ├── ev_core_r10s_inner_l.glb
+│   │   │   ├── ev_core_r10s_inner_r.glb
+│   │   │   ├── ev_core_r10s_ne.glb
+│   │   │   ├── ev_core_r10s_nodes.glb
+│   │   │   ├── ev_core_r10s_nw.glb
+│   │   │   ├── ev_core_r10s_se.glb
+│   │   │   ├── ev_core_r10s_sw.glb
+│   │   │   ├── ev_core_r10s_vanes.glb
+│   │   │   ├── ev_core_r10s_void.glb
+│   │   │   ├── ev_core_r9_a.glb
+│   │   │   ├── ev_core_r9_b.glb
+│   │   │   ├── ev_core_r9_c.glb
+│   │   │   ├── ev_core_r9_d.glb
+│   │   │   ├── ev_core_r9_e.glb
+│   │   │   ├── ev_core_r9_shard.glb
+│   │   │   ├── ev_v3_core_vortex.glb
+│   │   │   ├── ev_v3_deep_structure.glb
+│   │   │   ├── ev_v3_fragments.glb
+│   │   │   ├── ev_v3_inner_lattice.glb
+│   │   │   ├── ev_v3_nodes.glb
+│   │   │   └── ev_v3_outer_lattice.glb
+│   │   ├── components/
+│   │   │   ├── presets/
+│   │   │   │   ├── EVCoreAlertVisual.qml
+│   │   │   │   ├── EVCoreAmbientVisual.qml
+│   │   │   │   ├── EVCoreFlagshipVisual.pre-orbital-20260918_225212.qml
+│   │   │   │   ├── EVCoreFlagshipVisual.qml
+│   │   │   │   ├── EVCoreFlagshipVisual.qml.A1-backup-20260919T042453.886011Z.bak
+│   │   │   │   ├── EVCoreFocusedVisual.qml
+│   │   │   │   ├── EVCoreMinimalVisual.qml
+│   │   │   │   ├── EVCoreNexusSphere.qml
+│   │   │   │   └── EVCoreOriginalVisual.qml
+│   │   │   ├── EVApprovalOverlay.qml
+│   │   │   ├── EVButton.qml
+│   │   │   ├── EVButton.qml.bak
+│   │   │   ├── EVCommandInput.qml
+│   │   │   ├── EVCoreLattice.qml
+│   │   │   ├── EVCoreLattice.qml.bak
+│   │   │   ├── EVCoreLattice.qml.bak2
+│   │   │   ├── EVCorePlaceholder.qml
+│   │   │   ├── EVCoreRing.qml
+│   │   │   ├── EVCoreRing.qml.bak
+│   │   │   ├── EVCoreRing.qml.bak2
+│   │   │   ├── EVExperienceModeIndicator.qml
+│   │   │   ├── EVFlagshipStage.qml
+│   │   │   ├── EVFlagshipStage.qml.backup
+│   │   │   ├── EVFlagshipStage.qml.backup_pre_011d1
+│   │   │   ├── EVFlagshipStage.qml.bak
+│   │   │   ├── EVFlagshipStage.qml.bak_before_edit
+│   │   │   ├── EVFlagshipStage.qml.bak_before_task011c2
+│   │   │   ├── EVFlagshipStage.qml.bak012c4
+│   │   │   ├── EVFlagshipStage.qml.bak012c4_bracefix_20260828_005639
+│   │   │   ├── EVFlagshipStage.qml.bak012c4_bracefix_20260828_005652
+│   │   │   ├── EVFlagshipStage.qml.bak012c4_fix_20260828_005519
+│   │   │   ├── EVFlagshipStage.qml.bak012c41
+│   │   │   ├── EVFlagshipStage.qml.bak012c42
+│   │   │   ├── EVFlagshipStage.qml.bak2
+│   │   │   ├── EVFlagshipStage.qml.pre-011C3
+│   │   │   ├── EVFlagshipStage.qml.pre-011C4
+│   │   │   ├── EVFlagshipStage.qml.pre-011-TIMELINE
+│   │   │   ├── EVFlagshipStage.qml.pre-012C2
+│   │   │   ├── EVFlagshipStage.qml.pre-012C4
+│   │   │   ├── EVFlagshipStage.qml.pre-012C41
+│   │   │   ├── EVFlagshipStage.qml.pre-012C4-backup
+│   │   │   ├── EVFlagshipStage.qml.pre-R5
+│   │   │   ├── EVFlagshipStage.qml.pre-R6
+│   │   │   ├── EVFlagshipStage.qml.repaired
+│   │   │   ├── EVFlagshipStage.qml.tmp
+│   │   │   ├── EVHairline.qml
+│   │   │   ├── EVIconButton.qml
+│   │   │   ├── EVIntelligenceCore.qml
+│   │   │   ├── EVIntelligenceCore.qml.bak
+│   │   │   ├── EVIntelligenceCore.qml.bak_before_task011c2
+│   │   │   ├── EVIntelligenceCore.qml.bak_before_task011c2r
+│   │   │   ├── EVIntelligenceCore.qml.bak_before_task011c2r2
+│   │   │   ├── EVIntelligenceCore.qml.bak2
+│   │   │   ├── EVIntelligenceCore.qml.bak3
+│   │   │   ├── EVIntelligenceCore.qml.bak4
+│   │   │   ├── EVIntelligenceCore.qml.bak5
+│   │   │   ├── EVIntelligenceCore.qml.pre-core-debug
+│   │   │   ├── EVIntelligenceCore.qml.pre-R10
+│   │   │   ├── EVIntelligenceCore.qml.pre-R10-depth-precision
+│   │   │   ├── EVIntelligenceCore.qml.pre-R10F
+│   │   │   ├── EVIntelligenceCore.qml.pre-R10-singularity
+│   │   │   ├── EVIntelligenceCore.qml.pre-R11C1
+│   │   │   ├── EVIntelligenceCore.qml.pre-R11C2
+│   │   │   ├── EVIntelligenceCore.qml.pre-R11C3
+│   │   │   ├── EVIntelligenceCore.qml.pre-R11G1
+│   │   │   ├── EVIntelligenceCore.qml.pre-R11M1
+│   │   │   ├── EVIntelligenceCore.qml.pre-R11Q
+│   │   │   ├── EVIntelligenceCore.qml.pre-R11Q1
+│   │   │   ├── EVIntelligenceCore.qml.pre-R11Q2
+│   │   │   ├── EVIntelligenceCore.qml.pre-R11QD
+│   │   │   ├── EVIntelligenceCore.qml.pre-R11QD2
+│   │   │   ├── EVIntelligenceCore.qml.pre-R11QD22
+│   │   │   ├── EVIntelligenceCore.qml.pre-R11QD23
+│   │   │   ├── EVIntelligenceCore.qml.pre-R11QD2-restore
+│   │   │   ├── EVIntelligenceCore.qml.pre-R12-1
+│   │   │   ├── EVIntelligenceCore.qml.pre-R5
+│   │   │   ├── EVIntelligenceCore.qml.pre-R6
+│   │   │   ├── EVIntelligenceCore.qml.pre-R7
+│   │   │   ├── EVIntelligenceCore.qml.pre-R8
+│   │   │   ├── EVIntelligenceCore.qml.pre-R9
+│   │   │   ├── EVIntelligenceTaskRail.qml
+│   │   │   ├── EVLifecycleHUD.qml
+│   │   │   ├── EVPanel.qml
+│   │   │   ├── EVResultSurface.qml
+│   │   │   ├── EVSectionLabel.qml
+│   │   │   ├── EVSettingsOverlay.qml
+│   │   │   ├── EVSignalIndicator.qml
+│   │   │   ├── EVStateBadge.qml
+│   │   │   ├── EVStatusIndicator.qml
+│   │   │   ├── EVStatusIndicator.qml.pre-011C3
+│   │   │   ├── EVStatusIndicator.qml.pre-011C4
+│   │   │   ├── EVSurface.qml
+│   │   │   ├── EVSystemAlertBanner.qml
+│   │   │   ├── EVTelemetryRail.qml
+│   │   │   ├── EVTelemetryRail.qml.pre-011C3
+│   │   │   ├── EVTopBar.qml
+│   │   │   ├── EVTopBar.qml.pre-011C4
+│   │   │   ├── EVTopBar.qml.pre-011C41
+│   │   │   ├── EVWindow.qml
+│   │   │   ├── EVWindow.qml.backup
+│   │   │   ├── EVWindow.qml.bak_before_edit
+│   │   │   ├── EVWindow.qml.bak2
+│   │   │   ├── EVWindow.qml.pre-011C4
+│   │   │   └── qmldir
+│   │   ├── theme/
+│   │   │   ├── qmldir
+│   │   │   ├── Theme.qml
+│   │   │   ├── Theme.qml.backup
+│   │   │   ├── Theme.qml.backup2
+│   │   │   ├── Theme.qml.bak
+│   │   │   ├── Theme.qml.bak3
+│   │   │   ├── Theme.qml.orig
+│   │   │   └── Theme.qml.pre-011C4
+│   │   └── Main.qml
+│   ├── __init__.py
+│   ├── app.py
+│   ├── bridge.py
+│   ├── visual_state.py
+│   └── windows_chrome.py
+├── logs/
+│   ├── .gitkeep
+│   ├── ev.log
+│   └── runtime_errors.txt
+├── memory/
+├── models/
+│   ├── asr/
+│   │   ├── .locks/
+│   │   │   ├── models--Systran--faster-whisper-base.en/
+│   │   │   └── models--Systran--faster-whisper-tiny.en/
+│   │   ├── models--Systran--faster-whisper-base.en/
+│   │   │   ├── blobs/
+│   │   │   ├── refs/
+│   │   │   │   └── main
+│   │   │   ├── snapshots/
+│   │   │   │   └── 3d3d5dee26484f91867d81cb899cfcf72b96be6c/
+│   │   │   │       ├── config.json
+│   │   │   │       ├── model.bin
+│   │   │   │       ├── tokenizer.json
+│   │   │   │       └── vocabulary.txt
+│   │   │   └── trees/
+│   │   │       └── 3d3d5dee26484f91867d81cb899cfcf72b96be6c.json
+│   │   ├── models--Systran--faster-whisper-tiny.en/
+│   │   │   ├── blobs/
+│   │   │   ├── refs/
+│   │   │   │   └── main
+│   │   │   ├── snapshots/
+│   │   │   │   └── 0d3d19a32d3338f10357c0889762bd8d64bbdeba/
+│   │   │   │       ├── config.json
+│   │   │   │       ├── model.bin
+│   │   │   │       ├── tokenizer.json
+│   │   │   │       └── vocabulary.txt
+│   │   │   └── trees/
+│   │   │       └── 0d3d19a32d3338f10357c0889762bd8d64bbdeba.json
+│   │   └── CACHEDIR.TAG
+│   └── wakeword/
+│       ├── analysis/
+│       │   ├── audio_analyzer.py
+│       │   ├── audio_deep_diagnostics.py
+│       │   ├── audit_014f8c.py
+│       │   ├── check_audio_devices.py
+│       │   ├── detailed_audio_report.json
+│       │   ├── forensic_check_014f11.py
+│       │   ├── human_inventory.json
+│       │   ├── inspect_duplicates.py
+│       │   ├── inventory_dataset.py
+│       │   ├── phonetic_stt_test.py
+│       │   ├── research_stage2_asr.py
+│       │   ├── safe_relocate_file03.py
+│       │   ├── test_prompted_whisper.py
+│       │   ├── test_whisper_decoding_tuning.py
+│       │   ├── transcribe_all_human.py
+│       │   ├── two_stage_benchmark_report.json
+│       │   ├── verify_ingestion.py
+│       │   └── wakeword_audio_inspection.svg
+│       ├── candidates/
+│       │   ├── hey_ev_human_v2.onnx
+│       │   ├── hey_ev_human_v3.onnx
+│       │   ├── reproducibility_record_014f10.json
+│       │   └── reproducibility_record_014f11.json
+│       ├── dataset/
+│       │   ├── features/
+│       │   │   ├── meta_locked_holdout.json
+│       │   │   ├── X_holdout.npy
+│       │   │   ├── X_locked_holdout.npy
+│       │   │   ├── X_train.npy
+│       │   │   ├── X_val.npy
+│       │   │   ├── y_holdout.npy
+│       │   │   ├── y_locked_holdout.npy
+│       │   │   ├── y_train.npy
+│       │   │   └── y_val.npy
+│       │   ├── human/
+│       │   │   ├── negative/
+│       │   │   │   ├── user_speaker_1_20260904_193616_ev_10.wav
+│       │   │   │   ├── user_speaker_1_20260904_193616_every_07.wav
+│       │   │   │   ├── user_speaker_1_20260904_193616_heavy_06.wav
+│       │   │   │   ├── user_speaker_1_20260904_193616_hey_09.wav
+│       │   │   │   ├── user_speaker_1_20260904_193616_hey_evan_01.wav
+│       │   │   │   ├── user_speaker_1_20260904_193616_hey_evelyn_13.wav
+│       │   │   │   ├── user_speaker_1_20260904_193616_hey_evening_03.wav
+│       │   │   │   ├── user_speaker_1_20260904_193616_hey_event_11.wav
+│       │   │   │   ├── user_speaker_1_20260904_193616_hey_events_12.wav
+│       │   │   │   ├── user_speaker_1_20260904_193616_hey_everest_14.wav
+│       │   │   │   ├── user_speaker_1_20260904_193616_hey_everett_15.wav
+│       │   │   │   ├── user_speaker_1_20260904_193616_hey_everyone_00.wav
+│       │   │   │   ├── user_speaker_1_20260904_193616_hey_evidence_04.wav
+│       │   │   │   ├── user_speaker_1_20260904_193616_hey_evie_02.wav
+│       │   │   │   ├── user_speaker_1_20260904_193616_hey_steve_08.wav
+│       │   │   │   ├── user_speaker_1_20260904_193616_hey_stevie_05.wav
+│       │   │   │   ├── user_speaker_1_20260904_202254_a_v_28.wav
+│       │   │   │   ├── user_speaker_1_20260904_202254_cancel_that_command_34.wav
+│       │   │   │   ├── user_speaker_1_20260904_202254_close_the_window_36.wav
+│       │   │   │   ├── user_speaker_1_20260904_202254_e_v_29.wav
+│       │   │   │   ├── user_speaker_1_20260904_202254_ev_10.wav
+│       │   │   │   ├── user_speaker_1_20260904_202254_every_07.wav
+│       │   │   │   ├── user_speaker_1_20260904_202254_every_day_21.wav
+│       │   │   │   ├── user_speaker_1_20260904_202254_every_morning_22.wav
+│       │   │   │   ├── user_speaker_1_20260904_202254_heavy_06.wav
+│       │   │   │   ├── user_speaker_1_20260904_202254_heavy_duty_20.wav
+│       │   │   │   ├── user_speaker_1_20260904_202254_heavy_rain_23.wav
+│       │   │   │   ├── user_speaker_1_20260904_202254_hey_09.wav
+│       │   │   │   ├── user_speaker_1_20260904_202254_hey_avi_26.wav
+│       │   │   │   ├── user_speaker_1_20260904_202254_hey_eddie_24.wav
+│       │   │   │   ├── user_speaker_1_20260904_202254_hey_evan_01.wav
+│       │   │   │   ├── user_speaker_1_20260904_202254_hey_evelyn_13.wav
+│       │   │   │   ├── user_speaker_1_20260904_202254_hey_evening_03.wav
+│       │   │   │   ├── user_speaker_1_20260904_202254_hey_event_11.wav
+│       │   │   │   ├── user_speaker_1_20260904_202254_hey_events_12.wav
+│       │   │   │   ├── user_speaker_1_20260904_202254_hey_eventually_19.wav
+│       │   │   │   ├── user_speaker_1_20260904_202254_hey_everest_14.wav
+│       │   │   │   ├── user_speaker_1_20260904_202254_hey_everett_15.wav
+│       │   │   │   ├── user_speaker_1_20260904_202254_hey_everybody_17.wav
+│       │   │   │   ├── user_speaker_1_20260904_202254_hey_everyday_16.wav
+│       │   │   │   ├── user_speaker_1_20260904_202254_hey_everyone_00.wav
+│       │   │   │   ├── user_speaker_1_20260904_202254_hey_everywhere_18.wav
+│       │   │   │   ├── user_speaker_1_20260904_202254_hey_evidence_04.wav
+│       │   │   │   ├── user_speaker_1_20260904_202254_hey_evie_02.wav
+│       │   │   │   ├── user_speaker_1_20260904_202254_hey_ivy_25.wav
+│       │   │   │   ├── user_speaker_1_20260904_202254_hey_steve_08.wav
+│       │   │   │   ├── user_speaker_1_20260904_202254_hey_steven_27.wav
+│       │   │   │   ├── user_speaker_1_20260904_202254_hey_stevie_05.wav
+│       │   │   │   ├── user_speaker_1_20260904_202254_mute_speakers_38.wav
+│       │   │   │   ├── user_speaker_1_20260904_202254_open_the_browser_30.wav
+│       │   │   │   ├── user_speaker_1_20260904_202254_run_diagnostics_39.wav
+│       │   │   │   ├── user_speaker_1_20260904_202254_search_the_web_37.wav
+│       │   │   │   ├── user_speaker_1_20260904_202254_show_active_tasks_35.wav
+│       │   │   │   ├── user_speaker_1_20260904_202254_system_status_32.wav
+│       │   │   │   ├── user_speaker_1_20260904_202254_turn_on_the_lights_33.wav
+│       │   │   │   ├── user_speaker_1_20260904_202254_what_time_is_it_31.wav
+│       │   │   │   ├── user_speaker_1_every_07.wav
+│       │   │   │   ├── user_speaker_1_heavy_06.wav
+│       │   │   │   ├── user_speaker_1_hey_evan_01.wav
+│       │   │   │   ├── user_speaker_1_hey_evening_03.wav
+│       │   │   │   ├── user_speaker_1_hey_everyone_00.wav
+│       │   │   │   ├── user_speaker_1_hey_evidence_04.wav
+│       │   │   │   ├── user_speaker_1_hey_evie_02.wav
+│       │   │   │   └── user_speaker_1_hey_stevie_05.wav
+│       │   │   ├── positive/
+│       │   │   │   ├── user_speaker_1_20260904_193616_hey_e_v_07.wav
+│       │   │   │   ├── user_speaker_1_20260904_193616_hey_e_v_17.wav
+│       │   │   │   ├── user_speaker_1_20260904_193616_hey_ev_00.wav
+│       │   │   │   ├── user_speaker_1_20260904_193616_hey_ev_01.wav
+│       │   │   │   ├── user_speaker_1_20260904_193616_hey_ev_02.wav
+│       │   │   │   ├── user_speaker_1_20260904_193616_hey_ev_03.wav
+│       │   │   │   ├── user_speaker_1_20260904_193616_hey_ev_04.wav
+│       │   │   │   ├── user_speaker_1_20260904_193616_hey_ev_05.wav
+│       │   │   │   ├── user_speaker_1_20260904_193616_hey_ev_06.wav
+│       │   │   │   ├── user_speaker_1_20260904_193616_hey_ev_08.wav
+│       │   │   │   ├── user_speaker_1_20260904_193616_hey_ev_09.wav
+│       │   │   │   ├── user_speaker_1_20260904_193616_hey_ev_10.wav
+│       │   │   │   ├── user_speaker_1_20260904_193616_hey_ev_11.wav
+│       │   │   │   ├── user_speaker_1_20260904_193616_hey_ev_12.wav
+│       │   │   │   ├── user_speaker_1_20260904_193616_hey_ev_13.wav
+│       │   │   │   ├── user_speaker_1_20260904_193616_hey_ev_14.wav
+│       │   │   │   ├── user_speaker_1_20260904_193616_hey_ev_15.wav
+│       │   │   │   ├── user_speaker_1_20260904_193616_hey_ev_16.wav
+│       │   │   │   ├── user_speaker_1_20260904_193616_hey_ev_18.wav
+│       │   │   │   ├── user_speaker_1_20260904_193616_hey_ev_19.wav
+│       │   │   │   ├── user_speaker_1_20260904_193616_hey_ev_20.wav
+│       │   │   │   ├── user_speaker_1_20260904_193616_hey_ev_21.wav
+│       │   │   │   ├── user_speaker_1_20260904_193616_hey_ev_22.wav
+│       │   │   │   ├── user_speaker_1_20260904_193616_hey_ev_23.wav
+│       │   │   │   ├── user_speaker_1_20260904_193616_hey_ev_24.wav
+│       │   │   │   ├── user_speaker_1_20260904_193616_hey_ev_25.wav
+│       │   │   │   ├── user_speaker_1_20260904_193616_hey_ev_26.wav
+│       │   │   │   ├── user_speaker_1_20260904_193616_hey_ev_27.wav
+│       │   │   │   ├── user_speaker_1_20260904_193616_hey_ev_28.wav
+│       │   │   │   ├── user_speaker_1_20260904_193616_hey_ev_29.wav
+│       │   │   │   ├── user_speaker_1_20260904_202254_hey_e_v_07.wav
+│       │   │   │   ├── user_speaker_1_20260904_202254_hey_e_v_19.wav
+│       │   │   │   ├── user_speaker_1_20260904_202254_hey_ev_00.wav
+│       │   │   │   ├── user_speaker_1_20260904_202254_hey_ev_01.wav
+│       │   │   │   ├── user_speaker_1_20260904_202254_hey_ev_02.wav
+│       │   │   │   ├── user_speaker_1_20260904_202254_hey_ev_03.wav
+│       │   │   │   ├── user_speaker_1_20260904_202254_hey_ev_04.wav
+│       │   │   │   ├── user_speaker_1_20260904_202254_hey_ev_05.wav
+│       │   │   │   ├── user_speaker_1_20260904_202254_hey_ev_06.wav
+│       │   │   │   ├── user_speaker_1_20260904_202254_hey_ev_08.wav
+│       │   │   │   ├── user_speaker_1_20260904_202254_hey_ev_09.wav
+│       │   │   │   ├── user_speaker_1_20260904_202254_hey_ev_10.wav
+│       │   │   │   ├── user_speaker_1_20260904_202254_hey_ev_11.wav
+│       │   │   │   ├── user_speaker_1_20260904_202254_hey_ev_12.wav
+│       │   │   │   ├── user_speaker_1_20260904_202254_hey_ev_13.wav
+│       │   │   │   ├── user_speaker_1_20260904_202254_hey_ev_14.wav
+│       │   │   │   ├── user_speaker_1_20260904_202254_hey_ev_15.wav
+│       │   │   │   ├── user_speaker_1_20260904_202254_hey_ev_16.wav
+│       │   │   │   ├── user_speaker_1_20260904_202254_hey_ev_17.wav
+│       │   │   │   ├── user_speaker_1_20260904_202254_hey_ev_18.wav
+│       │   │   │   ├── user_speaker_1_20260904_202254_hey_ev_20.wav
+│       │   │   │   ├── user_speaker_1_20260904_202254_hey_ev_21.wav
+│       │   │   │   ├── user_speaker_1_20260904_202254_hey_ev_22.wav
+│       │   │   │   ├── user_speaker_1_20260904_202254_hey_ev_23.wav
+│       │   │   │   ├── user_speaker_1_20260904_202254_hey_ev_24.wav
+│       │   │   │   ├── user_speaker_1_20260904_202254_hey_ev_25.wav
+│       │   │   │   ├── user_speaker_1_20260904_202254_hey_ev_26.wav
+│       │   │   │   ├── user_speaker_1_20260904_202254_hey_ev_27.wav
+│       │   │   │   ├── user_speaker_1_20260904_202254_hey_ev_28.wav
+│       │   │   │   ├── user_speaker_1_20260904_202254_hey_ev_29.wav
+│       │   │   │   ├── user_speaker_1_20260904_202254_hey_ev_30.wav
+│       │   │   │   ├── user_speaker_1_20260904_202254_hey_ev_31.wav
+│       │   │   │   ├── user_speaker_1_hey_e_v_06.wav
+│       │   │   │   ├── user_speaker_1_hey_ev_00.flac
+│       │   │   │   ├── user_speaker_1_hey_ev_00.wav
+│       │   │   │   ├── user_speaker_1_hey_ev_01.wav
+│       │   │   │   ├── user_speaker_1_hey_ev_02.wav
+│       │   │   │   ├── user_speaker_1_hey_ev_04.wav
+│       │   │   │   ├── user_speaker_1_hey_ev_05.wav
+│       │   │   │   └── user_speaker_1_hey_ev_07.wav
+│       │   │   ├── quarantine/
+│       │   │   │   ├── user_speaker_1_20260904_193616_hey_ev_09.wav
+│       │   │   │   ├── user_speaker_1_20260904_193616_hey_ev_11.wav
+│       │   │   │   ├── user_speaker_1_hey_ev_03.flac
+│       │   │   │   └── user_speaker_1_hey_ev_03.wav
+│       │   │   ├── human_collection_manifest.json
+│       │   │   └── locked_human_holdout_manifest.json
+│       │   ├── raw/
+│       │   │   ├── neg_base_0.wav
+│       │   │   ├── neg_base_1.wav
+│       │   │   ├── neg_base_10.wav
+│       │   │   ├── neg_base_11.wav
+│       │   │   ├── neg_base_12.wav
+│       │   │   ├── neg_base_13.wav
+│       │   │   ├── neg_base_14.wav
+│       │   │   ├── neg_base_15.wav
+│       │   │   ├── neg_base_16.wav
+│       │   │   ├── neg_base_17.wav
+│       │   │   ├── neg_base_18.wav
+│       │   │   ├── neg_base_19.wav
+│       │   │   ├── neg_base_2.wav
+│       │   │   ├── neg_base_20.wav
+│       │   │   ├── neg_base_21.wav
+│       │   │   ├── neg_base_22.wav
+│       │   │   ├── neg_base_23.wav
+│       │   │   ├── neg_base_24.wav
+│       │   │   ├── neg_base_25.wav
+│       │   │   ├── neg_base_26.wav
+│       │   │   ├── neg_base_27.wav
+│       │   │   ├── neg_base_28.wav
+│       │   │   ├── neg_base_29.wav
+│       │   │   ├── neg_base_3.wav
+│       │   │   ├── neg_base_30.wav
+│       │   │   ├── neg_base_31.wav
+│       │   │   ├── neg_base_32.wav
+│       │   │   ├── neg_base_33.wav
+│       │   │   ├── neg_base_34.wav
+│       │   │   ├── neg_base_35.wav
+│       │   │   ├── neg_base_36.wav
+│       │   │   ├── neg_base_37.wav
+│       │   │   ├── neg_base_38.wav
+│       │   │   ├── neg_base_39.wav
+│       │   │   ├── neg_base_4.wav
+│       │   │   ├── neg_base_40.wav
+│       │   │   ├── neg_base_41.wav
+│       │   │   ├── neg_base_42.wav
+│       │   │   ├── neg_base_43.wav
+│       │   │   ├── neg_base_44.wav
+│       │   │   ├── neg_base_5.wav
+│       │   │   ├── neg_base_6.wav
+│       │   │   ├── neg_base_7.wav
+│       │   │   ├── neg_base_8.wav
+│       │   │   ├── neg_base_9.wav
+│       │   │   ├── neg_cmd_0.wav
+│       │   │   ├── neg_cmd_1.wav
+│       │   │   ├── neg_cmd_10.wav
+│       │   │   ├── neg_cmd_11.wav
+│       │   │   ├── neg_cmd_12.wav
+│       │   │   ├── neg_cmd_13.wav
+│       │   │   ├── neg_cmd_14.wav
+│       │   │   ├── neg_cmd_15.wav
+│       │   │   ├── neg_cmd_16.wav
+│       │   │   ├── neg_cmd_17.wav
+│       │   │   ├── neg_cmd_18.wav
+│       │   │   ├── neg_cmd_19.wav
+│       │   │   ├── neg_cmd_2.wav
+│       │   │   ├── neg_cmd_20.wav
+│       │   │   ├── neg_cmd_21.wav
+│       │   │   ├── neg_cmd_22.wav
+│       │   │   ├── neg_cmd_23.wav
+│       │   │   ├── neg_cmd_3.wav
+│       │   │   ├── neg_cmd_4.wav
+│       │   │   ├── neg_cmd_5.wav
+│       │   │   ├── neg_cmd_6.wav
+│       │   │   ├── neg_cmd_7.wav
+│       │   │   ├── neg_cmd_8.wav
+│       │   │   ├── neg_cmd_9.wav
+│       │   │   ├── neg_hn_0.wav
+│       │   │   ├── neg_hn_1.wav
+│       │   │   ├── neg_hn_10.wav
+│       │   │   ├── neg_hn_100.wav
+│       │   │   ├── neg_hn_101.wav
+│       │   │   ├── neg_hn_102.wav
+│       │   │   ├── neg_hn_103.wav
+│       │   │   ├── neg_hn_104.wav
+│       │   │   ├── neg_hn_105.wav
+│       │   │   ├── neg_hn_106.wav
+│       │   │   ├── neg_hn_107.wav
+│       │   │   ├── neg_hn_108.wav
+│       │   │   ├── neg_hn_109.wav
+│       │   │   ├── neg_hn_11.wav
+│       │   │   ├── neg_hn_110.wav
+│       │   │   ├── neg_hn_111.wav
+│       │   │   ├── neg_hn_112.wav
+│       │   │   ├── neg_hn_113.wav
+│       │   │   ├── neg_hn_114.wav
+│       │   │   ├── neg_hn_115.wav
+│       │   │   ├── neg_hn_116.wav
+│       │   │   ├── neg_hn_117.wav
+│       │   │   ├── neg_hn_118.wav
+│       │   │   ├── neg_hn_119.wav
+│       │   │   ├── neg_hn_12.wav
+│       │   │   ├── neg_hn_120.wav
+│       │   │   ├── neg_hn_121.wav
+│       │   │   ├── neg_hn_122.wav
+│       │   │   ├── neg_hn_123.wav
+│       │   │   ├── neg_hn_124.wav
+│       │   │   ├── neg_hn_125.wav
+│       │   │   ├── neg_hn_126.wav
+│       │   │   ├── neg_hn_127.wav
+│       │   │   ├── neg_hn_128.wav
+│       │   │   ├── neg_hn_129.wav
+│       │   │   ├── neg_hn_13.wav
+│       │   │   ├── neg_hn_130.wav
+│       │   │   ├── neg_hn_131.wav
+│       │   │   ├── neg_hn_132.wav
+│       │   │   ├── neg_hn_133.wav
+│       │   │   ├── neg_hn_134.wav
+│       │   │   ├── neg_hn_135.wav
+│       │   │   ├── neg_hn_136.wav
+│       │   │   ├── neg_hn_137.wav
+│       │   │   ├── neg_hn_14.wav
+│       │   │   ├── neg_hn_15.wav
+│       │   │   ├── neg_hn_16.wav
+│       │   │   ├── neg_hn_17.wav
+│       │   │   ├── neg_hn_18.wav
+│       │   │   ├── neg_hn_19.wav
+│       │   │   ├── neg_hn_2.wav
+│       │   │   ├── neg_hn_20.wav
+│       │   │   ├── neg_hn_21.wav
+│       │   │   ├── neg_hn_22.wav
+│       │   │   ├── neg_hn_23.wav
+│       │   │   ├── neg_hn_24.wav
+│       │   │   ├── neg_hn_25.wav
+│       │   │   ├── neg_hn_26.wav
+│       │   │   ├── neg_hn_27.wav
+│       │   │   ├── neg_hn_28.wav
+│       │   │   ├── neg_hn_29.wav
+│       │   │   ├── neg_hn_3.wav
+│       │   │   ├── neg_hn_30.wav
+│       │   │   ├── neg_hn_31.wav
+│       │   │   ├── neg_hn_32.wav
+│       │   │   ├── neg_hn_33.wav
+│       │   │   ├── neg_hn_34.wav
+│       │   │   ├── neg_hn_35.wav
+│       │   │   ├── neg_hn_36.wav
+│       │   │   ├── neg_hn_37.wav
+│       │   │   ├── neg_hn_38.wav
+│       │   │   ├── neg_hn_39.wav
+│       │   │   ├── neg_hn_4.wav
+│       │   │   ├── neg_hn_40.wav
+│       │   │   ├── neg_hn_41.wav
+│       │   │   ├── neg_hn_42.wav
+│       │   │   ├── neg_hn_43.wav
+│       │   │   ├── neg_hn_44.wav
+│       │   │   ├── neg_hn_45.wav
+│       │   │   ├── neg_hn_46.wav
+│       │   │   ├── neg_hn_47.wav
+│       │   │   ├── neg_hn_48.wav
+│       │   │   ├── neg_hn_49.wav
+│       │   │   ├── neg_hn_5.wav
+│       │   │   ├── neg_hn_50.wav
+│       │   │   ├── neg_hn_51.wav
+│       │   │   ├── neg_hn_52.wav
+│       │   │   ├── neg_hn_53.wav
+│       │   │   ├── neg_hn_54.wav
+│       │   │   ├── neg_hn_55.wav
+│       │   │   ├── neg_hn_56.wav
+│       │   │   ├── neg_hn_57.wav
+│       │   │   ├── neg_hn_58.wav
+│       │   │   ├── neg_hn_59.wav
+│       │   │   ├── neg_hn_6.wav
+│       │   │   ├── neg_hn_60.wav
+│       │   │   ├── neg_hn_61.wav
+│       │   │   ├── neg_hn_62.wav
+│       │   │   ├── neg_hn_63.wav
+│       │   │   ├── neg_hn_64.wav
+│       │   │   ├── neg_hn_65.wav
+│       │   │   ├── neg_hn_66.wav
+│       │   │   ├── neg_hn_67.wav
+│       │   │   ├── neg_hn_68.wav
+│       │   │   ├── neg_hn_69.wav
+│       │   │   ├── neg_hn_7.wav
+│       │   │   ├── neg_hn_70.wav
+│       │   │   ├── neg_hn_71.wav
+│       │   │   ├── neg_hn_72.wav
+│       │   │   ├── neg_hn_73.wav
+│       │   │   ├── neg_hn_74.wav
+│       │   │   ├── neg_hn_75.wav
+│       │   │   ├── neg_hn_76.wav
+│       │   │   ├── neg_hn_77.wav
+│       │   │   ├── neg_hn_78.wav
+│       │   │   ├── neg_hn_79.wav
+│       │   │   ├── neg_hn_8.wav
+│       │   │   ├── neg_hn_80.wav
+│       │   │   ├── neg_hn_81.wav
+│       │   │   ├── neg_hn_82.wav
+│       │   │   ├── neg_hn_83.wav
+│       │   │   ├── neg_hn_84.wav
+│       │   │   ├── neg_hn_85.wav
+│       │   │   ├── neg_hn_86.wav
+│       │   │   ├── neg_hn_87.wav
+│       │   │   ├── neg_hn_88.wav
+│       │   │   ├── neg_hn_89.wav
+│       │   │   ├── neg_hn_9.wav
+│       │   │   ├── neg_hn_90.wav
+│       │   │   ├── neg_hn_91.wav
+│       │   │   ├── neg_hn_92.wav
+│       │   │   ├── neg_hn_93.wav
+│       │   │   ├── neg_hn_94.wav
+│       │   │   ├── neg_hn_95.wav
+│       │   │   ├── neg_hn_96.wav
+│       │   │   ├── neg_hn_97.wav
+│       │   │   ├── neg_hn_98.wav
+│       │   │   ├── neg_hn_99.wav
+│       │   │   ├── pos_base_0.wav
+│       │   │   ├── pos_base_1.wav
+│       │   │   ├── pos_base_10.wav
+│       │   │   ├── pos_base_11.wav
+│       │   │   ├── pos_base_12.wav
+│       │   │   ├── pos_base_13.wav
+│       │   │   ├── pos_base_14.wav
+│       │   │   ├── pos_base_15.wav
+│       │   │   ├── pos_base_16.wav
+│       │   │   ├── pos_base_17.wav
+│       │   │   ├── pos_base_18.wav
+│       │   │   ├── pos_base_19.wav
+│       │   │   ├── pos_base_2.wav
+│       │   │   ├── pos_base_20.wav
+│       │   │   ├── pos_base_21.wav
+│       │   │   ├── pos_base_22.wav
+│       │   │   ├── pos_base_23.wav
+│       │   │   ├── pos_base_24.wav
+│       │   │   ├── pos_base_25.wav
+│       │   │   ├── pos_base_26.wav
+│       │   │   ├── pos_base_27.wav
+│       │   │   ├── pos_base_28.wav
+│       │   │   ├── pos_base_29.wav
+│       │   │   ├── pos_base_3.wav
+│       │   │   ├── pos_base_4.wav
+│       │   │   ├── pos_base_5.wav
+│       │   │   ├── pos_base_6.wav
+│       │   │   ├── pos_base_7.wav
+│       │   │   ├── pos_base_8.wav
+│       │   │   ├── pos_base_9.wav
+│       │   │   ├── pos_base_h_0.wav
+│       │   │   ├── pos_base_h_1.wav
+│       │   │   ├── pos_base_h_10.wav
+│       │   │   ├── pos_base_h_11.wav
+│       │   │   ├── pos_base_h_12.wav
+│       │   │   ├── pos_base_h_13.wav
+│       │   │   ├── pos_base_h_14.wav
+│       │   │   ├── pos_base_h_15.wav
+│       │   │   ├── pos_base_h_16.wav
+│       │   │   ├── pos_base_h_17.wav
+│       │   │   ├── pos_base_h_18.wav
+│       │   │   ├── pos_base_h_19.wav
+│       │   │   ├── pos_base_h_2.wav
+│       │   │   ├── pos_base_h_20.wav
+│       │   │   ├── pos_base_h_21.wav
+│       │   │   ├── pos_base_h_22.wav
+│       │   │   ├── pos_base_h_23.wav
+│       │   │   ├── pos_base_h_24.wav
+│       │   │   ├── pos_base_h_25.wav
+│       │   │   ├── pos_base_h_26.wav
+│       │   │   ├── pos_base_h_27.wav
+│       │   │   ├── pos_base_h_28.wav
+│       │   │   ├── pos_base_h_29.wav
+│       │   │   ├── pos_base_h_3.wav
+│       │   │   ├── pos_base_h_30.wav
+│       │   │   ├── pos_base_h_31.wav
+│       │   │   ├── pos_base_h_32.wav
+│       │   │   ├── pos_base_h_33.wav
+│       │   │   ├── pos_base_h_34.wav
+│       │   │   ├── pos_base_h_35.wav
+│       │   │   ├── pos_base_h_36.wav
+│       │   │   ├── pos_base_h_37.wav
+│       │   │   ├── pos_base_h_38.wav
+│       │   │   ├── pos_base_h_39.wav
+│       │   │   ├── pos_base_h_4.wav
+│       │   │   ├── pos_base_h_40.wav
+│       │   │   ├── pos_base_h_41.wav
+│       │   │   ├── pos_base_h_42.wav
+│       │   │   ├── pos_base_h_43.wav
+│       │   │   ├── pos_base_h_44.wav
+│       │   │   ├── pos_base_h_45.wav
+│       │   │   ├── pos_base_h_46.wav
+│       │   │   ├── pos_base_h_47.wav
+│       │   │   ├── pos_base_h_5.wav
+│       │   │   ├── pos_base_h_6.wav
+│       │   │   ├── pos_base_h_7.wav
+│       │   │   ├── pos_base_h_8.wav
+│       │   │   └── pos_base_h_9.wav
+│       │   └── dataset_metadata.json
+│       ├── hey_ev.onnx
+│       └── hey_ev_v1_baseline.onnx
+├── music/
+│   ├── __init__.py
+│   ├── analysis.py
+│   ├── loopback.py
+│   ├── onsets.py
+│   ├── README.md
+│   ├── session.py
+│   └── workspace.py
+├── prototypes/
+│   ├── cinematic_v4/
+│   │   ├── assets/
+│   │   │   ├── startup/
+│   │   │   │   ├── arrival.wav
+│   │   │   │   ├── manifest.json
+│   │   │   │   ├── README.md
+│   │   │   │   ├── rise.wav
+│   │   │   │   └── voice_source.wav
+│   │   │   ├── band_inner.npz
+│   │   │   ├── band_mid.npz
+│   │   │   ├── band_outer.npz
+│   │   │   ├── bands.png
+│   │   │   ├── circuit.png
+│   │   │   ├── circuit_low.png
+│   │   │   ├── circuit_routes.npz
+│   │   │   ├── circuit_routes_low.npz
+│   │   │   ├── core_filaments.npz
+│   │   │   ├── energy_ribbons.npz
+│   │   │   ├── energy_ribbons_low.npz
+│   │   │   ├── flow.png
+│   │   │   ├── flow_band_mid.npz
+│   │   │   ├── flow_band_outer.npz
+│   │   │   ├── gold_discharges.npz
+│   │   │   ├── gold_discharges_low.npz
+│   │   │   ├── launch_trail.npz
+│   │   │   ├── manifest.json
+│   │   │   ├── neural_paths.npz
+│   │   │   ├── neural_paths_low.npz
+│   │   │   ├── peripheral_schematics.npz
+│   │   │   ├── plates.npz
+│   │   │   ├── rails.npz
+│   │   │   ├── shell_0.npz
+│   │   │   ├── shell_1.npz
+│   │   │   ├── shell_2.npz
+│   │   │   └── streams.npz
+│   │   ├── evidence/
+│   │   │   ├── fire_energy_restore/
+│   │   │   │   ├── launch_validation/
+│   │   │   │   │   ├── blue_flow_detail.jpg
+│   │   │   │   │   ├── change_scope.json
+│   │   │   │   │   ├── connected_startup.json
+│   │   │   │   │   ├── connected_startup.png
+│   │   │   │   │   ├── connected_startup_diagnostics.txt
+│   │   │   │   │   ├── expanded_30.json
+│   │   │   │   │   ├── expanded_60.json
+│   │   │   │   │   ├── first_still.json
+│   │   │   │   │   ├── first_still.png
+│   │   │   │   │   ├── flow_after.png
+│   │   │   │   │   ├── flow_after_alpha.png
+│   │   │   │   │   ├── gold_flow_detail.jpg
+│   │   │   │   │   ├── gui_app_overnight.patch
+│   │   │   │   │   ├── integration_approval.png
+│   │   │   │   │   ├── integration_connected.png
+│   │   │   │   │   ├── integration_diagnostics.txt
+│   │   │   │   │   ├── integration_validation.json
+│   │   │   │   │   ├── interaction_run.json
+│   │   │   │   │   ├── launch_and_flow.json
+│   │   │   │   │   ├── launch_and_flow.mp4
+│   │   │   │   │   ├── launch_arcs.png
+│   │   │   │   │   ├── launch_arcs_alpha.png
+│   │   │   │   │   ├── launch_seed.png
+│   │   │   │   │   ├── launch_seed_alpha.png
+│   │   │   │   │   ├── launch_sequence.jpg
+│   │   │   │   │   ├── launch_settled.png
+│   │   │   │   │   ├── launch_settled_alpha.png
+│   │   │   │   │   ├── launch_weave.png
+│   │   │   │   │   ├── launch_weave_alpha.png
+│   │   │   │   │   ├── projection_detail.jpg
+│   │   │   │   │   ├── projection_paused_a.png
+│   │   │   │   │   ├── projection_paused_b.png
+│   │   │   │   │   ├── projection_run.json
+│   │   │   │   │   ├── projection_validation.json
+│   │   │   │   │   ├── pytest.txt
+│   │   │   │   │   ├── recorded_motion_review.jpg
+│   │   │   │   │   ├── recording_run.json
+│   │   │   │   │   ├── reference_timeline_00.jpg
+│   │   │   │   │   ├── reference_timeline_01.jpg
+│   │   │   │   │   ├── reference_timeline_02.jpg
+│   │   │   │   │   ├── reference_timeline_03.jpg
+│   │   │   │   │   ├── reference_timeline_04.jpg
+│   │   │   │   │   ├── reference_timeline_05.jpg
+│   │   │   │   │   ├── reference_timeline_06.jpg
+│   │   │   │   │   ├── source_audit.json
+│   │   │   │   │   ├── source_before.json
+│   │   │   │   │   ├── source_manifest.json
+│   │   │   │   │   └── validation.json
+│   │   │   │   ├── previous_source/
+│   │   │   │   │   ├── assets/
+│   │   │   │   │   │   ├── band_inner.npz
+│   │   │   │   │   │   ├── band_mid.npz
+│   │   │   │   │   │   ├── band_outer.npz
+│   │   │   │   │   │   ├── bands.png
+│   │   │   │   │   │   ├── circuit.png
+│   │   │   │   │   │   ├── circuit_low.png
+│   │   │   │   │   │   ├── circuit_routes.npz
+│   │   │   │   │   │   ├── circuit_routes_low.npz
+│   │   │   │   │   │   ├── core_filaments.npz
+│   │   │   │   │   │   ├── energy_ribbons.npz
+│   │   │   │   │   │   ├── flow.png
+│   │   │   │   │   │   ├── flow_band_mid.npz
+│   │   │   │   │   │   ├── flow_band_outer.npz
+│   │   │   │   │   │   ├── launch_trail.npz
+│   │   │   │   │   │   ├── manifest.json
+│   │   │   │   │   │   ├── neural_paths.npz
+│   │   │   │   │   │   ├── neural_paths_low.npz
+│   │   │   │   │   │   ├── peripheral_schematics.npz
+│   │   │   │   │   │   ├── plates.npz
+│   │   │   │   │   │   ├── rails.npz
+│   │   │   │   │   │   ├── shell_0.npz
+│   │   │   │   │   │   ├── shell_1.npz
+│   │   │   │   │   │   ├── shell_2.npz
+│   │   │   │   │   │   └── streams.npz
+│   │   │   │   │   ├── evidence/
+│   │   │   │   │   │   ├── before_fixed_frames.csv
+│   │   │   │   │   │   └── render_diagnostics.txt
+│   │   │   │   │   ├── qml/
+│   │   │   │   │   │   ├── shaders/
+│   │   │   │   │   │   │   ├── glow.frag
+│   │   │   │   │   │   │   ├── glow.frag.qsb
+│   │   │   │   │   │   │   ├── particles.frag
+│   │   │   │   │   │   │   ├── particles.vert
+│   │   │   │   │   │   │   ├── surface.frag
+│   │   │   │   │   │   │   └── surface.vert
+│   │   │   │   │   │   ├── CinematicStage.qml
+│   │   │   │   │   │   ├── ConnectedWindow.qml
+│   │   │   │   │   │   ├── CoreMotion.qml
+│   │   │   │   │   │   ├── HoloMaterial.qml
+│   │   │   │   │   │   ├── HudButton.qml
+│   │   │   │   │   │   ├── LabButton.qml
+│   │   │   │   │   │   ├── LabWindow.qml
+│   │   │   │   │   │   ├── NucleusScene.qml
+│   │   │   │   │   │   ├── NucleusView.qml
+│   │   │   │   │   │   └── Sparkline.qml
+│   │   │   │   │   ├── audit_changes.py
+│   │   │   │   │   ├── benchmark.py
+│   │   │   │   │   ├── build_review.py
+│   │   │   │   │   ├── frame_pacing.py
+│   │   │   │   │   ├── generate_assets.py
+│   │   │   │   │   ├── generate_flow_assets.py
+│   │   │   │   │   ├── geometry.py
+│   │   │   │   │   ├── integration.py
+│   │   │   │   │   ├── mock_telemetry.py
+│   │   │   │   │   ├── presentation.py
+│   │   │   │   │   ├── README.md
+│   │   │   │   │   ├── recording.py
+│   │   │   │   │   ├── run_preview.py
+│   │   │   │   │   ├── smoke_connected.py
+│   │   │   │   │   ├── test_projection.py
+│   │   │   │   │   ├── validate_integration.py
+│   │   │   │   │   ├── validate_preview.py
+│   │   │   │   │   ├── validate_projection.py
+│   │   │   │   │   └── validate_reaction.py
+│   │   │   │   ├── previous_validation/
+│   │   │   │   │   ├── flow_launch/
+│   │   │   │   │   │   ├── blue_flow_detail.jpg
+│   │   │   │   │   │   ├── change_scope.json
+│   │   │   │   │   │   ├── connected_startup.json
+│   │   │   │   │   │   ├── connected_startup.png
+│   │   │   │   │   │   ├── connected_startup_diagnostics.txt
+│   │   │   │   │   │   ├── expanded_30.json
+│   │   │   │   │   │   ├── expanded_60.json
+│   │   │   │   │   │   ├── first_still.json
+│   │   │   │   │   │   ├── first_still.png
+│   │   │   │   │   │   ├── flow_after.png
+│   │   │   │   │   │   ├── flow_after_alpha.png
+│   │   │   │   │   │   ├── gold_flow_detail.jpg
+│   │   │   │   │   │   ├── gui_app_overnight.patch
+│   │   │   │   │   │   ├── integration_approval.png
+│   │   │   │   │   │   ├── integration_connected.png
+│   │   │   │   │   │   ├── integration_diagnostics.txt
+│   │   │   │   │   │   ├── integration_validation.json
+│   │   │   │   │   │   ├── interaction_run.json
+│   │   │   │   │   │   ├── launch_and_flow.json
+│   │   │   │   │   │   ├── launch_and_flow.mp4
+│   │   │   │   │   │   ├── launch_arcs.png
+│   │   │   │   │   │   ├── launch_arcs_alpha.png
+│   │   │   │   │   │   ├── launch_seed.png
+│   │   │   │   │   │   ├── launch_seed_alpha.png
+│   │   │   │   │   │   ├── launch_sequence.jpg
+│   │   │   │   │   │   ├── launch_settled.png
+│   │   │   │   │   │   ├── launch_settled_alpha.png
+│   │   │   │   │   │   ├── launch_weave.png
+│   │   │   │   │   │   ├── launch_weave_alpha.png
+│   │   │   │   │   │   ├── projection_detail.jpg
+│   │   │   │   │   │   ├── projection_paused_a.png
+│   │   │   │   │   │   ├── projection_paused_b.png
+│   │   │   │   │   │   ├── projection_run.json
+│   │   │   │   │   │   ├── projection_validation.json
+│   │   │   │   │   │   ├── pytest.txt
+│   │   │   │   │   │   ├── recorded_motion_review.jpg
+│   │   │   │   │   │   ├── recording_run.json
+│   │   │   │   │   │   ├── reference_timeline_00.jpg
+│   │   │   │   │   │   ├── reference_timeline_01.jpg
+│   │   │   │   │   │   ├── reference_timeline_02.jpg
+│   │   │   │   │   │   ├── reference_timeline_03.jpg
+│   │   │   │   │   │   ├── reference_timeline_04.jpg
+│   │   │   │   │   │   ├── reference_timeline_05.jpg
+│   │   │   │   │   │   ├── reference_timeline_06.jpg
+│   │   │   │   │   │   ├── source_audit.json
+│   │   │   │   │   │   ├── source_before.json
+│   │   │   │   │   │   ├── source_manifest.json
+│   │   │   │   │   │   └── validation.json
+│   │   │   │   │   └── reaction_motion/
+│   │   │   │   │       ├── bound_0.png
+│   │   │   │   │       ├── bound_180.png
+│   │   │   │   │       ├── bound_270.png
+│   │   │   │   │       ├── bound_90.png
+│   │   │   │   │       ├── change_scope.json
+│   │   │   │   │       ├── connected_startup.json
+│   │   │   │   │       ├── connected_startup.png
+│   │   │   │   │       ├── connected_startup_diagnostics.txt
+│   │   │   │   │       ├── first_run.json
+│   │   │   │   │       ├── first_still.png
+│   │   │   │   │       ├── gui_app_overnight.patch
+│   │   │   │   │       ├── idle_motion.json
+│   │   │   │   │       ├── idle_motion.mp4
+│   │   │   │   │       ├── idle_motion_console.txt
+│   │   │   │   │       ├── idle_motion_contact.jpg
+│   │   │   │   │       ├── idle_recording.json
+│   │   │   │   │       ├── interaction_run.json
+│   │   │   │   │       ├── interaction_validation.json
+│   │   │   │   │       ├── lighter_active.png
+│   │   │   │   │       ├── lighter_benchmark.json
+│   │   │   │   │       ├── lighter_benchmark_console.txt
+│   │   │   │   │       ├── orbit_0.png
+│   │   │   │   │       ├── orbit_12.png
+│   │   │   │   │       ├── orbit_6.png
+│   │   │   │   │       ├── paused_a.png
+│   │   │   │   │       ├── paused_b.png
+│   │   │   │   │       ├── previous_integration_validation.json
+│   │   │   │   │       ├── previous_validation.json
+│   │   │   │   │       ├── projection_console.txt
+│   │   │   │   │       ├── projection_run.json
+│   │   │   │   │       ├── projection_validation.json
+│   │   │   │   │       ├── reaction_active.png
+│   │   │   │   │       ├── reaction_validation.json
+│   │   │   │   │       ├── source_audit.json
+│   │   │   │   │       ├── source_before.json
+│   │   │   │   │       ├── source_manifest.json
+│   │   │   │   │       ├── standard_benchmark.json
+│   │   │   │   │       ├── standard_benchmark_console.txt
+│   │   │   │   │       ├── startup_console.txt
+│   │   │   │   │       ├── state_reactions.json
+│   │   │   │   │       ├── state_reactions.mp4
+│   │   │   │   │       ├── state_reactions_console.txt
+│   │   │   │   │       ├── state_reactions_contact.jpg
+│   │   │   │   │       ├── state_recording.json
+│   │   │   │   │       └── validation_run.json
+│   │   │   │   ├── reaction_validation/
+│   │   │   │   │   ├── bound_0.png
+│   │   │   │   │   ├── bound_180.png
+│   │   │   │   │   ├── bound_270.png
+│   │   │   │   │   ├── bound_90.png
+│   │   │   │   │   ├── change_scope.json
+│   │   │   │   │   ├── connected_startup.json
+│   │   │   │   │   ├── connected_startup.png
+│   │   │   │   │   ├── connected_startup_diagnostics.txt
+│   │   │   │   │   ├── first_run.json
+│   │   │   │   │   ├── first_still.png
+│   │   │   │   │   ├── gui_app_overnight.patch
+│   │   │   │   │   ├── idle_motion.json
+│   │   │   │   │   ├── idle_motion.mp4
+│   │   │   │   │   ├── idle_motion_console.txt
+│   │   │   │   │   ├── idle_motion_contact.jpg
+│   │   │   │   │   ├── idle_recording.json
+│   │   │   │   │   ├── interaction_run.json
+│   │   │   │   │   ├── interaction_validation.json
+│   │   │   │   │   ├── lighter_active.png
+│   │   │   │   │   ├── lighter_benchmark.json
+│   │   │   │   │   ├── lighter_benchmark_console.txt
+│   │   │   │   │   ├── orbit_0.png
+│   │   │   │   │   ├── orbit_12.png
+│   │   │   │   │   ├── orbit_6.png
+│   │   │   │   │   ├── paused_a.png
+│   │   │   │   │   ├── paused_b.png
+│   │   │   │   │   ├── previous_integration_validation.json
+│   │   │   │   │   ├── previous_validation.json
+│   │   │   │   │   ├── projection_console.txt
+│   │   │   │   │   ├── projection_run.json
+│   │   │   │   │   ├── projection_validation.json
+│   │   │   │   │   ├── reaction_active.png
+│   │   │   │   │   ├── reaction_validation.json
+│   │   │   │   │   ├── source_audit.json
+│   │   │   │   │   ├── source_before.json
+│   │   │   │   │   ├── source_manifest.json
+│   │   │   │   │   ├── standard_benchmark.json
+│   │   │   │   │   ├── standard_benchmark_console.txt
+│   │   │   │   │   ├── startup_console.txt
+│   │   │   │   │   ├── state_reactions.json
+│   │   │   │   │   ├── state_reactions.mp4
+│   │   │   │   │   ├── state_reactions_console.txt
+│   │   │   │   │   ├── state_reactions_contact.jpg
+│   │   │   │   │   ├── state_recording.json
+│   │   │   │   │   └── validation_run.json
+│   │   │   │   ├── after_fixed.json
+│   │   │   │   ├── after_fixed.png
+│   │   │   │   ├── baseline.json
+│   │   │   │   ├── before_after.png
+│   │   │   │   ├── before_fixed.json
+│   │   │   │   ├── before_fixed.png
+│   │   │   │   ├── benchmark_lighter.json
+│   │   │   │   ├── benchmark_standard.json
+│   │   │   │   ├── comparison_metrics.json
+│   │   │   │   ├── connected_startup.json
+│   │   │   │   ├── connected_startup.png
+│   │   │   │   ├── connected_startup_diagnostics.txt
+│   │   │   │   ├── core_rgba.png
+│   │   │   │   ├── current_task_audit.json
+│   │   │   │   ├── discharge_inspection.jpg
+│   │   │   │   ├── discharge_inspection.json
+│   │   │   │   ├── energy_motion.json
+│   │   │   │   ├── energy_motion.mp4
+│   │   │   │   ├── final_energy_motion.json
+│   │   │   │   ├── final_energy_motion.mp4
+│   │   │   │   ├── final_expanded.png
+│   │   │   │   ├── final_motion_review.jpg
+│   │   │   │   ├── final_recording_run.json
+│   │   │   │   ├── final_standard.json
+│   │   │   │   ├── final_standard.png
+│   │   │   │   ├── first_still.json
+│   │   │   │   ├── first_still.png
+│   │   │   │   ├── frozen_a.png
+│   │   │   │   ├── frozen_b.png
+│   │   │   │   ├── gui_app_overnight.patch
+│   │   │   │   ├── inspect_emission.py
+│   │   │   │   ├── interface_run.json
+│   │   │   │   ├── launch_run.json
+│   │   │   │   ├── motion_review.jpg
+│   │   │   │   ├── motion_still.png
+│   │   │   │   ├── reaction_run.json
+│   │   │   │   ├── recording.json
+│   │   │   │   ├── source_audit.json
+│   │   │   │   ├── source_manifest.json
+│   │   │   │   └── validation.json
+│   │   │   ├── fire_refresh/
+│   │   │   │   ├── previous_validation/
+│   │   │   │   │   ├── core_rgba.png
+│   │   │   │   │   ├── frozen_a.png
+│   │   │   │   │   ├── frozen_b.png
+│   │   │   │   │   ├── integration_approval.png
+│   │   │   │   │   ├── integration_connected.png
+│   │   │   │   │   ├── integration_diagnostics.txt
+│   │   │   │   │   ├── integration_validation.json
+│   │   │   │   │   ├── layout_1280x800.png
+│   │   │   │   │   ├── orbit_0.png
+│   │   │   │   │   ├── orbit_180.png
+│   │   │   │   │   ├── orbit_270.png
+│   │   │   │   │   ├── orbit_90.png
+│   │   │   │   │   ├── small_core_rgba.png
+│   │   │   │   │   └── validation.json
+│   │   │   │   ├── after.json
+│   │   │   │   ├── after.png
+│   │   │   │   ├── before.json
+│   │   │   │   ├── before.png
+│   │   │   │   ├── before_hashes.json
+│   │   │   │   ├── classic_startup.json
+│   │   │   │   ├── classic_startup.png
+│   │   │   │   ├── classic_startup_diagnostics.txt
+│   │   │   │   ├── comparison.png
+│   │   │   │   ├── default_startup.json
+│   │   │   │   ├── default_startup.png
+│   │   │   │   ├── default_startup_diagnostics.txt
+│   │   │   │   ├── expanded_30.json
+│   │   │   │   ├── expanded_60.json
+│   │   │   │   ├── gui__app.py.before
+│   │   │   │   ├── gui_app_overnight.patch
+│   │   │   │   ├── motion.json
+│   │   │   │   ├── motion.mp4
+│   │   │   │   ├── prototypes__cinematic_v4__mock_telemetry.py.before
+│   │   │   │   ├── prototypes__cinematic_v4__qml__NucleusScene.qml.before
+│   │   │   │   ├── prototypes__cinematic_v4__qml__shaders__particles.frag.before
+│   │   │   │   ├── prototypes__cinematic_v4__qml__shaders__particles.vert.before
+│   │   │   │   ├── prototypes__cinematic_v4__qml__shaders__surface.frag.before
+│   │   │   │   ├── pytest.txt
+│   │   │   │   ├── recording_run.json
+│   │   │   │   ├── source_audit.json
+│   │   │   │   ├── source_manifest.json
+│   │   │   │   ├── test_gui_app.py.before
+│   │   │   │   └── validation_run.json
+│   │   │   ├── flow_launch/
+│   │   │   │   ├── previous_source/
+│   │   │   │   │   ├── assets/
+│   │   │   │   │   │   ├── band_inner.npz
+│   │   │   │   │   │   ├── band_mid.npz
+│   │   │   │   │   │   ├── band_outer.npz
+│   │   │   │   │   │   ├── bands.png
+│   │   │   │   │   │   ├── circuit.png
+│   │   │   │   │   │   ├── circuit_low.png
+│   │   │   │   │   │   ├── circuit_routes.npz
+│   │   │   │   │   │   ├── circuit_routes_low.npz
+│   │   │   │   │   │   ├── core_filaments.npz
+│   │   │   │   │   │   ├── energy_ribbons.npz
+│   │   │   │   │   │   ├── flow.png
+│   │   │   │   │   │   ├── manifest.json
+│   │   │   │   │   │   ├── peripheral_schematics.npz
+│   │   │   │   │   │   ├── plates.npz
+│   │   │   │   │   │   ├── rails.npz
+│   │   │   │   │   │   ├── shell_0.npz
+│   │   │   │   │   │   ├── shell_1.npz
+│   │   │   │   │   │   ├── shell_2.npz
+│   │   │   │   │   │   └── streams.npz
+│   │   │   │   │   ├── qml/
+│   │   │   │   │   │   ├── shaders/
+│   │   │   │   │   │   │   ├── glow.frag
+│   │   │   │   │   │   │   ├── glow.frag.qsb
+│   │   │   │   │   │   │   ├── particles.frag
+│   │   │   │   │   │   │   ├── particles.vert
+│   │   │   │   │   │   │   ├── surface.frag
+│   │   │   │   │   │   │   └── surface.vert
+│   │   │   │   │   │   ├── CinematicStage.qml
+│   │   │   │   │   │   ├── ConnectedWindow.qml
+│   │   │   │   │   │   ├── HoloMaterial.qml
+│   │   │   │   │   │   ├── HudButton.qml
+│   │   │   │   │   │   ├── LabButton.qml
+│   │   │   │   │   │   ├── LabWindow.qml
+│   │   │   │   │   │   ├── NucleusScene.qml
+│   │   │   │   │   │   ├── NucleusView.qml
+│   │   │   │   │   │   └── Sparkline.qml
+│   │   │   │   │   ├── audit_changes.py
+│   │   │   │   │   ├── benchmark.py
+│   │   │   │   │   ├── build_review.py
+│   │   │   │   │   ├── frame_pacing.py
+│   │   │   │   │   ├── generate_assets.py
+│   │   │   │   │   ├── geometry.py
+│   │   │   │   │   ├── integration.py
+│   │   │   │   │   ├── mock_telemetry.py
+│   │   │   │   │   ├── presentation.py
+│   │   │   │   │   ├── README.md
+│   │   │   │   │   ├── recording.py
+│   │   │   │   │   ├── run_preview.py
+│   │   │   │   │   ├── smoke_connected.py
+│   │   │   │   │   ├── validate_integration.py
+│   │   │   │   │   └── validate_preview.py
+│   │   │   │   ├── previous_validation/
+│   │   │   │   │   ├── core_rgba.png
+│   │   │   │   │   ├── frozen_a.png
+│   │   │   │   │   ├── frozen_b.png
+│   │   │   │   │   ├── integration_approval.png
+│   │   │   │   │   ├── integration_connected.png
+│   │   │   │   │   ├── integration_diagnostics.txt
+│   │   │   │   │   ├── integration_validation.json
+│   │   │   │   │   ├── layout_1280x800.png
+│   │   │   │   │   ├── orbit_0.png
+│   │   │   │   │   ├── orbit_180.png
+│   │   │   │   │   ├── orbit_270.png
+│   │   │   │   │   ├── orbit_90.png
+│   │   │   │   │   ├── small_core_rgba.png
+│   │   │   │   │   └── validation.json
+│   │   │   │   ├── reference_frames/
+│   │   │   │   │   ├── 0001.jpg
+│   │   │   │   │   ├── 0002.jpg
+│   │   │   │   │   ├── 0003.jpg
+│   │   │   │   │   ├── 0004.jpg
+│   │   │   │   │   ├── 0005.jpg
+│   │   │   │   │   ├── 0006.jpg
+│   │   │   │   │   ├── 0007.jpg
+│   │   │   │   │   ├── 0008.jpg
+│   │   │   │   │   ├── 0009.jpg
+│   │   │   │   │   ├── 0010.jpg
+│   │   │   │   │   ├── 0011.jpg
+│   │   │   │   │   ├── 0012.jpg
+│   │   │   │   │   ├── 0013.jpg
+│   │   │   │   │   ├── 0014.jpg
+│   │   │   │   │   ├── 0015.jpg
+│   │   │   │   │   ├── 0016.jpg
+│   │   │   │   │   ├── 0017.jpg
+│   │   │   │   │   ├── 0018.jpg
+│   │   │   │   │   ├── 0019.jpg
+│   │   │   │   │   ├── 0020.jpg
+│   │   │   │   │   ├── 0021.jpg
+│   │   │   │   │   ├── 0022.jpg
+│   │   │   │   │   ├── 0023.jpg
+│   │   │   │   │   ├── 0024.jpg
+│   │   │   │   │   ├── 0025.jpg
+│   │   │   │   │   ├── 0026.jpg
+│   │   │   │   │   ├── 0027.jpg
+│   │   │   │   │   ├── 0028.jpg
+│   │   │   │   │   ├── 0029.jpg
+│   │   │   │   │   ├── 0030.jpg
+│   │   │   │   │   ├── 0031.jpg
+│   │   │   │   │   ├── 0032.jpg
+│   │   │   │   │   ├── 0033.jpg
+│   │   │   │   │   ├── 0034.jpg
+│   │   │   │   │   ├── 0035.jpg
+│   │   │   │   │   ├── 0036.jpg
+│   │   │   │   │   ├── 0037.jpg
+│   │   │   │   │   ├── 0038.jpg
+│   │   │   │   │   ├── 0039.jpg
+│   │   │   │   │   ├── 0040.jpg
+│   │   │   │   │   ├── 0041.jpg
+│   │   │   │   │   ├── 0042.jpg
+│   │   │   │   │   ├── 0043.jpg
+│   │   │   │   │   ├── 0044.jpg
+│   │   │   │   │   ├── 0045.jpg
+│   │   │   │   │   ├── 0046.jpg
+│   │   │   │   │   ├── 0047.jpg
+│   │   │   │   │   ├── 0048.jpg
+│   │   │   │   │   ├── 0049.jpg
+│   │   │   │   │   ├── 0050.jpg
+│   │   │   │   │   ├── 0051.jpg
+│   │   │   │   │   ├── 0052.jpg
+│   │   │   │   │   ├── 0053.jpg
+│   │   │   │   │   ├── 0054.jpg
+│   │   │   │   │   ├── 0055.jpg
+│   │   │   │   │   ├── 0056.jpg
+│   │   │   │   │   ├── 0057.jpg
+│   │   │   │   │   ├── 0058.jpg
+│   │   │   │   │   ├── 0059.jpg
+│   │   │   │   │   ├── 0060.jpg
+│   │   │   │   │   ├── 0061.jpg
+│   │   │   │   │   ├── 0062.jpg
+│   │   │   │   │   ├── 0063.jpg
+│   │   │   │   │   ├── 0064.jpg
+│   │   │   │   │   ├── 0065.jpg
+│   │   │   │   │   ├── 0066.jpg
+│   │   │   │   │   ├── 0067.jpg
+│   │   │   │   │   ├── 0068.jpg
+│   │   │   │   │   ├── 0069.jpg
+│   │   │   │   │   ├── 0070.jpg
+│   │   │   │   │   ├── 0071.jpg
+│   │   │   │   │   ├── 0072.jpg
+│   │   │   │   │   ├── 0073.jpg
+│   │   │   │   │   ├── 0074.jpg
+│   │   │   │   │   ├── 0075.jpg
+│   │   │   │   │   ├── 0076.jpg
+│   │   │   │   │   ├── 0077.jpg
+│   │   │   │   │   ├── 0078.jpg
+│   │   │   │   │   ├── 0079.jpg
+│   │   │   │   │   ├── 0080.jpg
+│   │   │   │   │   ├── 0081.jpg
+│   │   │   │   │   ├── 0082.jpg
+│   │   │   │   │   ├── 0083.jpg
+│   │   │   │   │   ├── 0084.jpg
+│   │   │   │   │   ├── 0085.jpg
+│   │   │   │   │   ├── 0086.jpg
+│   │   │   │   │   ├── 0087.jpg
+│   │   │   │   │   ├── 0088.jpg
+│   │   │   │   │   ├── 0089.jpg
+│   │   │   │   │   ├── 0090.jpg
+│   │   │   │   │   ├── 0091.jpg
+│   │   │   │   │   ├── 0092.jpg
+│   │   │   │   │   ├── 0093.jpg
+│   │   │   │   │   ├── 0094.jpg
+│   │   │   │   │   ├── 0095.jpg
+│   │   │   │   │   ├── 0096.jpg
+│   │   │   │   │   ├── 0097.jpg
+│   │   │   │   │   ├── 0098.jpg
+│   │   │   │   │   ├── 0099.jpg
+│   │   │   │   │   ├── 0100.jpg
+│   │   │   │   │   ├── 0101.jpg
+│   │   │   │   │   ├── 0102.jpg
+│   │   │   │   │   ├── 0103.jpg
+│   │   │   │   │   ├── 0104.jpg
+│   │   │   │   │   ├── 0105.jpg
+│   │   │   │   │   ├── 0106.jpg
+│   │   │   │   │   ├── 0107.jpg
+│   │   │   │   │   ├── 0108.jpg
+│   │   │   │   │   ├── 0109.jpg
+│   │   │   │   │   ├── 0110.jpg
+│   │   │   │   │   ├── 0111.jpg
+│   │   │   │   │   ├── 0112.jpg
+│   │   │   │   │   ├── 0113.jpg
+│   │   │   │   │   ├── 0114.jpg
+│   │   │   │   │   ├── 0115.jpg
+│   │   │   │   │   ├── 0116.jpg
+│   │   │   │   │   ├── 0117.jpg
+│   │   │   │   │   ├── 0118.jpg
+│   │   │   │   │   ├── 0119.jpg
+│   │   │   │   │   ├── 0120.jpg
+│   │   │   │   │   ├── 0121.jpg
+│   │   │   │   │   ├── 0122.jpg
+│   │   │   │   │   ├── 0123.jpg
+│   │   │   │   │   ├── 0124.jpg
+│   │   │   │   │   ├── 0125.jpg
+│   │   │   │   │   ├── 0126.jpg
+│   │   │   │   │   ├── 0127.jpg
+│   │   │   │   │   ├── 0128.jpg
+│   │   │   │   │   ├── 0129.jpg
+│   │   │   │   │   ├── 0130.jpg
+│   │   │   │   │   ├── 0131.jpg
+│   │   │   │   │   ├── 0132.jpg
+│   │   │   │   │   ├── 0133.jpg
+│   │   │   │   │   ├── 0134.jpg
+│   │   │   │   │   ├── 0135.jpg
+│   │   │   │   │   ├── 0136.jpg
+│   │   │   │   │   ├── 0137.jpg
+│   │   │   │   │   ├── 0138.jpg
+│   │   │   │   │   ├── 0139.jpg
+│   │   │   │   │   ├── 0140.jpg
+│   │   │   │   │   ├── 0141.jpg
+│   │   │   │   │   ├── 0142.jpg
+│   │   │   │   │   ├── 0143.jpg
+│   │   │   │   │   ├── 0144.jpg
+│   │   │   │   │   ├── 0145.jpg
+│   │   │   │   │   ├── 0146.jpg
+│   │   │   │   │   ├── 0147.jpg
+│   │   │   │   │   ├── 0148.jpg
+│   │   │   │   │   ├── 0149.jpg
+│   │   │   │   │   ├── 0150.jpg
+│   │   │   │   │   └── 0151.jpg
+│   │   │   │   ├── blue_flow_detail.jpg
+│   │   │   │   ├── change_scope.json
+│   │   │   │   ├── connected_startup.json
+│   │   │   │   ├── connected_startup.png
+│   │   │   │   ├── connected_startup_diagnostics.txt
+│   │   │   │   ├── expanded_30.json
+│   │   │   │   ├── expanded_60.json
+│   │   │   │   ├── first_still.json
+│   │   │   │   ├── first_still.png
+│   │   │   │   ├── flow_after.png
+│   │   │   │   ├── flow_after_alpha.png
+│   │   │   │   ├── gold_flow_detail.jpg
+│   │   │   │   ├── gui_app_overnight.patch
+│   │   │   │   ├── integration_approval.png
+│   │   │   │   ├── integration_connected.png
+│   │   │   │   ├── integration_diagnostics.txt
+│   │   │   │   ├── integration_validation.json
+│   │   │   │   ├── interaction_run.json
+│   │   │   │   ├── launch_and_flow.json
+│   │   │   │   ├── launch_and_flow.mp4
+│   │   │   │   ├── launch_arcs.png
+│   │   │   │   ├── launch_arcs_alpha.png
+│   │   │   │   ├── launch_seed.png
+│   │   │   │   ├── launch_seed_alpha.png
+│   │   │   │   ├── launch_sequence.jpg
+│   │   │   │   ├── launch_settled.png
+│   │   │   │   ├── launch_settled_alpha.png
+│   │   │   │   ├── launch_weave.png
+│   │   │   │   ├── launch_weave_alpha.png
+│   │   │   │   ├── projection_detail.jpg
+│   │   │   │   ├── projection_paused_a.png
+│   │   │   │   ├── projection_paused_b.png
+│   │   │   │   ├── projection_run.json
+│   │   │   │   ├── projection_validation.json
+│   │   │   │   ├── pytest.txt
+│   │   │   │   ├── recorded_motion_review.jpg
+│   │   │   │   ├── recording_run.json
+│   │   │   │   ├── reference_timeline_00.jpg
+│   │   │   │   ├── reference_timeline_01.jpg
+│   │   │   │   ├── reference_timeline_02.jpg
+│   │   │   │   ├── reference_timeline_03.jpg
+│   │   │   │   ├── reference_timeline_04.jpg
+│   │   │   │   ├── reference_timeline_05.jpg
+│   │   │   │   ├── reference_timeline_06.jpg
+│   │   │   │   ├── source_audit.json
+│   │   │   │   ├── source_before.json
+│   │   │   │   ├── source_manifest.json
+│   │   │   │   └── validation.json
+│   │   │   ├── inner_filament_refine/
+│   │   │   │   ├── after_inspection/
+│   │   │   │   │   ├── bound_0.png
+│   │   │   │   │   ├── bound_180.png
+│   │   │   │   │   ├── bound_270.png
+│   │   │   │   │   ├── bound_90.png
+│   │   │   │   │   ├── checks.json
+│   │   │   │   │   ├── launch_seed.png
+│   │   │   │   │   ├── launch_settled.png
+│   │   │   │   │   ├── light_0.5.png
+│   │   │   │   │   ├── light_0.png
+│   │   │   │   │   ├── light_1.0.png
+│   │   │   │   │   ├── lighter.png
+│   │   │   │   │   ├── paused_a.png
+│   │   │   │   │   ├── paused_b.png
+│   │   │   │   │   ├── pose_0.png
+│   │   │   │   │   ├── pose_6.png
+│   │   │   │   │   └── reaction.png
+│   │   │   │   ├── beats_after_inspection/
+│   │   │   │   │   ├── bound_0.png
+│   │   │   │   │   ├── bound_180.png
+│   │   │   │   │   ├── bound_270.png
+│   │   │   │   │   ├── bound_90.png
+│   │   │   │   │   ├── checks.json
+│   │   │   │   │   ├── launch_seed.png
+│   │   │   │   │   ├── launch_settled.png
+│   │   │   │   │   ├── light_0.5.png
+│   │   │   │   │   ├── light_0.png
+│   │   │   │   │   ├── light_1.0.png
+│   │   │   │   │   ├── lighter.png
+│   │   │   │   │   ├── paused_a.png
+│   │   │   │   │   ├── paused_b.png
+│   │   │   │   │   ├── pose_0.png
+│   │   │   │   │   ├── pose_6.png
+│   │   │   │   │   └── reaction.png
+│   │   │   │   ├── beats_before_inspection/
+│   │   │   │   │   ├── bound_0.png
+│   │   │   │   │   ├── bound_180.png
+│   │   │   │   │   ├── bound_270.png
+│   │   │   │   │   ├── bound_90.png
+│   │   │   │   │   ├── checks.json
+│   │   │   │   │   ├── launch_seed.png
+│   │   │   │   │   ├── launch_settled.png
+│   │   │   │   │   ├── light_0.5.png
+│   │   │   │   │   ├── light_0.png
+│   │   │   │   │   ├── light_1.0.png
+│   │   │   │   │   ├── lighter.png
+│   │   │   │   │   ├── paused_a.png
+│   │   │   │   │   ├── paused_b.png
+│   │   │   │   │   ├── pose_0.png
+│   │   │   │   │   ├── pose_6.png
+│   │   │   │   │   └── reaction.png
+│   │   │   │   ├── before_inspection/
+│   │   │   │   │   ├── checks.json
+│   │   │   │   │   ├── light_0.5.png
+│   │   │   │   │   ├── light_0.png
+│   │   │   │   │   ├── light_1.0.png
+│   │   │   │   │   ├── lighter.png
+│   │   │   │   │   ├── paused_a.png
+│   │   │   │   │   ├── paused_b.png
+│   │   │   │   │   ├── pose_0.png
+│   │   │   │   │   └── pose_6.png
+│   │   │   │   ├── previous_validation/
+│   │   │   │   │   ├── flow_launch/
+│   │   │   │   │   │   ├── blue_flow_detail.jpg
+│   │   │   │   │   │   ├── change_scope.json
+│   │   │   │   │   │   ├── connected_startup.json
+│   │   │   │   │   │   ├── connected_startup.png
+│   │   │   │   │   │   ├── connected_startup_diagnostics.txt
+│   │   │   │   │   │   ├── expanded_30.json
+│   │   │   │   │   │   ├── expanded_60.json
+│   │   │   │   │   │   ├── first_still.json
+│   │   │   │   │   │   ├── first_still.png
+│   │   │   │   │   │   ├── flow_after.png
+│   │   │   │   │   │   ├── flow_after_alpha.png
+│   │   │   │   │   │   ├── gold_flow_detail.jpg
+│   │   │   │   │   │   ├── gui_app_overnight.patch
+│   │   │   │   │   │   ├── integration_approval.png
+│   │   │   │   │   │   ├── integration_connected.png
+│   │   │   │   │   │   ├── integration_diagnostics.txt
+│   │   │   │   │   │   ├── integration_validation.json
+│   │   │   │   │   │   ├── interaction_run.json
+│   │   │   │   │   │   ├── launch_and_flow.json
+│   │   │   │   │   │   ├── launch_and_flow.mp4
+│   │   │   │   │   │   ├── launch_arcs.png
+│   │   │   │   │   │   ├── launch_arcs_alpha.png
+│   │   │   │   │   │   ├── launch_seed.png
+│   │   │   │   │   │   ├── launch_seed_alpha.png
+│   │   │   │   │   │   ├── launch_sequence.jpg
+│   │   │   │   │   │   ├── launch_settled.png
+│   │   │   │   │   │   ├── launch_settled_alpha.png
+│   │   │   │   │   │   ├── launch_weave.png
+│   │   │   │   │   │   ├── launch_weave_alpha.png
+│   │   │   │   │   │   ├── projection_detail.jpg
+│   │   │   │   │   │   ├── projection_paused_a.png
+│   │   │   │   │   │   ├── projection_paused_b.png
+│   │   │   │   │   │   ├── projection_run.json
+│   │   │   │   │   │   ├── projection_validation.json
+│   │   │   │   │   │   ├── pytest.txt
+│   │   │   │   │   │   ├── recorded_motion_review.jpg
+│   │   │   │   │   │   ├── recording_run.json
+│   │   │   │   │   │   ├── reference_timeline_00.jpg
+│   │   │   │   │   │   ├── reference_timeline_01.jpg
+│   │   │   │   │   │   ├── reference_timeline_02.jpg
+│   │   │   │   │   │   ├── reference_timeline_03.jpg
+│   │   │   │   │   │   ├── reference_timeline_04.jpg
+│   │   │   │   │   │   ├── reference_timeline_05.jpg
+│   │   │   │   │   │   ├── reference_timeline_06.jpg
+│   │   │   │   │   │   ├── source_audit.json
+│   │   │   │   │   │   ├── source_before.json
+│   │   │   │   │   │   ├── source_manifest.json
+│   │   │   │   │   │   └── validation.json
+│   │   │   │   │   ├── reaction_motion/
+│   │   │   │   │   │   ├── bound_0.png
+│   │   │   │   │   │   ├── bound_180.png
+│   │   │   │   │   │   ├── bound_270.png
+│   │   │   │   │   │   ├── bound_90.png
+│   │   │   │   │   │   ├── change_scope.json
+│   │   │   │   │   │   ├── connected_startup.json
+│   │   │   │   │   │   ├── connected_startup.png
+│   │   │   │   │   │   ├── connected_startup_diagnostics.txt
+│   │   │   │   │   │   ├── first_run.json
+│   │   │   │   │   │   ├── first_still.png
+│   │   │   │   │   │   ├── gui_app_overnight.patch
+│   │   │   │   │   │   ├── idle_motion.json
+│   │   │   │   │   │   ├── idle_motion.mp4
+│   │   │   │   │   │   ├── idle_motion_console.txt
+│   │   │   │   │   │   ├── idle_motion_contact.jpg
+│   │   │   │   │   │   ├── idle_recording.json
+│   │   │   │   │   │   ├── interaction_run.json
+│   │   │   │   │   │   ├── interaction_validation.json
+│   │   │   │   │   │   ├── lighter_active.png
+│   │   │   │   │   │   ├── lighter_benchmark.json
+│   │   │   │   │   │   ├── lighter_benchmark_console.txt
+│   │   │   │   │   │   ├── orbit_0.png
+│   │   │   │   │   │   ├── orbit_12.png
+│   │   │   │   │   │   ├── orbit_6.png
+│   │   │   │   │   │   ├── paused_a.png
+│   │   │   │   │   │   ├── paused_b.png
+│   │   │   │   │   │   ├── previous_integration_validation.json
+│   │   │   │   │   │   ├── previous_validation.json
+│   │   │   │   │   │   ├── projection_console.txt
+│   │   │   │   │   │   ├── projection_run.json
+│   │   │   │   │   │   ├── projection_validation.json
+│   │   │   │   │   │   ├── reaction_active.png
+│   │   │   │   │   │   ├── reaction_validation.json
+│   │   │   │   │   │   ├── source_audit.json
+│   │   │   │   │   │   ├── source_before.json
+│   │   │   │   │   │   ├── source_manifest.json
+│   │   │   │   │   │   ├── standard_benchmark.json
+│   │   │   │   │   │   ├── standard_benchmark_console.txt
+│   │   │   │   │   │   ├── startup_console.txt
+│   │   │   │   │   │   ├── state_reactions.json
+│   │   │   │   │   │   ├── state_reactions.mp4
+│   │   │   │   │   │   ├── state_reactions_console.txt
+│   │   │   │   │   │   ├── state_reactions_contact.jpg
+│   │   │   │   │   │   ├── state_recording.json
+│   │   │   │   │   │   └── validation_run.json
+│   │   │   │   │   ├── core_rgba.png
+│   │   │   │   │   └── validation.json
+│   │   │   │   ├── baseline.json
+│   │   │   │   ├── before_after.png
+│   │   │   │   ├── connected_startup.json
+│   │   │   │   ├── connected_startup.png
+│   │   │   │   ├── connected_startup_diagnostics.txt
+│   │   │   │   ├── first_still.json
+│   │   │   │   ├── first_still.png
+│   │   │   │   ├── inspect_render.py
+│   │   │   │   ├── legacy_capture_failure.json
+│   │   │   │   ├── lighter_timing_probe.json
+│   │   │   │   ├── motion.json
+│   │   │   │   ├── motion.mp4
+│   │   │   │   ├── motion_review.jpg
+│   │   │   │   ├── motion_still.png
+│   │   │   │   ├── presentation_timing_probe.json
+│   │   │   │   ├── reaction_run.json
+│   │   │   │   ├── recording_run.json
+│   │   │   │   ├── ribbon_detail_comparison.png
+│   │   │   │   ├── rollback_paths.json
+│   │   │   │   ├── source_audit.json
+│   │   │   │   ├── source_manifest.json
+│   │   │   │   └── threaded_capture_diagnostics.txt
+│   │   │   ├── main_app_acceptance/
+│   │   │   │   ├── previous_integration_evidence/
+│   │   │   │   │   ├── integration_approval.png
+│   │   │   │   │   ├── integration_connected.png
+│   │   │   │   │   ├── integration_diagnostics.txt
+│   │   │   │   │   └── integration_validation.json
+│   │   │   │   ├── accepted_asset_verification.json
+│   │   │   │   ├── baseline.json
+│   │   │   │   ├── connected_startup.json
+│   │   │   │   ├── connected_startup.png
+│   │   │   │   ├── connected_startup_diagnostics.txt
+│   │   │   │   ├── integration_approval.png
+│   │   │   │   ├── integration_connected.png
+│   │   │   │   ├── integration_diagnostics.txt
+│   │   │   │   ├── integration_validation.json
+│   │   │   │   ├── launch.json
+│   │   │   │   ├── pytest_result.json
+│   │   │   │   ├── running_app.json
+│   │   │   │   └── source_audit.json
+│   │   │   ├── music_all_modes/
+│   │   │   │   ├── pytest/
+│   │   │   │   │   ├── test_activity_cancels_without_0/
+│   │   │   │   │   ├── test_activity_cancels_without_1/
+│   │   │   │   │   ├── test_activity_cancels_without_2/
+│   │   │   │   │   ├── test_activity_cancels_without_3/
+│   │   │   │   │   ├── test_activity_cancels_without_4/
+│   │   │   │   │   ├── test_activity_cancels_without_5/
+│   │   │   │   │   ├── test_activity_cancels_without_6/
+│   │   │   │   │   ├── test_activity_cancels_without_7/
+│   │   │   │   │   ├── test_activity_cancels_without_8/
+│   │   │   │   │   ├── test_all_modes_preserves_same_0/
+│   │   │   │   │   ├── test_environment_can_silence_s0/
+│   │   │   │   │   ├── test_intensity_and_invalid_pre0/
+│   │   │   │   │   │   └── music.ini
+│   │   │   │   │   ├── test_loading_can_complete_earl0/
+│   │   │   │   │   ├── test_manual_stop_stays_stopped0/
+│   │   │   │   │   ├── test_music_only_releases_captu0/
+│   │   │   │   │   │   └── music.ini
+│   │   │   │   │   ├── test_mute_immediately_stops_ar0/
+│   │   │   │   │   │   └── audio.ini
+│   │   │   │   │   ├── test_off_stops_background_but_0/
+│   │   │   │   │   │   └── music.ini
+│   │   │   │   │   ├── test_preferences_survive_new_s0/
+│   │   │   │   │   │   └── music.ini
+│   │   │   │   │   ├── test_startup_does_not_capture_0/
+│   │   │   │   │   ├── test_switch_to_player_releases0/
+│   │   │   │   │   ├── test_unavailable_or_late_audio0/
+│   │   │   │   │   ├── test_unavailable_or_late_audio1/
+│   │   │   │   │   ├── test_volume_updates_output_and0/
+│   │   │   │   │   │   └── audio.ini
+│   │   │   │   │   ├── test_waits_for_first_presentat0/
+│   │   │   │   │   ├── test_window_interrupts_arrival0/
+│   │   │   │   │   ├── test_window_interrupts_arrival1/
+│   │   │   │   │   └── test_window_interrupts_arrival2/
+│   │   │   │   ├── assistant_player.png
+│   │   │   │   ├── assistant_windows.png
+│   │   │   │   ├── baseline.json
+│   │   │   │   ├── beat_regression.json
+│   │   │   │   ├── changes.patch
+│   │   │   │   ├── diagnostics.txt
+│   │   │   │   ├── music_regression.json
+│   │   │   │   ├── music_windows.png
+│   │   │   │   ├── samples.json
+│   │   │   │   ├── settings_1100.png
+│   │   │   │   ├── settings_1920.png
+│   │   │   │   ├── source_audit.json
+│   │   │   │   ├── source_manifest.json
+│   │   │   │   ├── test-settings.ini
+│   │   │   │   ├── unit_results.json
+│   │   │   │   └── validation.json
+│   │   │   ├── music_beats/
+│   │   │   │   ├── pytest_2/
+│   │   │   │   │   ├── test_activity_cancels_without_0/
+│   │   │   │   │   ├── test_activity_cancels_without_1/
+│   │   │   │   │   ├── test_activity_cancels_without_2/
+│   │   │   │   │   ├── test_activity_cancels_without_3/
+│   │   │   │   │   ├── test_activity_cancels_without_4/
+│   │   │   │   │   ├── test_activity_cancels_without_5/
+│   │   │   │   │   ├── test_activity_cancels_without_6/
+│   │   │   │   │   ├── test_activity_cancels_without_7/
+│   │   │   │   │   ├── test_activity_cancels_without_8/
+│   │   │   │   │   ├── test_environment_can_silence_s0/
+│   │   │   │   │   ├── test_loading_can_complete_earl0/
+│   │   │   │   │   ├── test_mute_immediately_stops_ar0/
+│   │   │   │   │   │   └── audio.ini
+│   │   │   │   │   ├── test_unavailable_or_late_audio0/
+│   │   │   │   │   ├── test_unavailable_or_late_audio1/
+│   │   │   │   │   ├── test_volume_updates_output_and0/
+│   │   │   │   │   │   └── audio.ini
+│   │   │   │   │   ├── test_waits_for_first_presentat0/
+│   │   │   │   │   ├── test_window_interrupts_arrival0/
+│   │   │   │   │   ├── test_window_interrupts_arrival1/
+│   │   │   │   │   └── test_window_interrupts_arrival2/
+│   │   │   │   ├── assistant_comparison.json
+│   │   │   │   ├── baseline.json
+│   │   │   │   ├── beat.png
+│   │   │   │   ├── beat_core.png
+│   │   │   │   ├── core_regression.json
+│   │   │   │   ├── diagnostics.txt
+│   │   │   │   ├── kicks.wav
+│   │   │   │   ├── music_regression.json
+│   │   │   │   ├── onset_timing.json
+│   │   │   │   ├── quiet.png
+│   │   │   │   ├── quiet_core.png
+│   │   │   │   ├── samples.json
+│   │   │   │   ├── source_audit.json
+│   │   │   │   ├── source_manifest.json
+│   │   │   │   ├── test_settings.ini
+│   │   │   │   ├── unit_results.json
+│   │   │   │   └── validation.json
+│   │   │   ├── music_foundation/
+│   │   │   │   ├── chrome_test_profile/
+│   │   │   │   │   ├── ActorSafetyLists/
+│   │   │   │   │   ├── AmountExtractionHeuristicRegexes/
+│   │   │   │   │   ├── CaptchaProviders/
+│   │   │   │   │   ├── CertificateRevocation/
+│   │   │   │   │   ├── component_crx_cache/
+│   │   │   │   │   ├── Crashpad/
+│   │   │   │   │   │   ├── attachments/
+│   │   │   │   │   │   ├── reports/
+│   │   │   │   │   │   ├── metadata
+│   │   │   │   │   │   └── settings.dat
+│   │   │   │   │   ├── Crowd Deny/
+│   │   │   │   │   ├── Default/
+│   │   │   │   │   │   ├── blob_storage/
+│   │   │   │   │   │   │   └── 751972b1-ed81-44d4-925a-aa6771a4fc54/
+│   │   │   │   │   │   ├── Cache/
+│   │   │   │   │   │   │   ├── Cache_Data/
+│   │   │   │   │   │   │   │   ├── data_0
+│   │   │   │   │   │   │   │   ├── data_1
+│   │   │   │   │   │   │   │   ├── data_2
+│   │   │   │   │   │   │   │   ├── data_3
+│   │   │   │   │   │   │   │   └── index
+│   │   │   │   │   │   │   └── No_Vary_Search/
+│   │   │   │   │   │   │       ├── journal.baj
+│   │   │   │   │   │   │       └── snapshot.baf
+│   │   │   │   │   │   ├── chrome_cart_db/
+│   │   │   │   │   │   │   ├── LOCK
+│   │   │   │   │   │   │   └── LOG
+│   │   │   │   │   │   ├── ClientCertificates/
+│   │   │   │   │   │   │   ├── LOCK
+│   │   │   │   │   │   │   └── LOG
+│   │   │   │   │   │   ├── Code Cache/
+│   │   │   │   │   │   │   ├── js/
+│   │   │   │   │   │   │   │   ├── index-dir/
+│   │   │   │   │   │   │   │   │   └── the-real-index
+│   │   │   │   │   │   │   │   ├── ba678a2fbd8c358c_0
+│   │   │   │   │   │   │   │   └── index
+│   │   │   │   │   │   │   └── wasm/
+│   │   │   │   │   │   │       ├── index-dir/
+│   │   │   │   │   │   │       │   └── the-real-index
+│   │   │   │   │   │   │       └── index
+│   │   │   │   │   │   ├── commerce_subscription_db/
+│   │   │   │   │   │   │   ├── LOCK
+│   │   │   │   │   │   │   └── LOG
+│   │   │   │   │   │   ├── DawnGraphiteCache/
+│   │   │   │   │   │   │   ├── data_0
+│   │   │   │   │   │   │   ├── data_1
+│   │   │   │   │   │   │   ├── data_2
+│   │   │   │   │   │   │   ├── data_3
+│   │   │   │   │   │   │   └── index
+│   │   │   │   │   │   ├── DawnWebGPUCache/
+│   │   │   │   │   │   │   ├── data_0
+│   │   │   │   │   │   │   ├── data_1
+│   │   │   │   │   │   │   ├── data_2
+│   │   │   │   │   │   │   ├── data_3
+│   │   │   │   │   │   │   └── index
+│   │   │   │   │   │   ├── discount_infos_db/
+│   │   │   │   │   │   │   ├── LOCK
+│   │   │   │   │   │   │   └── LOG
+│   │   │   │   │   │   ├── discounts_db/
+│   │   │   │   │   │   │   ├── LOCK
+│   │   │   │   │   │   │   └── LOG
+│   │   │   │   │   │   ├── Extension Rules/
+│   │   │   │   │   │   │   ├── 000003.log
+│   │   │   │   │   │   │   ├── CURRENT
+│   │   │   │   │   │   │   ├── LOCK
+│   │   │   │   │   │   │   ├── LOG
+│   │   │   │   │   │   │   └── MANIFEST-000001
+│   │   │   │   │   │   ├── Extension Scripts/
+│   │   │   │   │   │   │   ├── 000003.log
+│   │   │   │   │   │   │   ├── CURRENT
+│   │   │   │   │   │   │   ├── LOCK
+│   │   │   │   │   │   │   ├── LOG
+│   │   │   │   │   │   │   └── MANIFEST-000001
+│   │   │   │   │   │   ├── Extension State/
+│   │   │   │   │   │   │   ├── 000003.log
+│   │   │   │   │   │   │   ├── CURRENT
+│   │   │   │   │   │   │   ├── LOCK
+│   │   │   │   │   │   │   ├── LOG
+│   │   │   │   │   │   │   └── MANIFEST-000001
+│   │   │   │   │   │   ├── GPUCache/
+│   │   │   │   │   │   │   ├── data_0
+│   │   │   │   │   │   │   ├── data_1
+│   │   │   │   │   │   │   ├── data_2
+│   │   │   │   │   │   │   ├── data_3
+│   │   │   │   │   │   │   └── index
+│   │   │   │   │   │   ├── Local Storage/
+│   │   │   │   │   │   │   └── leveldb/
+│   │   │   │   │   │   │       ├── 000003.log
+│   │   │   │   │   │   │       ├── CURRENT
+│   │   │   │   │   │   │       ├── LOCK
+│   │   │   │   │   │   │       ├── LOG
+│   │   │   │   │   │   │       └── MANIFEST-000001
+│   │   │   │   │   │   ├── Network/
+│   │   │   │   │   │   │   ├── Cookies
+│   │   │   │   │   │   │   ├── Cookies-journal
+│   │   │   │   │   │   │   ├── Device Bound Sessions
+│   │   │   │   │   │   │   ├── Device Bound Sessions-journal
+│   │   │   │   │   │   │   ├── NetworkDataMigrated
+│   │   │   │   │   │   │   ├── Reporting and NEL
+│   │   │   │   │   │   │   ├── Reporting and NEL-journal
+│   │   │   │   │   │   │   ├── Trust Tokens
+│   │   │   │   │   │   │   └── Trust Tokens-journal
+│   │   │   │   │   │   ├── parcel_tracking_db/
+│   │   │   │   │   │   │   ├── LOCK
+│   │   │   │   │   │   │   └── LOG
+│   │   │   │   │   │   ├── PersistentOriginTrials/
+│   │   │   │   │   │   │   ├── LOCK
+│   │   │   │   │   │   │   └── LOG
+│   │   │   │   │   │   ├── Safe Browsing Network/
+│   │   │   │   │   │   │   └── NetworkDataMigrated
+│   │   │   │   │   │   ├── Segmentation Platform/
+│   │   │   │   │   │   │   ├── SegmentInfoDB/
+│   │   │   │   │   │   │   │   ├── LOCK
+│   │   │   │   │   │   │   │   └── LOG
+│   │   │   │   │   │   │   ├── SignalDB/
+│   │   │   │   │   │   │   │   ├── LOCK
+│   │   │   │   │   │   │   │   └── LOG
+│   │   │   │   │   │   │   └── SignalStorageConfigDB/
+│   │   │   │   │   │   │       ├── LOCK
+│   │   │   │   │   │   │       └── LOG
+│   │   │   │   │   │   ├── Service Worker/
+│   │   │   │   │   │   │   ├── Database/
+│   │   │   │   │   │   │   │   ├── 000003.log
+│   │   │   │   │   │   │   │   ├── CURRENT
+│   │   │   │   │   │   │   │   ├── LOCK
+│   │   │   │   │   │   │   │   ├── LOG
+│   │   │   │   │   │   │   │   └── MANIFEST-000001
+│   │   │   │   │   │   │   └── ScriptCache/
+│   │   │   │   │   │   │       ├── index-dir/
+│   │   │   │   │   │   │       │   └── the-real-index
+│   │   │   │   │   │   │       ├── 2cc80dabc69f58b6_0
+│   │   │   │   │   │   │       ├── 4cb013792b196a35_0
+│   │   │   │   │   │   │       ├── 4cb013792b196a35_1
+│   │   │   │   │   │   │       └── index
+│   │   │   │   │   │   ├── Session Storage/
+│   │   │   │   │   │   │   ├── 000003.log
+│   │   │   │   │   │   │   ├── CURRENT
+│   │   │   │   │   │   │   ├── LOCK
+│   │   │   │   │   │   │   ├── LOG
+│   │   │   │   │   │   │   └── MANIFEST-000001
+│   │   │   │   │   │   ├── Sessions/
+│   │   │   │   │   │   │   └── Session_13434035646353874
+│   │   │   │   │   │   ├── Shared Dictionary/
+│   │   │   │   │   │   │   ├── cache/
+│   │   │   │   │   │   │   │   ├── index-dir/
+│   │   │   │   │   │   │   │   │   └── the-real-index
+│   │   │   │   │   │   │   │   └── index
+│   │   │   │   │   │   │   ├── db
+│   │   │   │   │   │   │   └── db-journal
+│   │   │   │   │   │   ├── shared_proto_db/
+│   │   │   │   │   │   │   ├── metadata/
+│   │   │   │   │   │   │   │   ├── 000003.log
+│   │   │   │   │   │   │   │   ├── CURRENT
+│   │   │   │   │   │   │   │   ├── LOCK
+│   │   │   │   │   │   │   │   ├── LOG
+│   │   │   │   │   │   │   │   └── MANIFEST-000001
+│   │   │   │   │   │   │   ├── 000003.log
+│   │   │   │   │   │   │   ├── CURRENT
+│   │   │   │   │   │   │   ├── LOCK
+│   │   │   │   │   │   │   ├── LOG
+│   │   │   │   │   │   │   └── MANIFEST-000001
+│   │   │   │   │   │   ├── Site Characteristics Database/
+│   │   │   │   │   │   │   ├── 000003.log
+│   │   │   │   │   │   │   ├── CURRENT
+│   │   │   │   │   │   │   ├── LOCK
+│   │   │   │   │   │   │   ├── LOG
+│   │   │   │   │   │   │   └── MANIFEST-000001
+│   │   │   │   │   │   ├── Sync Data/
+│   │   │   │   │   │   │   └── LevelDB/
+│   │   │   │   │   │   │       ├── 000003.log
+│   │   │   │   │   │   │       ├── CURRENT
+│   │   │   │   │   │   │       ├── LOCK
+│   │   │   │   │   │   │       ├── LOG
+│   │   │   │   │   │   │       └── MANIFEST-000001
+│   │   │   │   │   │   ├── WebStorage/
+│   │   │   │   │   │   │   ├── QuotaManager
+│   │   │   │   │   │   │   └── QuotaManager-journal
+│   │   │   │   │   │   ├── Account Web Data
+│   │   │   │   │   │   ├── Account Web Data-journal
+│   │   │   │   │   │   ├── Affiliation Database
+│   │   │   │   │   │   ├── Affiliation Database-journal
+│   │   │   │   │   │   ├── declarative_performance_observer.db
+│   │   │   │   │   │   ├── declarative_performance_observer.db-journal
+│   │   │   │   │   │   ├── engine_allowlist.bf
+│   │   │   │   │   │   ├── Favicons
+│   │   │   │   │   │   ├── Favicons-journal
+│   │   │   │   │   │   ├── heavy_ad_intervention_opt_out.db
+│   │   │   │   │   │   ├── heavy_ad_intervention_opt_out.db-journal
+│   │   │   │   │   │   ├── History
+│   │   │   │   │   │   ├── History-journal
+│   │   │   │   │   │   ├── LOCK
+│   │   │   │   │   │   ├── LOG
+│   │   │   │   │   │   ├── Login Data
+│   │   │   │   │   │   ├── Login Data For Account
+│   │   │   │   │   │   ├── Login Data For Account-journal
+│   │   │   │   │   │   ├── Login Data-journal
+│   │   │   │   │   │   ├── Network Action Predictor
+│   │   │   │   │   │   ├── Network Action Predictor-journal
+│   │   │   │   │   │   ├── README
+│   │   │   │   │   │   ├── ServerCertificate
+│   │   │   │   │   │   ├── ServerCertificate-journal
+│   │   │   │   │   │   ├── Shortcuts
+│   │   │   │   │   │   ├── Shortcuts-journal
+│   │   │   │   │   │   ├── Top Sites
+│   │   │   │   │   │   ├── Top Sites-journal
+│   │   │   │   │   │   ├── Web Data
+│   │   │   │   │   │   └── Web Data-journal
+│   │   │   │   │   ├── extensions_crx_cache/
+│   │   │   │   │   ├── FileTypePolicies/
+│   │   │   │   │   ├── FirstPartySetsPreloaded/
+│   │   │   │   │   ├── GPUPersistentCache/
+│   │   │   │   │   │   └── DawnGraphiteCache/
+│   │   │   │   │   │       └── SWT6YJYIIFC43O4TK6OMZG5XCE3O73F5/
+│   │   │   │   │   │           ├── cache.db
+│   │   │   │   │   │           ├── cache.db-wal
+│   │   │   │   │   │           └── cache.journal
+│   │   │   │   │   ├── GrShaderCache/
+│   │   │   │   │   │   ├── data_0
+│   │   │   │   │   │   ├── data_1
+│   │   │   │   │   │   ├── data_2
+│   │   │   │   │   │   ├── data_3
+│   │   │   │   │   │   └── index
+│   │   │   │   │   ├── hyphen-data/
+│   │   │   │   │   ├── MEIPreload/
+│   │   │   │   │   ├── OnDeviceHeadSuggestModel/
+│   │   │   │   │   ├── OptimizationGuideModelsManifest/
+│   │   │   │   │   ├── OptimizationHints/
+│   │   │   │   │   ├── OriginTrials/
+│   │   │   │   │   ├── PKIMetadata/
+│   │   │   │   │   ├── PrivacySandboxAttestationsPreloaded/
+│   │   │   │   │   ├── RecoveryImproved/
+│   │   │   │   │   ├── Safe Browsing/
+│   │   │   │   │   ├── SafetyTips/
+│   │   │   │   │   ├── segmentation_platform/
+│   │   │   │   │   │   ├── ukm_db
+│   │   │   │   │   │   └── ukm_db-wal
+│   │   │   │   │   ├── ShaderCache/
+│   │   │   │   │   │   ├── data_0
+│   │   │   │   │   │   ├── data_1
+│   │   │   │   │   │   ├── data_2
+│   │   │   │   │   │   ├── data_3
+│   │   │   │   │   │   └── index
+│   │   │   │   │   ├── SSLErrorAssistant/
+│   │   │   │   │   ├── Subresource Filter/
+│   │   │   │   │   │   └── Unindexed Rules/
+│   │   │   │   │   ├── TrustTokenKeyCommitments/
+│   │   │   │   │   ├── WasmTtsEngine/
+│   │   │   │   │   ├── WidevineCdm/
+│   │   │   │   │   ├── ZxcvbnData/
+│   │   │   │   │   ├── Last Version
+│   │   │   │   │   ├── Local State
+│   │   │   │   │   ├── Variations
+│   │   │   │   │   ├── VariationsSafeSeedV2
+│   │   │   │   │   └── VariationsSeedV2
+│   │   │   │   ├── pytest_2/
+│   │   │   │   │   ├── test_activity_cancels_without_0/
+│   │   │   │   │   ├── test_activity_cancels_without_1/
+│   │   │   │   │   ├── test_activity_cancels_without_2/
+│   │   │   │   │   ├── test_activity_cancels_without_3/
+│   │   │   │   │   ├── test_activity_cancels_without_4/
+│   │   │   │   │   ├── test_activity_cancels_without_5/
+│   │   │   │   │   ├── test_activity_cancels_without_6/
+│   │   │   │   │   ├── test_activity_cancels_without_7/
+│   │   │   │   │   ├── test_activity_cancels_without_8/
+│   │   │   │   │   ├── test_environment_can_silence_s0/
+│   │   │   │   │   ├── test_loading_can_complete_earl0/
+│   │   │   │   │   ├── test_mute_immediately_stops_ar0/
+│   │   │   │   │   │   └── audio.ini
+│   │   │   │   │   ├── test_unavailable_or_late_audio0/
+│   │   │   │   │   ├── test_unavailable_or_late_audio1/
+│   │   │   │   │   ├── test_volume_updates_output_and0/
+│   │   │   │   │   │   └── audio.ini
+│   │   │   │   │   ├── test_waits_for_first_presentat0/
+│   │   │   │   │   ├── test_window_interrupts_arrival0/
+│   │   │   │   │   ├── test_window_interrupts_arrival1/
+│   │   │   │   │   └── test_window_interrupts_arrival2/
+│   │   │   │   ├── analysis_timing.json
+│   │   │   │   ├── baseline.json
+│   │   │   │   ├── browser_audio.html
+│   │   │   │   ├── codecs.json
+│   │   │   │   ├── codec-settings.ini
+│   │   │   │   ├── diagnostics.txt
+│   │   │   │   ├── external_capture.json
+│   │   │   │   ├── fixture.flac
+│   │   │   │   ├── fixture.mp3
+│   │   │   │   ├── fixture.wav
+│   │   │   │   ├── integration_approval.png
+│   │   │   │   ├── integration_connected.png
+│   │   │   │   ├── integration_validation.json
+│   │   │   │   ├── launch.json
+│   │   │   │   ├── main_app.png
+│   │   │   │   ├── main_app_diagnostics.txt
+│   │   │   │   ├── main_app_smoke.json
+│   │   │   │   ├── music_1100.png
+│   │   │   │   ├── music_approval.png
+│   │   │   │   ├── music_playing.png
+│   │   │   │   ├── pytest_result.json
+│   │   │   │   ├── qt_buffer_timing.json
+│   │   │   │   ├── running_app.json
+│   │   │   │   ├── samples.json
+│   │   │   │   ├── short-a.wav
+│   │   │   │   ├── short-b.wav
+│   │   │   │   ├── source_audit.json
+│   │   │   │   ├── source_manifest.json
+│   │   │   │   ├── test-settings.ini
+│   │   │   │   └── validation.json
+│   │   │   ├── reaction_motion/
+│   │   │   │   ├── previous_projection/
+│   │   │   │   │   ├── flow_after.png
+│   │   │   │   │   ├── flow_after_alpha.png
+│   │   │   │   │   ├── launch_and_flow.json
+│   │   │   │   │   ├── launch_and_flow.mp4
+│   │   │   │   │   ├── launch_arcs.png
+│   │   │   │   │   ├── launch_arcs_alpha.png
+│   │   │   │   │   ├── launch_seed.png
+│   │   │   │   │   ├── launch_seed_alpha.png
+│   │   │   │   │   ├── launch_sequence.jpg
+│   │   │   │   │   ├── launch_settled.png
+│   │   │   │   │   ├── launch_settled_alpha.png
+│   │   │   │   │   ├── launch_weave.png
+│   │   │   │   │   ├── launch_weave_alpha.png
+│   │   │   │   │   ├── projection_detail.jpg
+│   │   │   │   │   ├── projection_paused_a.png
+│   │   │   │   │   ├── projection_paused_b.png
+│   │   │   │   │   ├── projection_run.json
+│   │   │   │   │   └── projection_validation.json
+│   │   │   │   ├── previous_source/
+│   │   │   │   │   ├── assets/
+│   │   │   │   │   │   ├── band_inner.npz
+│   │   │   │   │   │   ├── band_mid.npz
+│   │   │   │   │   │   ├── band_outer.npz
+│   │   │   │   │   │   ├── bands.png
+│   │   │   │   │   │   ├── circuit.png
+│   │   │   │   │   │   ├── circuit_low.png
+│   │   │   │   │   │   ├── circuit_routes.npz
+│   │   │   │   │   │   ├── circuit_routes_low.npz
+│   │   │   │   │   │   ├── core_filaments.npz
+│   │   │   │   │   │   ├── energy_ribbons.npz
+│   │   │   │   │   │   ├── flow.png
+│   │   │   │   │   │   ├── flow_band_mid.npz
+│   │   │   │   │   │   ├── flow_band_outer.npz
+│   │   │   │   │   │   ├── launch_trail.npz
+│   │   │   │   │   │   ├── manifest.json
+│   │   │   │   │   │   ├── neural_paths.npz
+│   │   │   │   │   │   ├── neural_paths_low.npz
+│   │   │   │   │   │   ├── peripheral_schematics.npz
+│   │   │   │   │   │   ├── plates.npz
+│   │   │   │   │   │   ├── rails.npz
+│   │   │   │   │   │   ├── shell_0.npz
+│   │   │   │   │   │   ├── shell_1.npz
+│   │   │   │   │   │   ├── shell_2.npz
+│   │   │   │   │   │   └── streams.npz
+│   │   │   │   │   ├── qml/
+│   │   │   │   │   │   ├── shaders/
+│   │   │   │   │   │   │   ├── glow.frag
+│   │   │   │   │   │   │   ├── glow.frag.qsb
+│   │   │   │   │   │   │   ├── particles.frag
+│   │   │   │   │   │   │   ├── particles.vert
+│   │   │   │   │   │   │   ├── particles.vert.in
+│   │   │   │   │   │   │   ├── shape_field.glsl
+│   │   │   │   │   │   │   ├── surface.frag
+│   │   │   │   │   │   │   ├── surface.vert
+│   │   │   │   │   │   │   └── surface.vert.in
+│   │   │   │   │   │   ├── CinematicStage.qml
+│   │   │   │   │   │   ├── ConnectedWindow.qml
+│   │   │   │   │   │   ├── HoloMaterial.qml
+│   │   │   │   │   │   ├── HudButton.qml
+│   │   │   │   │   │   ├── LabButton.qml
+│   │   │   │   │   │   ├── LabWindow.qml
+│   │   │   │   │   │   ├── NucleusScene.qml
+│   │   │   │   │   │   ├── NucleusView.qml
+│   │   │   │   │   │   └── Sparkline.qml
+│   │   │   │   │   ├── audit_changes.py
+│   │   │   │   │   ├── benchmark.py
+│   │   │   │   │   ├── build_review.py
+│   │   │   │   │   ├── build_shape_shaders.py
+│   │   │   │   │   ├── frame_pacing.py
+│   │   │   │   │   ├── generate_assets.py
+│   │   │   │   │   ├── generate_flow_assets.py
+│   │   │   │   │   ├── geometry.py
+│   │   │   │   │   ├── integration.py
+│   │   │   │   │   ├── mock_telemetry.py
+│   │   │   │   │   ├── presentation.py
+│   │   │   │   │   ├── README.md
+│   │   │   │   │   ├── recording.py
+│   │   │   │   │   ├── run_preview.py
+│   │   │   │   │   ├── smoke_connected.py
+│   │   │   │   │   ├── test_projection.py
+│   │   │   │   │   ├── validate_integration.py
+│   │   │   │   │   ├── validate_preview.py
+│   │   │   │   │   ├── validate_projection.py
+│   │   │   │   │   └── validate_shape.py
+│   │   │   │   ├── bound_0.png
+│   │   │   │   ├── bound_180.png
+│   │   │   │   ├── bound_270.png
+│   │   │   │   ├── bound_90.png
+│   │   │   │   ├── change_scope.json
+│   │   │   │   ├── connected_startup.json
+│   │   │   │   ├── connected_startup.png
+│   │   │   │   ├── connected_startup_diagnostics.txt
+│   │   │   │   ├── first_run.json
+│   │   │   │   ├── first_still.png
+│   │   │   │   ├── gui_app_overnight.patch
+│   │   │   │   ├── idle_motion.json
+│   │   │   │   ├── idle_motion.mp4
+│   │   │   │   ├── idle_motion_console.txt
+│   │   │   │   ├── idle_motion_contact.jpg
+│   │   │   │   ├── idle_recording.json
+│   │   │   │   ├── interaction_run.json
+│   │   │   │   ├── interaction_validation.json
+│   │   │   │   ├── lighter_active.png
+│   │   │   │   ├── lighter_benchmark.json
+│   │   │   │   ├── lighter_benchmark_console.txt
+│   │   │   │   ├── orbit_0.png
+│   │   │   │   ├── orbit_12.png
+│   │   │   │   ├── orbit_6.png
+│   │   │   │   ├── paused_a.png
+│   │   │   │   ├── paused_b.png
+│   │   │   │   ├── previous_integration_validation.json
+│   │   │   │   ├── previous_validation.json
+│   │   │   │   ├── projection_console.txt
+│   │   │   │   ├── projection_run.json
+│   │   │   │   ├── projection_validation.json
+│   │   │   │   ├── reaction_active.png
+│   │   │   │   ├── reaction_validation.json
+│   │   │   │   ├── source_audit.json
+│   │   │   │   ├── source_before.json
+│   │   │   │   ├── source_manifest.json
+│   │   │   │   ├── standard_benchmark.json
+│   │   │   │   ├── standard_benchmark_console.txt
+│   │   │   │   ├── startup_console.txt
+│   │   │   │   ├── state_reactions.json
+│   │   │   │   ├── state_reactions.mp4
+│   │   │   │   ├── state_reactions_console.txt
+│   │   │   │   ├── state_reactions_contact.jpg
+│   │   │   │   ├── state_recording.json
+│   │   │   │   └── validation_run.json
+│   │   │   ├── settings_redesign/
+│   │   │   │   ├── pytest/
+│   │   │   │   │   ├── test_available_style_presets_c0/
+│   │   │   │   │   │   ├── ai_credentials.bin
+│   │   │   │   │   │   └── ai_providers.json
+│   │   │   │   │   ├── test_bridge_provider_list_json0/
+│   │   │   │   │   │   ├── ai_credentials.bin
+│   │   │   │   │   │   └── ai_providers.json
+│   │   │   │   │   ├── test_bridge_save_custom_provid0/
+│   │   │   │   │   │   ├── ai_credentials.bin
+│   │   │   │   │   │   └── ai_providers.json
+│   │   │   │   │   ├── test_bridge_set_active_provide0/
+│   │   │   │   │   │   ├── ai_credentials.bin
+│   │   │   │   │   │   └── ai_providers.json
+│   │   │   │   │   ├── test_bridge_settings_toggle0/
+│   │   │   │   │   │   ├── ai_credentials.bin
+│   │   │   │   │   │   └── ai_providers.json
+│   │   │   │   │   ├── test_bridge_test_connection_re0/
+│   │   │   │   │   │   ├── ai_credentials.bin
+│   │   │   │   │   │   └── ai_providers.json
+│   │   │   │   │   ├── test_core_style_persistence_an0/
+│   │   │   │   │   │   ├── ai_credentials.bin
+│   │   │   │   │   │   ├── ai_providers.json
+│   │   │   │   │   │   └── core_style.json
+│   │   │   │   │   ├── test_only_one_core_active_in_i0/
+│   │   │   │   │   │   ├── ai_credentials.bin
+│   │   │   │   │   │   ├── ai_providers.json
+│   │   │   │   │   │   └── core_style.json
+│   │   │   │   │   └── test_qml_settings_overlay_inst0/
+│   │   │   │   │       ├── ai_credentials.bin
+│   │   │   │   │       └── ai_providers.json
+│   │   │   │   ├── azure_1920.png
+│   │   │   │   ├── baseline.json
+│   │   │   │   ├── changes.patch
+│   │   │   │   ├── core_styles.png
+│   │   │   │   ├── diagnostics.txt
+│   │   │   │   ├── inactive_800.png
+│   │   │   │   ├── provider_dropdown.png
+│   │   │   │   ├── providers_1100.png
+│   │   │   │   ├── providers_1920.png
+│   │   │   │   ├── providers_800.png
+│   │   │   │   ├── settings_preview.png
+│   │   │   │   ├── source_audit.json
+│   │   │   │   ├── source_manifest.json
+│   │   │   │   ├── unit_results.json
+│   │   │   │   └── validation.json
+│   │   │   ├── shape_shift/
+│   │   │   │   ├── previous_source/
+│   │   │   │   │   ├── assets/
+│   │   │   │   │   │   ├── band_inner.npz
+│   │   │   │   │   │   ├── band_mid.npz
+│   │   │   │   │   │   ├── band_outer.npz
+│   │   │   │   │   │   ├── bands.png
+│   │   │   │   │   │   ├── circuit.png
+│   │   │   │   │   │   ├── circuit_low.png
+│   │   │   │   │   │   ├── circuit_routes.npz
+│   │   │   │   │   │   ├── circuit_routes_low.npz
+│   │   │   │   │   │   ├── core_filaments.npz
+│   │   │   │   │   │   ├── energy_ribbons.npz
+│   │   │   │   │   │   ├── flow.png
+│   │   │   │   │   │   ├── flow_band_mid.npz
+│   │   │   │   │   │   ├── flow_band_outer.npz
+│   │   │   │   │   │   ├── launch_trail.npz
+│   │   │   │   │   │   ├── manifest.json
+│   │   │   │   │   │   ├── neural_paths.npz
+│   │   │   │   │   │   ├── neural_paths_low.npz
+│   │   │   │   │   │   ├── peripheral_schematics.npz
+│   │   │   │   │   │   ├── plates.npz
+│   │   │   │   │   │   ├── rails.npz
+│   │   │   │   │   │   ├── shell_0.npz
+│   │   │   │   │   │   ├── shell_1.npz
+│   │   │   │   │   │   ├── shell_2.npz
+│   │   │   │   │   │   └── streams.npz
+│   │   │   │   │   ├── qml/
+│   │   │   │   │   │   ├── shaders/
+│   │   │   │   │   │   │   ├── glow.frag
+│   │   │   │   │   │   │   ├── glow.frag.qsb
+│   │   │   │   │   │   │   ├── particles.frag
+│   │   │   │   │   │   │   ├── particles.vert
+│   │   │   │   │   │   │   ├── surface.frag
+│   │   │   │   │   │   │   └── surface.vert
+│   │   │   │   │   │   ├── CinematicStage.qml
+│   │   │   │   │   │   ├── ConnectedWindow.qml
+│   │   │   │   │   │   ├── HoloMaterial.qml
+│   │   │   │   │   │   ├── HudButton.qml
+│   │   │   │   │   │   ├── LabButton.qml
+│   │   │   │   │   │   ├── LabWindow.qml
+│   │   │   │   │   │   ├── NucleusScene.qml
+│   │   │   │   │   │   ├── NucleusView.qml
+│   │   │   │   │   │   └── Sparkline.qml
+│   │   │   │   │   ├── audit_changes.py
+│   │   │   │   │   ├── benchmark.py
+│   │   │   │   │   ├── build_review.py
+│   │   │   │   │   ├── frame_pacing.py
+│   │   │   │   │   ├── generate_assets.py
+│   │   │   │   │   ├── generate_flow_assets.py
+│   │   │   │   │   ├── geometry.py
+│   │   │   │   │   ├── integration.py
+│   │   │   │   │   ├── mock_telemetry.py
+│   │   │   │   │   ├── presentation.py
+│   │   │   │   │   ├── README.md
+│   │   │   │   │   ├── recording.py
+│   │   │   │   │   ├── run_preview.py
+│   │   │   │   │   ├── smoke_connected.py
+│   │   │   │   │   ├── test_projection.py
+│   │   │   │   │   ├── validate_integration.py
+│   │   │   │   │   ├── validate_preview.py
+│   │   │   │   │   └── validate_projection.py
+│   │   │   │   ├── previous_validation/
+│   │   │   │   │   ├── flow_launch/
+│   │   │   │   │   │   ├── flow_after.png
+│   │   │   │   │   │   ├── flow_after_alpha.png
+│   │   │   │   │   │   ├── launch_and_flow.json
+│   │   │   │   │   │   ├── launch_and_flow.mp4
+│   │   │   │   │   │   ├── launch_arcs.png
+│   │   │   │   │   │   ├── launch_arcs_alpha.png
+│   │   │   │   │   │   ├── launch_seed.png
+│   │   │   │   │   │   ├── launch_seed_alpha.png
+│   │   │   │   │   │   ├── launch_sequence.jpg
+│   │   │   │   │   │   ├── launch_settled.png
+│   │   │   │   │   │   ├── launch_settled_alpha.png
+│   │   │   │   │   │   ├── launch_weave.png
+│   │   │   │   │   │   ├── launch_weave_alpha.png
+│   │   │   │   │   │   ├── projection_detail.jpg
+│   │   │   │   │   │   ├── projection_paused_a.png
+│   │   │   │   │   │   ├── projection_paused_b.png
+│   │   │   │   │   │   ├── projection_run.json
+│   │   │   │   │   │   └── projection_validation.json
+│   │   │   │   │   ├── core_rgba.png
+│   │   │   │   │   ├── frozen_a.png
+│   │   │   │   │   ├── frozen_b.png
+│   │   │   │   │   ├── integration_approval.png
+│   │   │   │   │   ├── integration_connected.png
+│   │   │   │   │   ├── integration_validation.json
+│   │   │   │   │   ├── render_diagnostics.txt
+│   │   │   │   │   ├── validation.json
+│   │   │   │   │   └── validation_run.json
+│   │   │   │   ├── change_scope.json
+│   │   │   │   ├── connected_startup.json
+│   │   │   │   ├── connected_startup.png
+│   │   │   │   ├── connected_startup_diagnostics.txt
+│   │   │   │   ├── disabled0.png
+│   │   │   │   ├── disabled0_alpha.png
+│   │   │   │   ├── disabled4.png
+│   │   │   │   ├── disabled4_alpha.png
+│   │   │   │   ├── extreme_10_45.png
+│   │   │   │   ├── extreme_12_135.png
+│   │   │   │   ├── extreme_2_0.png
+│   │   │   │   ├── extreme_4_90.png
+│   │   │   │   ├── extreme_6_180.png
+│   │   │   │   ├── extreme_8_270.png
+│   │   │   │   ├── gui_app_overnight.patch
+│   │   │   │   ├── integration_approval.png
+│   │   │   │   ├── integration_connected.png
+│   │   │   │   ├── integration_validation.json
+│   │   │   │   ├── interaction_forced_run.json
+│   │   │   │   ├── interaction_run.json
+│   │   │   │   ├── lighter_benchmark.json
+│   │   │   │   ├── lighter0_alpha.png
+│   │   │   │   ├── lighter4.png
+│   │   │   │   ├── lighter4_alpha.png
+│   │   │   │   ├── motion_contact_sheet.jpg
+│   │   │   │   ├── motion_run.json
+│   │   │   │   ├── paused_a.png
+│   │   │   │   ├── paused_b.png
+│   │   │   │   ├── phase0.json
+│   │   │   │   ├── phase0.png
+│   │   │   │   ├── phase4.json
+│   │   │   │   ├── phase4.png
+│   │   │   │   ├── projection_run.json
+│   │   │   │   ├── projection_validation.json
+│   │   │   │   ├── shape_comparison.png
+│   │   │   │   ├── shape_motion.json
+│   │   │   │   ├── shape_motion.mp4
+│   │   │   │   ├── shape_validation.json
+│   │   │   │   ├── shape0.png
+│   │   │   │   ├── shape0_alpha.png
+│   │   │   │   ├── shape10.png
+│   │   │   │   ├── shape10_alpha.png
+│   │   │   │   ├── shape12.png
+│   │   │   │   ├── shape12_alpha.png
+│   │   │   │   ├── shape2.png
+│   │   │   │   ├── shape2_alpha.png
+│   │   │   │   ├── shape4.png
+│   │   │   │   ├── shape4_alpha.png
+│   │   │   │   ├── shape6.png
+│   │   │   │   ├── shape6_alpha.png
+│   │   │   │   ├── shape8.png
+│   │   │   │   ├── shape8_alpha.png
+│   │   │   │   ├── source_audit.json
+│   │   │   │   ├── source_before.json
+│   │   │   │   ├── source_manifest.json
+│   │   │   │   ├── standard_benchmark.json
+│   │   │   │   ├── validation.json
+│   │   │   │   └── validation_run.json
+│   │   │   ├── startup_audio/
+│   │   │   │   ├── pytest_run_1/
+│   │   │   │   │   ├── test_activity_cancels_without_0/
+│   │   │   │   │   ├── test_activity_cancels_without_1/
+│   │   │   │   │   ├── test_activity_cancels_without_2/
+│   │   │   │   │   ├── test_activity_cancels_without_3/
+│   │   │   │   │   ├── test_activity_cancels_without_4/
+│   │   │   │   │   ├── test_activity_cancels_without_5/
+│   │   │   │   │   ├── test_activity_cancels_without_6/
+│   │   │   │   │   ├── test_activity_cancels_without_7/
+│   │   │   │   │   ├── test_activity_cancels_without_8/
+│   │   │   │   │   ├── test_environment_can_silence_s0/
+│   │   │   │   │   ├── test_loading_can_complete_earl0/
+│   │   │   │   │   ├── test_mute_immediately_stops_ar0/
+│   │   │   │   │   │   └── audio.ini
+│   │   │   │   │   ├── test_unavailable_or_late_audio0/
+│   │   │   │   │   ├── test_unavailable_or_late_audio1/
+│   │   │   │   │   ├── test_volume_updates_output_and0/
+│   │   │   │   │   │   └── audio.ini
+│   │   │   │   │   └── test_waits_for_first_presentat0/
+│   │   │   │   ├── pytest_run_2/
+│   │   │   │   │   ├── test_activity_cancels_without_0/
+│   │   │   │   │   ├── test_activity_cancels_without_1/
+│   │   │   │   │   ├── test_activity_cancels_without_2/
+│   │   │   │   │   ├── test_activity_cancels_without_3/
+│   │   │   │   │   ├── test_activity_cancels_without_4/
+│   │   │   │   │   ├── test_activity_cancels_without_5/
+│   │   │   │   │   ├── test_activity_cancels_without_6/
+│   │   │   │   │   ├── test_activity_cancels_without_7/
+│   │   │   │   │   ├── test_activity_cancels_without_8/
+│   │   │   │   │   ├── test_environment_can_silence_s0/
+│   │   │   │   │   ├── test_loading_can_complete_earl0/
+│   │   │   │   │   ├── test_mute_immediately_stops_ar0/
+│   │   │   │   │   │   └── audio.ini
+│   │   │   │   │   ├── test_unavailable_or_late_audio0/
+│   │   │   │   │   ├── test_unavailable_or_late_audio1/
+│   │   │   │   │   ├── test_volume_updates_output_and0/
+│   │   │   │   │   │   └── audio.ini
+│   │   │   │   │   └── test_waits_for_first_presentat0/
+│   │   │   │   ├── pytest_run_3/
+│   │   │   │   │   ├── test_activity_cancels_without_0/
+│   │   │   │   │   ├── test_activity_cancels_without_1/
+│   │   │   │   │   ├── test_activity_cancels_without_2/
+│   │   │   │   │   ├── test_activity_cancels_without_3/
+│   │   │   │   │   ├── test_activity_cancels_without_4/
+│   │   │   │   │   ├── test_activity_cancels_without_5/
+│   │   │   │   │   ├── test_activity_cancels_without_6/
+│   │   │   │   │   ├── test_activity_cancels_without_7/
+│   │   │   │   │   ├── test_activity_cancels_without_8/
+│   │   │   │   │   ├── test_environment_can_silence_s0/
+│   │   │   │   │   ├── test_loading_can_complete_earl0/
+│   │   │   │   │   ├── test_mute_immediately_stops_ar0/
+│   │   │   │   │   │   └── audio.ini
+│   │   │   │   │   ├── test_unavailable_or_late_audio0/
+│   │   │   │   │   ├── test_unavailable_or_late_audio1/
+│   │   │   │   │   ├── test_volume_updates_output_and0/
+│   │   │   │   │   │   └── audio.ini
+│   │   │   │   │   ├── test_waits_for_first_presentat0/
+│   │   │   │   │   ├── test_window_interrupts_arrival0/
+│   │   │   │   │   ├── test_window_interrupts_arrival1/
+│   │   │   │   │   └── test_window_interrupts_arrival2/
+│   │   │   │   ├── baseline.json
+│   │   │   │   ├── connected.png
+│   │   │   │   ├── integration_approval.png
+│   │   │   │   ├── integration_connected.png
+│   │   │   │   ├── integration_validation.json
+│   │   │   │   ├── launch.json
+│   │   │   │   ├── main_app.png
+│   │   │   │   ├── main_app_diagnostics.txt
+│   │   │   │   ├── main_app_smoke.json
+│   │   │   │   ├── pytest_result.json
+│   │   │   │   ├── rendered_diagnostics.txt
+│   │   │   │   ├── rendered_validation.json
+│   │   │   │   ├── running_app.json
+│   │   │   │   ├── settings.png
+│   │   │   │   ├── settings_1100.png
+│   │   │   │   ├── source_audit.json
+│   │   │   │   ├── source_manifest.json
+│   │   │   │   ├── startup-preview.wav
+│   │   │   │   └── validation-settings.ini
+│   │   │   ├── after_fixed_frames.csv
+│   │   │   ├── after_frames.csv
+│   │   │   ├── art_linear.json
+│   │   │   ├── art_linear.png
+│   │   │   ├── art_linear_frames.csv
+│   │   │   ├── art03.json
+│   │   │   ├── art03_frames.csv
+│   │   │   ├── art04.json
+│   │   │   ├── art04_frames.csv
+│   │   │   ├── art05.json
+│   │   │   ├── art05.png
+│   │   │   ├── art05_frames.csv
+│   │   │   ├── before_frames.csv
+│   │   │   ├── benchmark_lighter_frames.csv
+│   │   │   ├── benchmark_metrics.json
+│   │   │   ├── benchmark_standard_frames.csv
+│   │   │   ├── cinematic_motion.json
+│   │   │   ├── cinematic_motion.mp4
+│   │   │   ├── cinematic_motion_draft.json
+│   │   │   ├── cinematic_motion_draft.mp4
+│   │   │   ├── connected_startup.json
+│   │   │   ├── connected_startup.png
+│   │   │   ├── connected_startup_diagnostics.txt
+│   │   │   ├── core_first.json
+│   │   │   ├── core_first.png
+│   │   │   ├── core_first_frames.csv
+│   │   │   ├── core_rgba.png
+│   │   │   ├── core_second.json
+│   │   │   ├── core_second.png
+│   │   │   ├── core_second_frames.csv
+│   │   │   ├── core_v4_01.json
+│   │   │   ├── core_v4_01.png
+│   │   │   ├── core_v4_01_frames.csv
+│   │   │   ├── core_v4_02.json
+│   │   │   ├── core_v4_02.png
+│   │   │   ├── core_v4_02_frames.csv
+│   │   │   ├── core-launch-validation_frames.csv
+│   │   │   ├── expanded_30.json
+│   │   │   ├── expanded_30_console.txt
+│   │   │   ├── expanded_30_frames.csv
+│   │   │   ├── expanded_60.json
+│   │   │   ├── expanded_60_console.txt
+│   │   │   ├── expanded_60_frames.csv
+│   │   │   ├── final_recording_run_frames.csv
+│   │   │   ├── final_standard_frames.csv
+│   │   │   ├── first_run_frames.csv
+│   │   │   ├── first_still_frames.csv
+│   │   │   ├── frozen_a.png
+│   │   │   ├── frozen_b.png
+│   │   │   ├── geometry-fix-1100_frames.csv
+│   │   │   ├── geometry-fix-launch_frames.csv
+│   │   │   ├── geometry-fix-layout_frames.csv
+│   │   │   ├── git_status_before.txt
+│   │   │   ├── gui_app_before.py.txt
+│   │   │   ├── gui_app_overnight.patch
+│   │   │   ├── idle_recording_frames.csv
+│   │   │   ├── integration_approval.png
+│   │   │   ├── integration_connected.png
+│   │   │   ├── integration_diagnostics.txt
+│   │   │   ├── integration_validation.json
+│   │   │   ├── interaction_forced_run_frames.csv
+│   │   │   ├── interaction_run_frames.csv
+│   │   │   ├── interface_01.json
+│   │   │   ├── interface_01.png
+│   │   │   ├── interface_01_frames.csv
+│   │   │   ├── interface_02_expanded.json
+│   │   │   ├── interface_02_expanded.png
+│   │   │   ├── interface_02_expanded_frames.csv
+│   │   │   ├── interface_03_expanded.png
+│   │   │   ├── interface_04_expanded.png
+│   │   │   ├── interface_run_frames.csv
+│   │   │   ├── last_run.json
+│   │   │   ├── last_run_frames.csv
+│   │   │   ├── launch_run_frames.csv
+│   │   │   ├── layout_1280x800.png
+│   │   │   ├── lighter_benchmark_frames.csv
+│   │   │   ├── lighter_timing_probe_frames.csv
+│   │   │   ├── motion_draft.json
+│   │   │   ├── motion_draft_frames.csv
+│   │   │   ├── motion_final.json
+│   │   │   ├── motion_final_frames.csv
+│   │   │   ├── motion_run_frames.csv
+│   │   │   ├── motion_sheet.png
+│   │   │   ├── orbit_0.png
+│   │   │   ├── orbit_180.png
+│   │   │   ├── orbit_270.png
+│   │   │   ├── orbit_90.png
+│   │   │   ├── phase0_frames.csv
+│   │   │   ├── phase4_frames.csv
+│   │   │   ├── presentation_timing_probe_frames.csv
+│   │   │   ├── projection_run_frames.csv
+│   │   │   ├── reaction_run_frames.csv
+│   │   │   ├── recording_frames.csv
+│   │   │   ├── recording_run_frames.csv
+│   │   │   ├── reference_34_5.png
+│   │   │   ├── reference_comparison.png
+│   │   │   ├── regression_result.json
+│   │   │   ├── render_diagnostics.txt
+│   │   │   ├── review_expanded.json
+│   │   │   ├── review_expanded.png
+│   │   │   ├── review_expanded_console.txt
+│   │   │   ├── review_expanded_frames.csv
+│   │   │   ├── review_quality.json
+│   │   │   ├── review_quality.png
+│   │   │   ├── review_quality_console.txt
+│   │   │   ├── review_quality_frames.csv
+│   │   │   ├── review_settings.json
+│   │   │   ├── review_settings.png
+│   │   │   ├── review_settings_console.txt
+│   │   │   ├── review_settings_frames.csv
+│   │   │   ├── review_standard.json
+│   │   │   ├── review_standard.png
+│   │   │   ├── review_standard_console.txt
+│   │   │   ├── review_standard_frames.csv
+│   │   │   ├── review_yaw90.json
+│   │   │   ├── review_yaw90.png
+│   │   │   ├── review_yaw90_console.txt
+│   │   │   ├── review_yaw90_frames.csv
+│   │   │   ├── settings_1280.json
+│   │   │   ├── settings_1280.png
+│   │   │   ├── settings_1280_frames.csv
+│   │   │   ├── small_core_rgba.png
+│   │   │   ├── source_audit.json
+│   │   │   ├── source_baseline.json
+│   │   │   ├── source_manifest.json
+│   │   │   ├── standard_30.json
+│   │   │   ├── standard_30_console.txt
+│   │   │   ├── standard_30_frames.csv
+│   │   │   ├── standard_60.json
+│   │   │   ├── standard_60_console.txt
+│   │   │   ├── standard_60_frames.csv
+│   │   │   ├── standard_benchmark_frames.csv
+│   │   │   ├── state_recording_frames.csv
+│   │   │   ├── validation.json
+│   │   │   ├── validation_run.json
+│   │   │   └── validation_run_frames.csv
+│   │   ├── qml/
+│   │   │   ├── shaders/
+│   │   │   │   ├── glow.frag
+│   │   │   │   ├── glow.frag.qsb
+│   │   │   │   ├── particles.frag
+│   │   │   │   ├── particles.vert
+│   │   │   │   ├── surface.frag
+│   │   │   │   └── surface.vert
+│   │   │   ├── CeilingRain.qml
+│   │   │   ├── CinematicStage.qml
+│   │   │   ├── ConnectedWindow.qml
+│   │   │   ├── CoreMotion.qml
+│   │   │   ├── FlowTrace.qml
+│   │   │   ├── HoloMaterial.qml
+│   │   │   ├── HudButton.qml
+│   │   │   ├── LabButton.qml
+│   │   │   ├── LabWindow.qml
+│   │   │   ├── MusicReactionSettings.qml
+│   │   │   ├── MusicWorkspace.qml
+│   │   │   ├── NucleusScene.qml
+│   │   │   ├── NucleusView.qml
+│   │   │   ├── SegmentStack.qml
+│   │   │   ├── Sparkline.qml
+│   │   │   └── VisualizerBoard.qml
+│   │   ├── audit_changes.py
+│   │   ├── benchmark.py
+│   │   ├── build_review.py
+│   │   ├── frame_pacing.py
+│   │   ├── generate_assets.py
+│   │   ├── generate_discharge_assets.py
+│   │   ├── generate_flow_assets.py
+│   │   ├── generate_startup_audio.py
+│   │   ├── geometry.py
+│   │   ├── integration.py
+│   │   ├── mock_telemetry.py
+│   │   ├── presentation.py
+│   │   ├── README.md
+│   │   ├── recording.py
+│   │   ├── run_preview.py
+│   │   ├── smoke_connected.py
+│   │   ├── smoke_startup_audio.py
+│   │   ├── startup_audio.py
+│   │   ├── test_projection.py
+│   │   ├── validate_integration.py
+│   │   ├── validate_music.py
+│   │   ├── validate_music_all_modes.py
+│   │   ├── validate_music_beats.py
+│   │   ├── validate_music_codecs.py
+│   │   ├── validate_music_external.py
+│   │   ├── validate_preview.py
+│   │   ├── validate_projection.py
+│   │   ├── validate_reaction.py
+│   │   ├── validate_settings_redesign.py
+│   │   └── validate_startup_audio.py
+│   ├── ev_core_original_recovered/
+│   │   ├── reference_stills/
+│   │   │   ├── v2/
+│   │   │   │   ├── arm_detail_close_up.png
+│   │   │   │   ├── idle.png
+│   │   │   │   └── mid_rotation.png
+│   │   │   ├── v3/
+│   │   │   │   ├── approval.png
+│   │   │   │   ├── arm_detail_close_up.png
+│   │   │   │   ├── executing.png
+│   │   │   │   ├── idle.png
+│   │   │   │   ├── mid_rotation.png
+│   │   │   │   ├── sleep.png
+│   │   │   │   └── thinking.png
+│   │   │   ├── color_shift.png
+│   │   │   ├── idle.png
+│   │   │   ├── max_energy.png
+│   │   │   ├── mouse_deform_1.png
+│   │   │   └── mouse_deform_2.png
+│   │   ├── browser_diag.py
+│   │   ├── browser_diag2.py
+│   │   ├── capture_stills.py
+│   │   ├── diagnostic_screenshot.png
+│   │   ├── ev_core_preview.html
+│   │   ├── index.html
+│   │   ├── main.js
+│   │   ├── README.md
+│   │   ├── style.css
+│   │   └── three.min.js
+│   ├── ev_core_webgl/
+│   │   ├── reference_stills/
+│   │   │   ├── v2/
+│   │   │   │   ├── arm_detail_close_up.png
+│   │   │   │   ├── idle.png
+│   │   │   │   └── mid_rotation.png
+│   │   │   ├── v3/
+│   │   │   │   ├── approval.png
+│   │   │   │   ├── arm_detail_close_up.png
+│   │   │   │   ├── executing.png
+│   │   │   │   ├── idle.png
+│   │   │   │   ├── mid_rotation.png
+│   │   │   │   ├── sleep.png
+│   │   │   │   └── thinking.png
+│   │   │   ├── color_shift.png
+│   │   │   ├── idle.png
+│   │   │   ├── max_energy.png
+│   │   │   ├── mouse_deform_1.png
+│   │   │   └── mouse_deform_2.png
+│   │   ├── browser_diag.py
+│   │   ├── browser_diag2.py
+│   │   ├── capture_stills.py
+│   │   ├── diagnostic_angled_orb.png
+│   │   ├── diagnostic_screenshot.png
+│   │   ├── diagnostic_sensitive_glow.png
+│   │   ├── diagnostic_speaking_core.png
+│   │   ├── diagnostic_voice_freeze.png
+│   │   ├── diagnostic_voice_glow.png
+│   │   ├── ev_core_preview.html
+│   │   ├── index.html
+│   │   ├── main.js
+│   │   ├── README.md
+│   │   ├── style.css
+│   │   └── three.min.js
+│   ├── ev_core_webgl_ASTRA_BACKUP_20260908_2312/
+│   │   ├── reference_stills/
+│   │   │   ├── v2/
+│   │   │   │   ├── arm_detail_close_up.png
+│   │   │   │   ├── idle.png
+│   │   │   │   └── mid_rotation.png
+│   │   │   ├── v3/
+│   │   │   │   ├── approval.png
+│   │   │   │   ├── arm_detail_close_up.png
+│   │   │   │   ├── executing.png
+│   │   │   │   ├── idle.png
+│   │   │   │   ├── mid_rotation.png
+│   │   │   │   ├── sleep.png
+│   │   │   │   └── thinking.png
+│   │   │   ├── color_shift.png
+│   │   │   ├── idle.png
+│   │   │   ├── max_energy.png
+│   │   │   ├── mouse_deform_1.png
+│   │   │   └── mouse_deform_2.png
+│   │   ├── browser_diag.py
+│   │   ├── browser_diag2.py
+│   │   ├── capture_stills.py
+│   │   ├── diagnostic_screenshot.png
+│   │   ├── ev_core_preview.html
+│   │   ├── index.html
+│   │   ├── main.js
+│   │   ├── README.md
+│   │   ├── style.css
+│   │   └── three.min.js
+│   ├── ev_core_webgl_BACKUP_20260908_2332/
+│   │   ├── reference_stills/
+│   │   │   ├── v2/
+│   │   │   │   ├── arm_detail_close_up.png
+│   │   │   │   ├── idle.png
+│   │   │   │   └── mid_rotation.png
+│   │   │   ├── v3/
+│   │   │   │   ├── approval.png
+│   │   │   │   ├── arm_detail_close_up.png
+│   │   │   │   ├── executing.png
+│   │   │   │   ├── idle.png
+│   │   │   │   ├── mid_rotation.png
+│   │   │   │   ├── sleep.png
+│   │   │   │   └── thinking.png
+│   │   │   ├── color_shift.png
+│   │   │   ├── idle.png
+│   │   │   ├── max_energy.png
+│   │   │   ├── mouse_deform_1.png
+│   │   │   └── mouse_deform_2.png
+│   │   ├── browser_diag.py
+│   │   ├── browser_diag2.py
+│   │   ├── capture_stills.py
+│   │   ├── diagnostic_screenshot.png
+│   │   ├── ev_core_preview.html
+│   │   ├── index.html
+│   │   ├── main.js
+│   │   ├── README.md
+│   │   ├── style.css
+│   │   └── three.min.js
+│   ├── ev_core_webgl_BACKUP_20260908_2339/
+│   │   ├── reference_stills/
+│   │   │   ├── v2/
+│   │   │   │   ├── arm_detail_close_up.png
+│   │   │   │   ├── idle.png
+│   │   │   │   └── mid_rotation.png
+│   │   │   ├── v3/
+│   │   │   │   ├── approval.png
+│   │   │   │   ├── arm_detail_close_up.png
+│   │   │   │   ├── executing.png
+│   │   │   │   ├── idle.png
+│   │   │   │   ├── mid_rotation.png
+│   │   │   │   ├── sleep.png
+│   │   │   │   └── thinking.png
+│   │   │   ├── color_shift.png
+│   │   │   ├── idle.png
+│   │   │   ├── max_energy.png
+│   │   │   ├── mouse_deform_1.png
+│   │   │   └── mouse_deform_2.png
+│   │   ├── browser_diag.py
+│   │   ├── browser_diag2.py
+│   │   ├── capture_stills.py
+│   │   ├── diagnostic_angled_orb.png
+│   │   ├── diagnostic_screenshot.png
+│   │   ├── ev_core_preview.html
+│   │   ├── index.html
+│   │   ├── main.js
+│   │   ├── README.md
+│   │   ├── style.css
+│   │   └── three.min.js
+│   ├── ev_core_webgl_BACKUP_20260908_2351/
+│   │   ├── reference_stills/
+│   │   │   ├── v2/
+│   │   │   │   ├── arm_detail_close_up.png
+│   │   │   │   ├── idle.png
+│   │   │   │   └── mid_rotation.png
+│   │   │   ├── v3/
+│   │   │   │   ├── approval.png
+│   │   │   │   ├── arm_detail_close_up.png
+│   │   │   │   ├── executing.png
+│   │   │   │   ├── idle.png
+│   │   │   │   ├── mid_rotation.png
+│   │   │   │   ├── sleep.png
+│   │   │   │   └── thinking.png
+│   │   │   ├── color_shift.png
+│   │   │   ├── idle.png
+│   │   │   ├── max_energy.png
+│   │   │   ├── mouse_deform_1.png
+│   │   │   └── mouse_deform_2.png
+│   │   ├── browser_diag.py
+│   │   ├── browser_diag2.py
+│   │   ├── capture_stills.py
+│   │   ├── diagnostic_angled_orb.png
+│   │   ├── diagnostic_screenshot.png
+│   │   ├── ev_core_preview.html
+│   │   ├── index.html
+│   │   ├── main.js
+│   │   ├── README.md
+│   │   ├── style.css
+│   │   └── three.min.js
+│   ├── ev_core_webgl_BACKUP_20260908_2358/
+│   │   ├── reference_stills/
+│   │   │   ├── v2/
+│   │   │   │   ├── arm_detail_close_up.png
+│   │   │   │   ├── idle.png
+│   │   │   │   └── mid_rotation.png
+│   │   │   ├── v3/
+│   │   │   │   ├── approval.png
+│   │   │   │   ├── arm_detail_close_up.png
+│   │   │   │   ├── executing.png
+│   │   │   │   ├── idle.png
+│   │   │   │   ├── mid_rotation.png
+│   │   │   │   ├── sleep.png
+│   │   │   │   └── thinking.png
+│   │   │   ├── color_shift.png
+│   │   │   ├── idle.png
+│   │   │   ├── max_energy.png
+│   │   │   ├── mouse_deform_1.png
+│   │   │   └── mouse_deform_2.png
+│   │   ├── browser_diag.py
+│   │   ├── browser_diag2.py
+│   │   ├── capture_stills.py
+│   │   ├── diagnostic_angled_orb.png
+│   │   ├── diagnostic_screenshot.png
+│   │   ├── diagnostic_voice_glow.png
+│   │   ├── ev_core_preview.html
+│   │   ├── index.html
+│   │   ├── main.js
+│   │   ├── README.md
+│   │   ├── style.css
+│   │   └── three.min.js
+│   ├── ev_core_webgl_BACKUP_20260909_0008/
+│   │   ├── reference_stills/
+│   │   │   ├── v2/
+│   │   │   │   ├── arm_detail_close_up.png
+│   │   │   │   ├── idle.png
+│   │   │   │   └── mid_rotation.png
+│   │   │   ├── v3/
+│   │   │   │   ├── approval.png
+│   │   │   │   ├── arm_detail_close_up.png
+│   │   │   │   ├── executing.png
+│   │   │   │   ├── idle.png
+│   │   │   │   ├── mid_rotation.png
+│   │   │   │   ├── sleep.png
+│   │   │   │   └── thinking.png
+│   │   │   ├── color_shift.png
+│   │   │   ├── idle.png
+│   │   │   ├── max_energy.png
+│   │   │   ├── mouse_deform_1.png
+│   │   │   └── mouse_deform_2.png
+│   │   ├── browser_diag.py
+│   │   ├── browser_diag2.py
+│   │   ├── capture_stills.py
+│   │   ├── diagnostic_angled_orb.png
+│   │   ├── diagnostic_screenshot.png
+│   │   ├── diagnostic_voice_freeze.png
+│   │   ├── diagnostic_voice_glow.png
+│   │   ├── ev_core_preview.html
+│   │   ├── index.html
+│   │   ├── main.js
+│   │   ├── README.md
+│   │   ├── style.css
+│   │   └── three.min.js
+│   ├── ev_core_webgl_BACKUP_20260909_0016/
+│   │   ├── reference_stills/
+│   │   │   ├── v2/
+│   │   │   │   ├── arm_detail_close_up.png
+│   │   │   │   ├── idle.png
+│   │   │   │   └── mid_rotation.png
+│   │   │   ├── v3/
+│   │   │   │   ├── approval.png
+│   │   │   │   ├── arm_detail_close_up.png
+│   │   │   │   ├── executing.png
+│   │   │   │   ├── idle.png
+│   │   │   │   ├── mid_rotation.png
+│   │   │   │   ├── sleep.png
+│   │   │   │   └── thinking.png
+│   │   │   ├── color_shift.png
+│   │   │   ├── idle.png
+│   │   │   ├── max_energy.png
+│   │   │   ├── mouse_deform_1.png
+│   │   │   └── mouse_deform_2.png
+│   │   ├── browser_diag.py
+│   │   ├── browser_diag2.py
+│   │   ├── capture_stills.py
+│   │   ├── diagnostic_angled_orb.png
+│   │   ├── diagnostic_screenshot.png
+│   │   ├── diagnostic_sensitive_glow.png
+│   │   ├── diagnostic_voice_freeze.png
+│   │   ├── diagnostic_voice_glow.png
+│   │   ├── ev_core_preview.html
+│   │   ├── index.html
+│   │   ├── main.js
+│   │   ├── README.md
+│   │   ├── style.css
+│   │   └── three.min.js
+│   ├── ev_core_webgl_RESTORE_POINT_20260908_2247/
+│   │   ├── reference_stills/
+│   │   │   ├── v2/
+│   │   │   │   ├── arm_detail_close_up.png
+│   │   │   │   ├── idle.png
+│   │   │   │   └── mid_rotation.png
+│   │   │   ├── v3/
+│   │   │   │   ├── approval.png
+│   │   │   │   ├── arm_detail_close_up.png
+│   │   │   │   ├── executing.png
+│   │   │   │   ├── idle.png
+│   │   │   │   ├── mid_rotation.png
+│   │   │   │   ├── sleep.png
+│   │   │   │   └── thinking.png
+│   │   │   ├── color_shift.png
+│   │   │   ├── idle.png
+│   │   │   ├── max_energy.png
+│   │   │   ├── mouse_deform_1.png
+│   │   │   └── mouse_deform_2.png
+│   │   ├── browser_diag.py
+│   │   ├── browser_diag2.py
+│   │   ├── capture_stills.py
+│   │   ├── diagnostic_screenshot.png
+│   │   ├── ev_core_preview.html
+│   │   ├── index.html
+│   │   ├── main.js
+│   │   ├── README.md
+│   │   ├── style.css
+│   │   └── three.min.js
+│   ├── ev-core.html
+│   └── jarvis-nexus.html
+├── providers/
+│   ├── __init__.py
+│   ├── anthropic_provider.py
+│   ├── gemini_provider.py
+│   └── openai_compatible_provider.py
+├── safety/
+├── sandbox/
+│   ├── test_018c7_mutate_1788684417.txt
+│   └── test_b.txt
+├── test_runtime/
+├── tests/
+│   ├── test_action_pipeline.py
+│   ├── test_agent.py
+│   ├── test_agent.py.pre-012C1
+│   ├── test_asr.py
+│   ├── test_asr_faster_whisper.py
+│   ├── test_backup.py
+│   ├── test_backup_reversible.py
+│   ├── test_brain_context.py
+│   ├── test_brain_converter.py
+│   ├── test_brain_models.py
+│   ├── test_brain_orchestrator.py
+│   ├── test_brain_prompts.py
+│   ├── test_brain_provider.py
+│   ├── test_brain_provider_manager.py
+│   ├── test_brain_router.py
+│   ├── test_brain_validator.py
+│   ├── test_bridge_boundary.py
+│   ├── test_cancellation.py
+│   ├── test_candidate_evaluation.py
+│   ├── test_candidate_v2_evaluation.py
+│   ├── test_cinematic_startup_audio.py
+│   ├── test_compound_transaction.py
+│   ├── test_config_logging.py
+│   ├── test_conversation_context.py
+│   ├── test_diagnostic_recovery.py
+│   ├── test_events.py
+│   ├── test_execution_verification.py
+│   ├── test_experience.py
+│   ├── test_failure_repair.py
+│   ├── test_filesystem.py
+│   ├── test_gemini_provider.py
+│   ├── test_gui_app.py
+│   ├── test_gui_approval.py
+│   ├── test_gui_bridge.py
+│   ├── test_gui_bridge_result.py
+│   ├── test_gui_hud_result.py
+│   ├── test_gui_lifecycle.py
+│   ├── test_gui_modes.py
+│   ├── test_gui_performance.py
+│   ├── test_gui_qml.py
+│   ├── test_gui_qml.py.backup
+│   ├── test_gui_qml.py.bak
+│   ├── test_gui_qml.py.pre-012C2
+│   ├── test_gui_responsive.py
+│   ├── test_gui_settings.py
+│   ├── test_gui_telemetry.py
+│   ├── test_gui_voice_bridge.py
+│   ├── test_history.py
+│   ├── test_history.py.pre-012B2
+│   ├── test_human_holdout_audit.py
+│   ├── test_human_wakeword_collector.py
+│   ├── test_integration.py
+│   ├── test_memory.py
+│   ├── test_music_analysis_snapshots.py
+│   ├── test_music_beats.py
+│   ├── test_music_foundation.py
+│   ├── test_music_reaction_modes.py
+│   ├── test_music_workspace.py
+│   ├── test_mutating_actions_hardening.py
+│   ├── test_openai_compatible_provider.py
+│   ├── test_paths.py
+│   ├── test_planning.py
+│   ├── test_powershell.py
+│   ├── test_proactive_awareness.py
+│   ├── test_processes_network.py
+│   ├── test_provider_config.py
+│   ├── test_recovery_engine.py
+│   ├── test_resolver.py
+│   ├── test_risk.py
+│   ├── test_risk_intelligence.py
+│   ├── test_risk_orchestrator.py
+│   ├── test_system_monitor.py
+│   ├── test_task_queue.py
+│   ├── test_tts.py
+│   ├── test_verifier.py
+│   ├── test_verifier.py.bak
+│   ├── test_visual_state.py
+│   ├── test_voice_capture.py
+│   ├── test_voice_interaction_loop.py
+│   ├── test_voice_manager.py
+│   ├── test_voice_manager_two_stage.py
+│   ├── test_voice_vad.py
+│   ├── test_voice_wakeword.py
+│   ├── test_voice_wakeword_openwakeword.py
+│   ├── test_wake_verifier.py
+│   └── test_wakeword_training.py
+├── tools/
+│   ├── __init__.py
+│   ├── analyze_014f11_scores.py
+│   ├── audit_human_dataset.py
+│   ├── benchmark_asr.py
+│   ├── benchmark_asr_matrix.py
+│   ├── benchmark_two_stage_verifier.py
+│   ├── collect_human_wakeword.py
+│   ├── create_integration_bundle.py
+│   ├── eval_all_configs_holdout.py
+│   ├── eval_holdout_streaming.py
+│   ├── experiment_014f11_runner.py
+│   ├── filesystem.py
+│   ├── network.py
+│   ├── powershell.py
+│   ├── processes.py
+│   ├── services.py
+│   ├── smoke_test_014f11.py
+│   ├── smoke_test_full_voice_loop.py
+│   ├── smoke_test_hardened_wakeword.py
+│   ├── smoke_test_two_stage_integration.py
+│   ├── test_tts_mic_feedback.py
+│   ├── test_wakeword.py
+│   ├── train_wakeword.py
+│   ├── validate_action_pipeline.py
+│   ├── validate_diagnostic_recovery.py
+│   ├── validate_e2e_asr_pipeline.py
+│   ├── validate_execution_verification.py
+│   ├── validate_planning_transactions.py
+│   ├── validate_proactive_awareness.py
+│   ├── validate_system_monitor.py
+│   ├── validate_voice_gui_binding.py
+│   ├── validate_wakeword.py
+│   └── wakeword_dataset.py
+├── .env.example
+├── .gitignore
+├── .gitignore.pre-012B
+├── ASTRA_HANDOFF.md
+├── ASTRA_PLAN.md
+├── check_light.py
+├── check_light_props.py
+├── check_mat.py
+├── CMakeLists.txt
+├── core_errors.txt
+├── core_errors_ascii.txt
+├── diag.py
+├── diag_core.py
+├── diag_e2e_gui.py
+├── diag_inspect.py
+├── diag_out.txt
+├── diag_qml_load.py
+├── diag_qml_load2.py
+├── diag_qml_load3.py
+├── diag_qml_load4.py
+├── diag_screenshot.py
+├── diag2.py
+├── diag5_nocanvas.png
+├── diag5_normal.png
+├── diag6_after.png
+├── diag6_before.png
+├── diag7_redbg.png
+├── EV_Core_Integration_Bundle.zip
+├── ev_idle_v21.png
+├── fix_emissive.py
+├── git_log.txt
+├── gui_diag_output.txt
+├── gui_out.txt
+├── inspect_output.txt
+├── inspect_output_ascii.txt
+├── INTEGRATION_GUIDE.md
+├── Launch Cinematic EV.cmd
+├── Launch Cinematic Preview.cmd
+├── Launch Classic EV.cmd
+├── Launch EV.cmd
+├── light_props_out.txt
+├── light_props_out_ascii.txt
+├── mat_output.txt
+├── mat_output_ascii.txt
+├── pytest.ini
+├── qt_logs.txt
+├── README.md
+├── requirements.txt
+├── run_full_err.txt
+├── run_full_log.txt
+├── screenshot_idle_v21.png
+├── screenshot_idle_v22.png
+├── screenshot_idle_v23.png
+├── screenshot_idle_v3.png
+├── screenshot_nucleus_fix.png
+├── smoke_test.py
+├── smoke_test2.py
+├── smoke_test2_out.txt
+├── startup_test_log.txt
+├── temp_video.mp4
+├── test_concurrency.py
+├── test_context_visibility.py
+├── test_light.py
+├── test_light.qml
+├── test_mat.qml
+├── test_msaa.py
+├── test_qml.qml
+├── test_qml2.py
+├── test_view3d.py
+├── test_view3d.qml
+├── test_view3d_out.txt
+├── ui_test.ps1
+├── ui_test_boundary.py
+├── ui_test_err.txt
+├── ui_test_out.txt
+├── ui_test_typing.py
+├── view3d_old.txt
+└── view3d_old_ascii.txt

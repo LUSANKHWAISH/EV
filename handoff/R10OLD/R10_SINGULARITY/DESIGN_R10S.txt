@@ -1,0 +1,26 @@
+E.V. R10 — ENGINEERED SINGULARITY REVISION
+
+Reference translation:
+- Keep the reference's commanding dark aperture, high-energy ring, asymmetric diagonal flow, and cinematic depth.
+- Reject literal astrophysics: no stars, planets, nebula, or realistic black-hole simulation.
+- Translate the ring into an engineered cognition containment system.
+
+Core identity:
+- central cognition void
+- broken graphite containment quadrants
+- segmented inner collar
+- cool-white / amber split singularity halo
+- diagonal computation / accretion bridge
+- sparse state-colored E.V. cognition trace
+
+State behavior:
+- LISTENING: containment opens radially and halo expands
+- PLANNING: inner and outer containment layers counter-rotate in depth
+- EXECUTING: bridge develops directional tension and right-side shell advances
+- VERIFYING: scan beacon crosses the aperture and state light scans vertically
+- AWAITING_APPROVAL: ambient motion is almost completely gated
+- SUCCESS: halo coherently lifts/expands
+- FAILED: containment quadrants deliberately desynchronize
+- RECOVERING: normal state easing re-aligns the structure
+
+R10 remains authored-3D. No return to full procedural flagship geometry.

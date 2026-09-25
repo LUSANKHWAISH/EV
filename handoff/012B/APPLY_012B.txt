@@ -1,0 +1,141 @@
+E.V. TASK 012B — APPLY PERSISTENT TASK HISTORY FOUNDATION
+
+PROJECT:
+D:\EV
+
+THIS PACKAGE IS EXACT-COPY ONLY.
+
+DO NOT design, edit, refactor, optimize, or repair independently.
+
+============================================================
+CURRENT BASELINE GUARDS
+============================================================
+
+D:\EV\core\models.py
+Expected size: 7897 bytes
+Expected SHA-256:
+13e6431599a2bcbf115981c1664d9a7dabb677a8e3a53cd2fea30dd822967763
+
+D:\EV\.gitignore
+Expected size: 222 bytes
+Expected SHA-256:
+90b631169cb92bd15db0cfe9265aea13311033520af50b550bb721b1614b010e
+
+If either baseline differs:
+STOP.
+Modify nothing.
+
+============================================================
+NEW-FILE GUARDS
+============================================================
+
+These files MUST NOT already exist:
+
+D:\EV\core\history.py
+D:\EV\tests\test_history.py
+
+If either already exists:
+STOP.
+Do not overwrite it.
+
+============================================================
+SUPPLIED FILE GUARDS
+============================================================
+
+D:\EV\handoff\012B\models_012B.py
+Expected size: 8901 bytes
+Expected SHA-256:
+6e72d978c1a90aa2985ddf1f24fa2f5a588472e961d9a18ba7e5e820317856f0
+
+D:\EV\handoff\012B\history_012B.py
+Expected size: 22990 bytes
+Expected SHA-256:
+84a68ada4a410a149469dbecf2c8df2b003d566abbf41a9e4fcb95c7288cc8e9
+
+D:\EV\handoff\012B\test_history_012B.py
+Expected size: 10976 bytes
+Expected SHA-256:
+e5a043dfc39f0c1406d409b7d8674ba988fd016d103e2a40ee3b925fbeeb6ac3
+
+D:\EV\handoff\012B\gitignore_012B.txt
+Expected size: 333 bytes
+Expected SHA-256:
+57b443a57d77df2dc7997923655950cd7ed5b1728218188e5e428282d8536da0
+
+If ANY supplied file differs:
+STOP.
+Modify nothing.
+
+============================================================
+BACKUPS
+============================================================
+
+Create exactly:
+
+D:\EV\core\models.py.pre-012B
+D:\EV\.gitignore.pre-012B
+
+If either exact backup already exists:
+STOP.
+Do not overwrite.
+
+============================================================
+EXACT COPY
+============================================================
+
+Copy byte-for-byte:
+
+D:\EV\handoff\012B\models_012B.py
+->
+D:\EV\core\models.py
+
+D:\EV\handoff\012B\history_012B.py
+->
+D:\EV\core\history.py
+
+D:\EV\handoff\012B\test_history_012B.py
+->
+D:\EV\tests\test_history.py
+
+D:\EV\handoff\012B\gitignore_012B.txt
+->
+D:\EV\.gitignore
+
+DO NOT TOUCH:
+- core\agent.py
+- core\verifier.py
+- core\backup.py
+- core\risk.py
+- core\events.py
+- config\settings.py
+- requirements.txt
+- GUI/QML files
+- existing tests other than adding tests\test_history.py
+- previous backups
+
+DO NOT create the production history database during application.
+012B only installs the persistence capability.
+The unit test creates its database in a temporary directory.
+
+============================================================
+POST-COPY VERIFICATION
+============================================================
+
+Verify live files exactly match supplied hashes.
+
+RETURN ONLY:
+
+1. models.py baseline verified before apply: YES/NO
+2. .gitignore baseline verified before apply: YES/NO
+3. history.py absent before apply: YES/NO
+4. test_history.py absent before apply: YES/NO
+5. all 4 supplied files verified: YES/NO
+6. both backups created: YES/NO
+7. models.py target size + SHA-256
+8. history.py target size + SHA-256
+9. test_history.py target size + SHA-256
+10. .gitignore target size + SHA-256
+11. all 4 targets match supplied files: YES/NO
+12. unrelated project files changed: YES/NO
+13. GUI/QML files touched: YES/NO
+14. corruption detected or none

@@ -1,0 +1,32 @@
+- original full path: /sessions/exciting-trusting-johnson/mnt/EV/gui/qml/components/EVFlagshipStage.qml
+  byte size: 7644
+  SHA-256: 1f0d9b3637f7d0577520afe090881a4d2ee77ae51f47ff486f33ec2fe4df4695
+
+- original full path: /sessions/exciting-trusting-johnson/mnt/EV/gui/qml/components/EVTelemetryRail.qml
+  byte size: 3766
+  SHA-256: 81c1f59d3c013813e4147e746ad75a62e3be76e44592a0623615b0c69178cd03
+
+- original full path: /sessions/exciting-trusting-johnson/mnt/EV/gui/qml/components/EVStatusIndicator.qml
+  byte size: 1091
+  SHA-256: fd268ab116af19c91273031b4a82d423b88ffbd193cdc68f628911b3cb447a36
+
+- original full path: /sessions/exciting-trusting-johnson/mnt/EV/gui/qml/components/EVWindow.qml
+  byte size: 5717
+  SHA-256: 883a73a4225dde3227ad53a3056ebef96c0247bab575fa9aa504fd5fb8dd6bae
+
+- original full path: /sessions/exciting-trusting-johnson/mnt/EV/gui/qml/components/EVTopBar.qml
+  byte size: 8773
+  SHA-256: b2353a957b7958da3303ea844053fbad24997b104b259248eac6ea6135e3162d
+
+- original full path: /sessions/exciting-trusting-johnson/mnt/EV/gui/qml/theme/Theme.qml
+  byte size: 10069
+  SHA-256: 61a9935297346bc52297d0f2869fda927f2ba23d890ffd30e7072b075afc02cb
+
+- original full path: /sessions/exciting-trusting-johnson/mnt/EV/gui/qml/components/qmldir
+  byte size: 590
+  SHA-256: 518ff332f6423a0c8968455b6df7d0aac5f33720d1cbfd60f5a6a5faf8082d66
+
+- original full path: /sessions/exciting-trusting-johnson/mnt/EV/tests/test_gui_qml.py
+  byte size: 7901
+  SHA-256: 0a0e8c321e439c8d0b400aef1fdbcdcfe3b081e7ab806eb0298f08e3a0bf1c69
+

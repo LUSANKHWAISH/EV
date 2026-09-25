@@ -1,0 +1,743 @@
+import QtQuick 2.15
+import QtQuick3D
+import QtQuick3D.Helpers
+import "../theme"
+
+// ============================================================================
+// E.V. INTELLIGENCE CORE (QtQuick3D Implementation)
+// ============================================================================
+//
+// Identity:
+// ADAPTIVE COGNITIVE FIELD
+//
+// E.V. is represented as one living intelligence presence formed from
+// layered graphite membranes surrounding a deep cognition field.
+//
+// This implementation deliberately avoids:
+// - orb/reactor language
+// - mirrored halves
+// - mechanical armour panels
+// - vertical capsules
+// - decorative HUD geometry
+//
+// The physical identity remains primarily graphite and near-black.
+// State colour appears mainly as intelligence emission and information flow.
+//
+// Motion represents observable E.V. state. It does not claim to expose
+// hidden reasoning.
+// ============================================================================
+
+Item {
+    id: root
+
+    // Fixed 3D world dimensions (in world units)
+    readonly property real worldWidth: 320.0
+    readonly property real worldHeight: 220.0
+    readonly property real worldDepth: 90.0
+    readonly property real cameraDistance: 500.0
+
+    property real unit: Math.min(width, height)
+
+    property var state: null
+    property string visualMode: "STANDARD"
+    property string themeProfile: "EV_CORE"
+
+    property string stateText:
+        state === null ||
+        state === undefined ||
+        String(state).length === 0
+        ? "IDLE"
+        : String(state)
+
+    property real energy: Theme.stateEnergy(root.stateText)
+    property color stateTone: Theme.stateColor(root.stateText)
+
+    property bool idle: stateText === "IDLE"
+    property bool listening: stateText === "LISTENING"
+    property bool planning: stateText === "PLANNING"
+    property bool executing: stateText === "EXECUTING"
+    property bool verifying: stateText === "VERIFYING"
+    property bool awaiting: stateText === "AWAITING_APPROVAL"
+    property bool speaking: stateText === "SPEAKING"
+    property bool successful: stateText === "SUCCESS"
+    property bool failed: stateText === "FAILED"
+    property bool recovering: stateText === "RECOVERING"
+    property bool stopped: stateText === "STOPPED"
+
+    // Internal boost for internal light during verifying
+    property real scanLightBoost: 0.0
+
+    // ------------------------------------------------------------------------
+    // STATE-DRIVEN 3D CONTROL
+    // ------------------------------------------------------------------------
+    property real membraneOpenFactor: 0.0
+    property real innerShift: 0.0
+    property real executionPath: 0.0
+    property real verifyScan: 0.0
+    property real approvalLock: 0.0
+    property real failureDesync: 0.0
+    property real recoveryProgress: 0.0
+    // ------------------------------------------------------------------------
+    // VECTOR3D SCALE PROXIES
+    // ------------------------------------------------------------------------
+    property real sceneScaleFactor: 0.995
+    property real membraneAScaleX: 1.0
+    property real membraneAScaleY: 1.0
+    property real membraneAScaleZ: 1.0
+    property real membraneBScaleY: 1.0
+    property real membraneCScaleY: 1.0
+    property real membraneDScaleY: 1.0
+    property real membraneEScaleX: 1.0
+    property real membraneEScaleY: 1.0
+    property real membraneEScaleZ: 1.0
+    property real cognitionSeedScale: 1.0
+
+    // Membrane geometry data (static)
+    property var membraneAData: ({ positions: [], normals: [], indexes: [] })
+    property var membraneBData: ({ positions: [], normals: [], indexes: [] })
+    property var membraneCData: ({ positions: [], normals: [], indexes: [] })
+    property var membraneDData: ({ positions: [], normals: [], indexes: [] })
+    property var membraneEData: ({ positions: [], normals: [], indexes: [] })
+
+    // Emission intensity for emissive material
+    property real emissionIntensity: 0.2
+
+    // Initialize geometry and materials
+    Component.onCompleted: {
+        initializeGeometry()
+    }
+
+    function initializeGeometry() {
+        // Generate membrane geometries with different parameters using world units
+        membraneAData = generateMembrane(
+            0, 180, // startAngle, sweepAngle (degrees)
+            worldWidth * 0.4, worldWidth * 0.35, // radiusX, radiusY (varying)
+            worldHeight * 0.15, // membraneWidth
+            0, // zDepth
+            0.05, // zWave
+            0, 0, // offsetX, offsetY
+            0, // phaseOffset
+            28 // segments
+        )
+
+        membraneBData = generateMembrane(
+            180, 360,
+            worldWidth * 0.35, worldWidth * 0.3,
+            worldHeight * 0.12,
+            -0.02,
+            0.03,
+            0, 0,
+            0,
+            26
+        )
+
+        membraneCData = generateMembrane(
+            90, 270,
+            worldWidth * 0.25, worldWidth * 0.2,
+            worldHeight * 0.1,
+            0.01,
+            0.02,
+            0, 0,
+            0,
+            24
+        )
+
+        membraneDData = generateMembrane(
+            200, 340,
+            worldWidth * 0.18, worldWidth * 0.15,
+            worldHeight * 0.08,
+            -0.03,
+            0.01,
+            -worldWidth * 0.1, 0,
+            0,
+            20
+        )
+
+        membraneEData = generateMembrane(
+            20, 160,
+            worldWidth * 0.22, worldWidth * 0.18,
+            worldHeight * 0.09,
+            0.02,
+            0.015,
+            worldWidth * 0.08, 0,
+            0,
+            22
+        )
+    }
+
+    // Membrane generator function
+    function generateMembrane(startAngleDeg, sweepAngleDeg, radiusXStart, radiusYStart, width, zDepth, zWave, offsetX, offsetY, phaseOffsetDeg, segments) {
+        var positions = []
+        var normals = []
+        var indices = []
+
+        var startAngle = startAngleDeg * Math.PI / 180
+        var sweepAngle = sweepAngleDeg * Math.PI / 180
+        var phaseOffset = phaseOffsetDeg * Math.PI / 180
+
+        // vertices across the width (use the passed in segments argument)
+
+        for (var i = 0; i <= segments; i++) {
+            var t = i / segments
+            var angle = startAngle + t * sweepAngle + phaseOffset
+
+            // Varying radius along the length
+            var radiusX = radiusXStart + (radiusXStart * 0.2 * t) // taper slightly
+            var radiusY = radiusYStart + (radiusYStart * 0.2 * t)
+
+            // Z deformation wave
+            var z = zDepth + zWave * Math.sin(angle * 3 + t * 2 * Math.PI)
+
+            // Cross section points
+            for (var w = 0; w <= segments; w++) {
+                var wt = w / segments
+                var wx = Math.cos(angle) * (radiusX + width * (wt - 0.5))
+                var wy = Math.sin(angle) * (radiusY + width * (wt - 0.5))
+                var wz = z
+
+                positions.push(Qt.vector3d(wx + offsetX, wy + offsetY, wz))
+
+                // Simplified normal (radial from centerline)
+                normals.push(Qt.vector3d(Math.cos(angle), Math.sin(angle), 0))
+            }
+        }
+
+        // Generate indices (quads)
+        for (var i = 0; i < segments; i++) {
+            for (var w = 0; w < segments; w++) {
+                var i1 = i * (segments + 1) + w
+                var i2 = i1 + 1
+                var i3 = (i + 1) * (segments + 1) + w
+                var i4 = i3 + 1
+
+                // Two triangles per quad
+                indices.push(i1, i2, i3)
+                indices.push(i2, i4, i3)
+            }
+        }
+
+        return { positions: positions, normals: normals, indexes: indices }
+    }
+
+    // Declarative materials
+    PrincipledMaterial {
+        id: membraneMaterial
+        baseColor: "#252b35"
+        metalness: 0.45
+        roughness: 0.32
+        clearcoatAmount: 0.24
+        clearcoatRoughnessAmount: 0.18
+        cullMode: Material.NoCulling
+    }
+
+    PrincipledMaterial {
+        id: emissiveMaterial
+        baseColor: "#000000"
+        metalness: 0.0
+        roughness: 0.9
+        emissiveFactor: Qt.vector3d(
+            root.stateTone.r * root.emissionIntensity,
+            root.stateTone.g * root.emissionIntensity,
+            root.stateTone.b * root.emissionIntensity
+        )
+    }
+
+    // ========================================================================
+    // 3D SCENE
+    // ========================================================================
+
+    View3D {
+        anchors.fill: parent
+        environment: ExtendedSceneEnvironment {
+            backgroundMode: SceneEnvironment.Transparent
+            antialiasingMode: SceneEnvironment.MSAA
+            antialiasingQuality: SceneEnvironment.High
+            tonemapMode: SceneEnvironment.TonemapModeFilmic
+            glowEnabled: true
+            glowStrength: 0.45
+            glowIntensity: 0.55
+            glowBloom: 0.08
+            glowBlendMode: ExtendedSceneEnvironment.GlowBlendMode.Screen
+            ditheringEnabled: true
+        }
+
+        // Camera
+        PerspectiveCamera {
+            id: camera
+            position: Qt.vector3d(
+                0,
+                0,
+                root.cameraDistance
+            )
+            eulerRotation.x: -15
+            fieldOfView: 45
+            clipNear: 1.0
+            clipFar: 2000.0
+        }
+
+        // Lights
+        DirectionalLight {
+            id: keyLight
+            // position removed as irrelevant
+            eulerRotation.x: -30
+            eulerRotation.y: 35
+            color: "#f2f6ff"
+            brightness: 2.0
+            ambientColor: "#111721"
+            castsShadow: false
+        }
+
+        PointLight {
+            id: rimLight
+            position: Qt.vector3d(
+                -root.worldWidth * 0.30,
+                root.worldHeight * 0.10,
+                root.worldWidth * 0.38
+            )
+            color: "#9ab8ff"
+            brightness: 1.35
+            constantFade: 1.0
+            linearFade: 0.003
+            quadraticFade: 0.000015
+        }
+
+        DirectionalLight {
+            id: fillLight
+            eulerRotation.x: 20
+            eulerRotation.y: -40
+            color: "#8291a8"
+            brightness: 0.70
+            ambientColor: "#080b10"
+            castsShadow: false
+        }
+
+        PointLight {
+            id: internalLight
+            position: Qt.vector3d(0, 0, 30)
+            color: stateTone
+            brightness: root.stopped
+                ? 0.05
+                : 0.55 + root.energy * 0.65 + root.scanLightBoost
+            constantFade: 1.0
+            linearFade: 0.002
+            quadraticFade: 0.00002
+        }
+
+        // Scene root entity (contains all models)
+        Node {
+            id: sceneRoot
+
+            // Subtle continuous motion
+            NumberAnimation on eulerRotation.y {
+                from: -1.5
+                to: 1.5
+                loops: Animation.Infinite
+                duration: 12000
+                easing.type: Easing.InOutSine
+            }
+
+            NumberAnimation on eulerRotation.x {
+                from: -0.7
+                to: 0.7
+                loops: Animation.Infinite
+                duration: 15000
+                easing.type: Easing.InOutSine
+            }
+
+            // Scale is derived from sceneScaleFactor (owned by root)
+            scale: Qt.vector3d(
+                root.sceneScaleFactor,
+                root.sceneScaleFactor,
+                root.sceneScaleFactor
+            )
+
+            // Membrane A - PRIMARY UPPER SWEEP
+            Model {
+                id: membraneA
+                geometry: ProceduralMesh {
+                    positions: membraneAData.positions
+                    normals: membraneAData.normals
+                    indexes: membraneAData.indexes
+                    primitiveMode: ProceduralMesh.Triangles
+                }
+                materials: [membraneMaterial]
+                scale: Qt.vector3d(
+                    root.membraneAScaleX,
+                    root.membraneAScaleY,
+                    root.membraneAScaleZ
+                )
+            }
+
+            // Membrane B - LOWER COUNTER-SWEEP
+            Model {
+                id: membraneB
+                geometry: ProceduralMesh {
+                    positions: membraneBData.positions
+                    normals: membraneBData.normals
+                    indexes: membraneBData.indexes
+                    primitiveMode: ProceduralMesh.Triangles
+                }
+                materials: [membraneMaterial]
+                scale: Qt.vector3d(
+                    1.0,
+                    root.membraneBScaleY,
+                    1.0
+                )
+            }
+
+            // Membrane C - INNER ADAPTIVE SURFACE
+            Model {
+                id: membraneC
+                geometry: ProceduralMesh {
+                    positions: membraneCData.positions
+                    normals: membraneCData.normals
+                    indexes: membraneCData.indexes
+                    primitiveMode: ProceduralMesh.Triangles
+                }
+                materials: [membraneMaterial]
+                scale: Qt.vector3d(
+                    1.0,
+                    root.membraneCScaleY,
+                    1.0
+                )
+            }
+
+            // Membrane D - LEFT SUPPORT STRUCTURE
+            Model {
+                id: membraneD
+                geometry: ProceduralMesh {
+                    positions: membraneDData.positions
+                    normals: membraneDData.normals
+                    indexes: membraneDData.indexes
+                    primitiveMode: ProceduralMesh.Triangles
+                }
+                materials: [membraneMaterial]
+                scale: Qt.vector3d(
+                    1.0,
+                    root.membraneDScaleY,
+                    1.0
+                )
+            }
+
+            // Membrane E - RIGHT SECONDARY STRUCTURE
+            Model {
+                id: membraneE
+                geometry: ProceduralMesh {
+                    positions: membraneEData.positions
+                    normals: membraneEData.normals
+                    indexes: membraneEData.indexes
+                    primitiveMode: ProceduralMesh.Triangles
+                }
+                materials: [membraneMaterial]
+                scale: Qt.vector3d(
+                    root.membraneEScaleX,
+                    root.membraneEScaleY,
+                    root.membraneEScaleZ
+                )
+            }
+
+            // Cognition seed (slightly off-center)
+            Model {
+                id: cognitionSeed
+                geometry: SphereGeometry {
+                    radius: Math.max(8, worldWidth * 0.022) / 2
+                    segments: 6
+                    rings: 6
+                }
+                materials: [emissiveMaterial]
+                x: worldWidth * 0.375 // slightly off-center
+                y: worldHeight * 0.245
+                z: 0
+                scale: Qt.vector3d(
+                    root.cognitionSeedScale,
+                    root.cognitionSeedScale,
+                    root.cognitionSeedScale
+                )
+            }
+
+            // Cognition nodes (sparse micro-nodes)
+            Model {
+                id: cognitionNode1
+                geometry: SphereGeometry {
+                    radius: 1.5
+                    segments: 4
+                    rings: 4
+                }
+                materials: [emissiveMaterial]
+            }
+            Model {
+                id: cognitionNode2
+                geometry: SphereGeometry {
+                    radius: 1.5
+                    segments: 4
+                    rings: 4
+                }
+                materials: [emissiveMaterial]
+            }
+            Model {
+                id: cognitionNode3
+                geometry: SphereGeometry {
+                    radius: 1.5
+                    segments: 4
+                    rings: 4
+                }
+                materials: [emissiveMaterial]
+            }
+            Model {
+                id: cognitionNode4
+                geometry: SphereGeometry {
+                    radius: 1.5
+                    segments: 4
+                    rings: 4
+                }
+                materials: [emissiveMaterial]
+            }
+            Model {
+                id: cognitionNode5
+                geometry: SphereGeometry {
+                    radius: 1.5
+                    segments: 4
+                    rings: 4
+                }
+                materials: [emissiveMaterial]
+            }
+            Model {
+                id: cognitionNode6
+                geometry: SphereGeometry {
+                    radius: 1.5
+                    segments: 4
+                    rings: 4
+                }
+                materials: [emissiveMaterial]
+            }
+            Model {
+                id: cognitionNode7
+                geometry: SphereGeometry {
+                    radius: 1.5
+                    segments: 4
+                    rings: 4
+                }
+                materials: [emissiveMaterial]
+            }
+            Model {
+                id: cognitionNode8
+                geometry: SphereGeometry {
+                    radius: 1.5
+                    segments: 4
+                    rings: 4
+                }
+                materials: [emissiveMaterial]
+            }
+            Model {
+                id: cognitionNode9
+                geometry: SphereGeometry {
+                    radius: 1.5
+                    segments: 4
+                    rings: 4
+                }
+                materials: [emissiveMaterial]
+            }
+            Model {
+                id: cognitionNode10
+                geometry: SphereGeometry {
+                    radius: 1.5
+                    segments: 4
+                    rings: 4
+                }
+                materials: [emissiveMaterial]
+            }
+            Model {
+                id: cognitionNode11
+                geometry: SphereGeometry {
+                    radius: 1.5
+                    segments: 4
+                    rings: 4
+                }
+                materials: [emissiveMaterial]
+            }
+            Model {
+                id: cognitionNode12
+                geometry: SphereGeometry {
+                    radius: 1.5
+                    segments: 4
+                    rings: 4
+                }
+                materials: [emissiveMaterial]
+            }
+        } // end sceneRoot Node
+    } // end View3D
+
+    // ========================================================================
+    // STATE-DRIVEN BEHAVIOR
+    // ========================================================================
+
+    // Update materials and transforms based on state
+    Connections {
+        target: root
+
+        function onStateChanged() {
+            updateStateBehavior()
+        }
+
+        function onEnergyChanged() {
+            updateStateBehavior()
+        }
+
+        function onStateToneChanged() {
+            updateStateBehavior()
+        }
+    }
+
+    function updateStateBehavior() {
+        // Reset factors
+        root.membraneOpenFactor = 0.0
+        root.innerShift = 0.0
+        root.executionPath = 0.0
+        root.verifyScan = 0.0
+        root.approvalLock = 0.0
+        root.failureDesync = 0.0
+        root.recoveryProgress = 0.0
+        root.scanLightBoost = 0.0
+
+        // Reset scalar proxies to defaults
+        root.sceneScaleFactor = 0.995
+        root.membraneAScaleX = 1.0
+        root.membraneAScaleY = 1.0
+        root.membraneAScaleZ = 1.0
+        root.membraneBScaleY = 1.0
+        root.membraneCScaleY = 1.0
+        root.membraneDScaleY = 1.0
+        root.membraneEScaleX = 1.0
+        root.membraneEScaleY = 1.0
+        root.membraneEScaleZ = 1.0
+        root.cognitionSeedScale = 1.0
+
+        // Set state-specific values
+        if (root.listening) {
+            root.membraneOpenFactor = 0.05 // 5% expansion
+            // Seed becomes more responsive
+            root.cognitionSeedScale = 1.2
+            root.emissionIntensity = 0.60
+        } else if (root.planning) {
+            root.innerShift = 0.03 // 3% inner shift
+            // Counter-rotation on inner membranes
+            membraneC.eulerRotation.y = -2 + Math.sin(root.phase * 0.5) * 4 // ±2 degrees
+            root.emissionIntensity = 0.65
+        } else if (root.executing) {
+            root.executionPath = 0.08 // 8% along path
+            // Clear directional path (simulated by scaling/positioning)
+            var aScale = 1.0 + root.executionPath * 0.08
+            root.membraneAScaleX = aScale
+            root.membraneAScaleY = 1.0 // opening Y applied later
+            root.membraneAScaleZ = 1.0
+            var eScale = 1.0 + root.executionPath * 0.05
+            root.membraneEScaleX = eScale
+            root.membraneEScaleY = 1.0
+            root.membraneEScaleZ = 1.0
+            root.emissionIntensity = 0.80
+        } else if (root.verifying) {
+            root.verifyScan = 0.6 // depth scan factor
+            // Scan animation (position-based)
+            internalLight.z = Math.sin(root.phase * 2) * worldWidth * 0.4
+            root.scanLightBoost = root.verifyScan * 0.5
+            root.emissionIntensity = 0.75
+        } else if (root.awaiting) {
+            root.approvalLock = 0.9 // motion lock
+            // Freeze most motion (handled by reducing animation speeds elsewhere)
+            root.emissionIntensity = 0.55
+        } else if (root.speaking) {
+            root.membraneOpenFactor = 0.04
+            // Outward pulses (scale pulsation)
+            var pulse = (Math.sin(root.phase * 3) + 1) * 0.5
+            root.cognitionSeedScale = 1.0 + pulse * 0.2
+            root.emissionIntensity = 0.70
+        } else if (root.successful) {
+            // Resolution pulse
+            var pulse = (Math.sin(root.phase * 5) + 1) * 0.5 * 0.2
+            root.membraneAScaleX = 1.0 + pulse
+            root.membraneAScaleY = 1.0 + pulse
+            root.membraneAScaleZ = 1.0 + pulse
+            root.emissionIntensity = 0.60
+        } else if (root.failed) {
+            root.failureDesync = 0.7
+            // Desynchronize membranes
+            membraneA.eulerRotation.z = Math.sin(root.phase * 4) * 3
+            membraneC.eulerRotation.z = Math.sin(root.phase * 5.5) * 2
+            membraneE.eulerRotation.z = Math.sin(root.phase * 3.2) * 4
+            root.emissionIntensity = 0.65
+        } else if (root.recovering) {
+            root.recoveryProgress = 0.0
+            // Progressive realignment (based on phase)
+            root.recoveryProgress = (Math.sin(root.phase * 0.5) + 1) * 0.5
+            root.emissionIntensity = 0.60
+        } else {
+            // IDLE or STOPPED
+            if (root.stopped) {
+                // Almost all emission collapses
+                root.emissionIntensity = 0.05
+                root.sceneScaleFactor = 0.3
+                root.emissionIntensity = 0.05
+            } else {
+                // Normal idle
+                root.emissionIntensity = 0.2
+                root.emissionIntensity = 0.35
+            }
+        }
+
+        // Apply membrane opening (scale Y for simplicity)
+        var openScale = 1.0 + root.membraneOpenFactor
+        root.membraneAScaleY = openScale
+        root.membraneBScaleY = openScale
+        root.membraneCScaleY = openScale
+        root.membraneDScaleY = openScale
+        root.membraneEScaleY = openScale
+
+        // Apply inner shift (offset Z)
+        // Note: membraneC.z is a real, not a vector3d component, so we can assign directly.
+        membraneC.z = root.innerShift * worldWidth * 0.1
+
+        // Apply execution path (scale X on path membranes)
+        // Already set in EXECUTING state above, but we reapply here for safety
+        var aScaleExec = 1.0 + root.executionPath * 0.08
+        root.membraneAScaleX = aScaleExec
+        var eScaleExec = 1.0 + root.executionPath * 0.05
+        root.membraneEScaleX = eScaleExec
+
+        // Apply verification scan (internal light movement already set)
+        // internalLight.brightness now bound, no imperative assignment needed
+
+        // Apply approval lock (reduce scene animation)
+        if (root.approvalLock > 0.5) {
+            // Slow down animations (we'd normally adjust animation durations, but for simplicity we just reduce movement)
+            sceneRoot.eulerRotation.y = sceneRoot.eulerRotation.y * 0.1
+            sceneRoot.eulerRotation.x = sceneRoot.eulerRotation.x * 0.1
+        }
+
+        // Apply failure desync (already set in rotations above)
+
+        // Apply recovery progress (membrane realignment)
+        var recoveryFactor = 1.0 - root.recoveryProgress
+        membraneA.eulerRotation.z = membraneA.eulerRotation.z * recoveryFactor
+        membraneC.eulerRotation.z = membraneC.eulerRotation.z * recoveryFactor
+        membraneE.eulerRotation.z = membraneE.eulerRotation.z * recoveryFactor
+
+        // Update emissive material color and intensity via binding (emissiveFactor already bound)
+        var baseIntensity = 0.2 + root.energy * 0.4
+        root.emissionIntensity = baseIntensity * (0.5 + root.membraneOpenFactor * 0.5)
+
+        // Update internal light color
+        internalLight.color = stateTone
+    }
+
+    // Animations targeting root scalar proxies (must target root explicitly)
+    NumberAnimation {
+        target: root
+        property: "sceneScaleFactor"
+        from: 0.995
+        to: 1.010
+        duration: 8000
+        loops: Animation.Infinite
+        easing.type: Easing.InOutSine
+        running: !root.stopped
+    }
+}

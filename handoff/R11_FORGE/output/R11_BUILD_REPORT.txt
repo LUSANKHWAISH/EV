@@ -1,0 +1,23 @@
+E.V. R11 VECTOR REACTOR BUILD REPORT
+===================================
+
+Blender version: 5.2.0 LTS
+Estimated evaluated triangle count: 168220
+Live EV project modified: NO
+
+Renders:
+- D:\EV\handoff\R11_FORGE\output\renders\R11_FRONT.png
+- D:\EV\handoff\R11_FORGE\output\renders\R11_PRIMARY_3Q.png
+- D:\EV\handoff\R11_FORGE\output\renders\R11_OPPOSITE_3Q.png
+- D:\EV\handoff\R11_FORGE\output\renders\R11_SIDE_DEPTH.png
+- D:\EV\handoff\R11_FORGE\output\renders\R11_DARK_ENERGY.png
+
+Assets:
+- D:\EV\handoff\R11_FORGE\output\assets\ev_core_r11_frame.glb (252436 bytes)
+- D:\EV\handoff\R11_FORGE\output\assets\ev_core_r11_stator.glb (298400 bytes)
+- D:\EV\handoff\R11_FORGE\output\assets\ev_core_r11_flux.glb (211436 bytes)
+- D:\EV\handoff\R11_FORGE\output\assets\ev_core_r11_coils.glb (211340 bytes)
+- D:\EV\handoff\R11_FORGE\output\assets\ev_core_r11_lens.glb (995328 bytes)
+- D:\EV\handoff\R11_FORGE\output\assets\ev_core_r11_bezel.glb (102464 bytes)
+- D:\EV\handoff\R11_FORGE\output\assets\ev_core_r11_energy.glb (151980 bytes)
+- D:\EV\handoff\R11_FORGE\output\assets\ev_core_r11_nodes.glb (1651596 bytes)

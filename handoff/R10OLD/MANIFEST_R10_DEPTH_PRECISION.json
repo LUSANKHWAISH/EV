@@ -1,0 +1,348 @@
+{
+  "EVIntelligenceCore_R10_DEPTH_PRECISION.qml": {
+    "bytes": 21572,
+    "sha256": "2adeefab034bf50c8b96e1eb903699ca27bf985c76c9fd16f8d08d6459fa66fa"
+  },
+  "assets/ev_core_r10dp_depth_vanes.glb": {
+    "bytes": 4136,
+    "sha256": "4b7074e46a18c985eb5439b571a33f407e56dd7fb1487d80ca163f5deb1179fe",
+    "geometry_count": 6,
+    "all_geometry_watertight": true,
+    "bounds": [
+      [
+        -147.98,
+        -153.0,
+        -40.5
+      ],
+      [
+        145.39,
+        158.03,
+        48.0
+      ]
+    ]
+  },
+  "assets/ev_core_r10dp_energy_streams.glb": {
+    "bytes": 30040,
+    "sha256": "7c3257d063c0fc27df4a89068b006784dea2006f83f1d596888da0e9647781e0",
+    "geometry_count": 2,
+    "all_geometry_watertight": true,
+    "bounds": [
+      [
+        -151.84,
+        -85.57,
+        -22.28
+      ],
+      [
+        154.0,
+        83.71,
+        60.05
+      ]
+    ]
+  },
+  "assets/ev_core_r10dp_halo_amber_rear.glb": {
+    "bytes": 17052,
+    "sha256": "ee30e461c653264f922fbe690038f6eae5856f2d8896ec4cefe873a4e91bc22d",
+    "geometry_count": 1,
+    "all_geometry_watertight": true,
+    "bounds": [
+      [
+        -2.19,
+        -62.8,
+        -20.18
+      ],
+      [
+        59.01,
+        -19.56,
+        -15.82
+      ]
+    ]
+  },
+  "assets/ev_core_r10dp_halo_cool_front.glb": {
+    "bytes": 22232,
+    "sha256": "ad7b046d061ec96ead84a9d8512902e556412bba197283408ec1e920365a79f7",
+    "geometry_count": 1,
+    "all_geometry_watertight": true,
+    "bounds": [
+      [
+        -70.7,
+        -19.49,
+        46.72
+      ],
+      [
+        -10.82,
+        69.63,
+        53.28
+      ]
+    ]
+  },
+  "assets/ev_core_r10dp_halo_cool_mid.glb": {
+    "bytes": 13584,
+    "sha256": "8aaa29e29458e31a133d58ab94efb081aecd55adc20ae5efc2231039b7665560",
+    "geometry_count": 1,
+    "all_geometry_watertight": true,
+    "bounds": [
+      [
+        2.05,
+        31.11,
+        15.82
+      ],
+      [
+        54.53,
+        64.26,
+        20.18
+      ]
+    ]
+  },
+  "assets/ev_core_r10dp_halo_warm_front.glb": {
+    "bytes": 21800,
+    "sha256": "2ac80d2033621ed8ee33e90c0fe9bd208c853eb8054e9e4b264b937932255bcd",
+    "geometry_count": 1,
+    "all_geometry_watertight": true,
+    "bounds": [
+      [
+        17.12,
+        -68.15,
+        45.57
+      ],
+      [
+        70.89,
+        25.41,
+        52.43
+      ]
+    ]
+  },
+  "assets/ev_core_r10dp_halo_white_front.glb": {
+    "bytes": 14456,
+    "sha256": "dd238080ea37003736860c5aa7db1b92b4d7f2ec3e6bf0e9a1f2523b765e75e5",
+    "geometry_count": 1,
+    "all_geometry_watertight": true,
+    "bounds": [
+      [
+        -64.9,
+        -69.48,
+        48.27
+      ],
+      [
+        -7.68,
+        -23.6,
+        53.73
+      ]
+    ]
+  },
+  "assets/ev_core_r10dp_halo_white_rear.glb": {
+    "bytes": 27408,
+    "sha256": "acd1087a8d7f097cd1025a109aa6268deccb0d967bcf21a0298b162bded3fdd6",
+    "geometry_count": 1,
+    "all_geometry_watertight": true,
+    "bounds": [
+      [
+        -61.5,
+        -45.7,
+        -21.95
+      ],
+      [
+        -17.46,
+        58.49,
+        -18.05
+      ]
+    ]
+  },
+  "assets/ev_core_r10dp_inner_collar.glb": {
+    "bytes": 10716,
+    "sha256": "db882ef1231d28e39f3aadc60e7384eb05bf9cb1e324e018c583152ac17da383",
+    "geometry_count": 4,
+    "all_geometry_watertight": true,
+    "bounds": [
+      [
+        -87.9,
+        -85.97,
+        -34.0
+      ],
+      [
+        84.64,
+        83.09,
+        43.38
+      ]
+    ]
+  },
+  "assets/ev_core_r10dp_mid_ne.glb": {
+    "bytes": 11168,
+    "sha256": "fe1236745610685b5f965d81384201267d195d102ad4117f34b5a05b287f830f",
+    "geometry_count": 3,
+    "all_geometry_watertight": true,
+    "bounds": [
+      [
+        39.46,
+        50.5,
+        -44.0
+      ],
+      [
+        103.06,
+        109.54,
+        -15.57
+      ]
+    ]
+  },
+  "assets/ev_core_r10dp_mid_nw.glb": {
+    "bytes": 11168,
+    "sha256": "8a770ebe4e3c31ae0b06710fe4fba3b9ec18c63a9b8bd51544828dcd32dff95b",
+    "geometry_count": 3,
+    "all_geometry_watertight": true,
+    "bounds": [
+      [
+        -110.33,
+        37.84,
+        -8.5
+      ],
+      [
+        -48.97,
+        104.08,
+        18.57
+      ]
+    ]
+  },
+  "assets/ev_core_r10dp_mid_se.glb": {
+    "bytes": 11164,
+    "sha256": "ad2ab4c5ef72aeeef8f8eb6978fb557540552556eb2529a186e66df507dad105",
+    "geometry_count": 3,
+    "all_geometry_watertight": true,
+    "bounds": [
+      [
+        47.42,
+        -105.95,
+        -8.0
+      ],
+      [
+        104.95,
+        -48.97,
+        21.55
+      ]
+    ]
+  },
+  "assets/ev_core_r10dp_mid_sw.glb": {
+    "bytes": 11176,
+    "sha256": "26a691a040d6971d2e1579342886f9fb8f417b5be182335b5bfb67957fe75bca",
+    "geometry_count": 3,
+    "all_geometry_watertight": true,
+    "bounds": [
+      [
+        -105.14,
+        -103.21,
+        -32.5
+      ],
+      [
+        -48.48,
+        -45.4,
+        -5.68
+      ]
+    ]
+  },
+  "assets/ev_core_r10dp_nodes.glb": {
+    "bytes": 7132,
+    "sha256": "a29da5319a5633c44e4f5c4b917e63681b0926c580aa5e0d5dcdf4140a69fc13",
+    "geometry_count": 6,
+    "all_geometry_watertight": true,
+    "bounds": [
+      [
+        -30.4,
+        -32.5,
+        -7.03
+      ],
+      [
+        32.5,
+        40.5,
+        73.24
+      ]
+    ]
+  },
+  "assets/ev_core_r10dp_outer_ne.glb": {
+    "bytes": 14624,
+    "sha256": "b4bfabb378aa4b324f08291efcebdb2ab6da5a342bbbd18adb7812c705b0655f",
+    "geometry_count": 3,
+    "all_geometry_watertight": true,
+    "bounds": [
+      [
+        35.01,
+        39.25,
+        -39.0
+      ],
+      [
+        162.63,
+        164.38,
+        6.33
+      ]
+    ]
+  },
+  "assets/ev_core_r10dp_outer_nw.glb": {
+    "bytes": 14652,
+    "sha256": "c686538db974cca9a8a3e25c25363252f06a52076bbf5c8c335c06611fd1d3a7",
+    "geometry_count": 3,
+    "all_geometry_watertight": true,
+    "bounds": [
+      [
+        -163.98,
+        30.48,
+        2.0
+      ],
+      [
+        -38.94,
+        160.73,
+        42.32
+      ]
+    ]
+  },
+  "assets/ev_core_r10dp_outer_se.glb": {
+    "bytes": 14656,
+    "sha256": "7639b9421958397162c76c2e4f746dd8d13e617ff2738ac3155f3c99f024bfde",
+    "geometry_count": 3,
+    "all_geometry_watertight": true,
+    "bounds": [
+      [
+        36.84,
+        -164.48,
+        -13.0
+      ],
+      [
+        160.58,
+        -45.15,
+        35.12
+      ]
+    ]
+  },
+  "assets/ev_core_r10dp_outer_sw.glb": {
+    "bytes": 14668,
+    "sha256": "fe33af02cb9820b3c3bb958f69db98167d79dc616fdd85833c2d6081b69f29ba",
+    "geometry_count": 3,
+    "all_geometry_watertight": true,
+    "bounds": [
+      [
+        -159.7,
+        -156.93,
+        -59.0
+      ],
+      [
+        -42.41,
+        -36.25,
+        -22.93
+      ]
+    ]
+  },
+  "assets/ev_core_r10dp_void_tunnel.glb": {
+    "bytes": 23500,
+    "sha256": "908ccff2d07e14e44913557d740e59f3e82c8c35bc89c76152b3c4d093a2d9c0",
+    "geometry_count": 4,
+    "all_geometry_watertight": true,
+    "bounds": [
+      [
+        -71.0,
+        -71.0,
+        -64.0
+      ],
+      [
+        71.0,
+        71.0,
+        46.0
+      ]
+    ]
+  }
+}

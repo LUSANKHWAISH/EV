@@ -1,0 +1,212 @@
+import QtQuick 2.15
+import "../theme"
+
+// EVIntelligenceCore - The flagship central component representing E.V.'s intelligence.
+// Composed of layered geometry: outer instrument frame, structural ring system,
+// compute lattice, and central aperture.
+Item {
+    id: root
+    // No fixed size; will be determined by anchors in FlagshipStage
+    // Responsive unit based on the smaller dimension
+    property real unit: Math.min(width, height)
+
+    // Properties for external control
+    // Current state from guiBridge (set by FlagshipStage)
+    property var state: null
+    // Visual mode and theme profile (for future hooks)
+    property string visualMode: "STANDARD"
+    property string themeProfile: "EV_CORE"
+
+    // Inner item that holds the layered core (allows for scaling)
+    Item {
+        id: flagshipStage
+        anchors.fill: parent
+        // These properties are passed through for future use
+        property string visualMode: root.visualMode
+        property string themeProfile: root.themeProfile
+
+        // ============================================================
+        // LAYER 1: OUTER INSTRUMENT FRAME
+        // ============================================================
+        Item {
+            id: outerFrame
+            anchors.fill: parent
+            // Sparse precision marks and indexing
+            Repeater {
+                model: 12
+                Rectangle {
+                    width: 2
+                    height: Theme.coreRingThickness * 0.7
+                    color: Theme.luminousPrimary
+                    radius: 1
+                    opacity: 0.6
+                    rotation: index * 30
+                    y: outerFrame.height * 0.1
+                    anchors.horizontalCenter: parent.horizontalCenter
+                }
+            }
+            // Asymmetric technical ticks (example: three uneven marks)
+            Rectangle {
+                width: 1
+                height: Theme.coreRingThickness
+                color: Theme.luminousSecondary
+                opacity: 0.4
+                y: outerFrame.height * 0.15
+                anchors.horizontalCenter: parent.horizontalCenter
+                rotation: 20
+            }
+            Rectangle {
+                width: 1
+                height: Theme.coreRingThickness * 1.5
+                color: Theme.luminousPrimary
+                opacity: 0.5
+                y: outerFrame.height * 0.1
+                anchors.horizontalCenter: parent.horizontalCenter
+                rotation: -10
+            }
+        }
+
+        // ============================================================
+        // LAYER 2: STRUCTURAL RING SYSTEM
+        // ============================================================
+        Item {
+            id: ringSystem
+            anchors.fill: parent
+            // Three rings with different thicknesses, gaps, and phase movements
+            EVCoreRing {
+                id: innerRing
+                thickness: Theme.coreRingThickness * 0.8
+                gap: 0.3
+                opacity: 0.7
+                anchors.centerIn: parent
+                width: parent.width * 0.8
+                height: parent.width * 0.8
+                // Rotation driven by state
+                // Direction and speed vary by state
+                SequentialAnimation on rotation {
+                    running: state !== null
+                    loops: Animation.Infinite
+                    NumberAnimation {
+                        from: 0
+                        to: 360
+                        duration: (state === "LISTENING") ? 12000 :
+                                 (state === "EXECUTING") ? 8000 :
+                                 (state === "VERIFYING") ? 10000 : 20000
+                        easing: Theme.easingStandard
+                    }
+                }
+            }
+            EVCoreRing {
+                id: middleRing
+                thickness: Theme.coreRingThickness * 0.6
+                gap: 0.5
+                opacity: 0.5
+                anchors.centerIn: parent
+                width: parent.width * 0.6
+                height: parent.width * 0.6
+                SequentialAnimation on rotation {
+                    running: state !== null
+                    loops: Animation.Infinite
+                    NumberAnimation {
+                        from: 0
+                        to: 360
+                        duration: (state === "AWAITING_APPROVAL") ? 15000 :
+                                 (state === "SPEAKING") ? 10000 : 18000
+                        easing: Theme.easingDeliberate
+                    }
+                }
+            }
+            EVCoreRing {
+                id: outerRing
+                thickness: Theme.coreRingThickness * 0.4
+                gap: 0.7
+                opacity: 0.3
+                anchors.centerIn: parent
+                width: parent.width * 0.4
+                height: parent.width * 0.4
+                SequentialAnimation on rotation {
+                    running: state !== null
+                    loops: Animation.Infinite
+                    NumberAnimation {
+                        from: 0
+                        to: 360
+                        duration: 25000
+                        easing: Theme.easingAmbient
+                    }
+                }
+            }
+        }
+
+        // ============================================================
+        // LAYER 3: COMPUTE / COGNITIVE LATTICE
+        // ============================================================
+        Item {
+            id: computeLattice
+            anchors.fill: parent
+            EVCoreLattice {
+                id: lattice
+                anchors.centerIn: parent
+                width: parent.width * 0.5
+                height: parent.width * 0.5
+                // Node activation based on state
+                property real energy: Theme.stateEnergy(state)
+                // Visualize energy by scaling inner nodes slightly
+                Behavior on scale {
+                    NumberAnimation { duration: Theme.motionStandard }
+                }
+                scale: 0.8 + (energy * 0.4)
+                // Opacity of lattice lines based on state energy
+                opacity: 0.3 + (energy * 0.5)
+            }
+        }
+
+        // ============================================================
+        // LAYER 4: CENTRAL APERTURE / INTELLIGENCE CHAMBER
+        // ============================================================
+        Item {
+            id: aperture
+            anchors.centerIn: parent
+            width: parent.width * 0.3
+            height: parent.width * 0.3
+            Rectangle {
+                id: apertureBg
+                anchors.fill: parent
+                radius: width / 2
+                color: Theme.backgroundDeep
+                // State-dependent luminance and scale
+                opacity: 0.4
+                Behavior on opacity {
+                    NumberAnimation { duration: Theme.motionStandard }
+                }
+                // Pulsing on active states
+                SequentialAnimation on opacity {
+                    loops: Animation.Infinite
+                    PauseAnimation { duration: 1000 }
+                    NumberAnimation { to: 0.7; duration: Theme.statePulseDuration(state) }
+                    NumberAnimation { to: 0.4; duration: Theme.statePulseDuration(state) }
+                    running: state === "LISTENING" || state === "SPEAKING" ||
+                             state === "EXECUTING" || state === "VERIFYING"
+                }
+            }
+            // Inner glow (subtle)
+            Rectangle {
+                id: apertureGlow
+                anchors.fill: parent
+                radius: width / 2
+                color: Theme.stateColor(state)
+                opacity: 0.2
+                Behavior on opacity {
+                    NumberAnimation { duration: Theme.motionStandard }
+                }
+                // Scale pulse on SUCCESS/FAILED
+                SequentialAnimation on scale {
+                    loops: Animation.Infinite
+                    PauseAnimation { duration: 500 }
+                    NumberAnimation { to: 1.2; duration: 800 }
+                    NumberAnimation { to: 1.0; duration: 800 }
+                    running: state === "SUCCESS" || state === "FAILED"
+                }
+            }
+        }
+    }
+}

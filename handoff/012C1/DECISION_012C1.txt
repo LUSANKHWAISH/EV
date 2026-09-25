@@ -1,0 +1,1 @@
+Use optional EVTaskHistoryStore injection. Persist PENDING, RUNNING, and the already-created final AgentRunResult. Catch history exceptions independently and never retry or re-enter execution. Existing EVAgent() remains valid and no database is created by importing core.agent.

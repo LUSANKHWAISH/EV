@@ -13,6 +13,9 @@ Item {
     property bool expanded:false
     property bool checkerboard:false
     property bool recordingActive:false
+    property bool cosmicDepthEnabled:true
+    property int cosmicTheme:0
+    property string visualTheme:'cosmic_orbit'
     property string drawer:''
     property bool geometryInitialized:false
     function initializeGeometry(){
@@ -65,6 +68,61 @@ Item {
             for(let y=122;y<height;y+=64){c.beginPath();c.moveTo(stage.rail,y);c.lineTo(width,y);c.stroke()}
             c.strokeStyle='rgba(79,111,126,.05)';c.beginPath();c.moveTo(stage.centerX,100);c.lineTo(stage.centerX,height-170);c.stroke()
         }
+    }
+    CosmicDepthField {
+        id: cosmicDepthFieldLayer
+        objectName: "cosmicDepthFieldLayer"
+        anchors.fill: parent
+        z: 0
+        depthPass: 1
+        coreCenterX: nucleus ? (nucleus.x + nucleus.width / 2) : (width / 2)
+        coreCenterY: nucleus ? (nucleus.y + nucleus.height / 2) : (height / 2)
+        visible: (stage.visualTheme === 'cosmic_orbit' || stage.visualTheme === 'stark_reactor' || stage.visualTheme === '') && stage.cosmicDepthEnabled && (stage.model ? stage.model.launchProgress > 0.15 : true)
+        timeSeconds: stage.model ? stage.model.motionTime : 0
+        deployment: stage.model ? stage.model.launchProgress : 1
+        lowCost: stage.model ? stage.model.qualityMode : false
+        colorTheme: stage.visualTheme === 'stark_reactor' ? 0 : stage.cosmicTheme
+        activity: Math.max(
+            0.0,
+            Math.min(
+                1.0,
+                (stage.model ? Math.max(0.0, stage.model.glow - 1.0) : 0.0)
+                + (
+                    stage.musicReactionActive
+                    ? stage.musicSession.beat
+                      * stage.musicSession.reactionGain
+                      * 0.35
+                    : 0.0
+                )
+            )
+        )
+    }
+    QuantumSingularityField {
+        id: quantumSingularityRearLayer
+        objectName: "quantumSingularityRearLayer"
+        anchors.fill: parent
+        z: 0
+        depthPass: 1
+        coreCenterX: nucleus ? (nucleus.x + nucleus.width / 2) : (width / 2)
+        coreCenterY: nucleus ? (nucleus.y + nucleus.height / 2) : (height / 2)
+        visible: stage.visualTheme === 'quantum_singularity' && stage.cosmicDepthEnabled && (stage.model ? stage.model.launchProgress > 0.15 : true)
+        timeSeconds: stage.model ? stage.model.motionTime : 0
+        deployment: stage.model ? stage.model.launchProgress : 1
+        lowCost: stage.model ? stage.model.qualityMode : false
+        activity: Math.max(
+            0.0,
+            Math.min(
+                1.0,
+                (stage.model ? Math.max(0.0, stage.model.glow - 1.0) : 0.0)
+                + (
+                    stage.musicReactionActive
+                    ? stage.musicSession.beat
+                      * stage.musicSession.reactionGain
+                      * 0.35
+                    : 0.0
+                )
+            )
+        )
     }
     OrbitalAura {
         id: globalFireParticleLayer
@@ -178,7 +236,8 @@ Item {
     }
     NucleusScene {
         id:nucleus;telemetry:stage.model;expanded:stage.expanded
-        z:stage.musicActive?4:0
+        visualTheme: stage.visualTheme
+        z:stage.musicActive?12:0
         width:stage.musicActive?170:Math.min(stage.expanded?820:540,stage.height-(stage.shortView?340:220));height:width
         x:stage.musicActive?stage.width-stage.margin-(stage.width-stage.contentLeft-stage.margin<1100?220:270)/2-width/2:stage.centerX-width/2
         y:stage.musicActive?stage.height-385:stage.height*(stage.shortView?.40:.415)-height/2
@@ -189,6 +248,61 @@ Item {
         Behavior on x { enabled:stage.geometryInitialized;NumberAnimation { duration:600;easing.type:Easing.InOutCubic } }
         Behavior on y { enabled:stage.geometryInitialized;NumberAnimation { duration:600;easing.type:Easing.InOutCubic } }
         Behavior on width { enabled:stage.geometryInitialized;NumberAnimation { duration:600;easing.type:Easing.InOutCubic } }
+    }
+    CosmicDepthField {
+        id: cosmicDepthFrontLayer
+        objectName: "cosmicDepthFrontLayer"
+        anchors.fill: parent
+        z: stage.musicActive ? 0.2 : 1
+        depthPass: 2
+        coreCenterX: nucleus ? (nucleus.x + nucleus.width / 2) : (width / 2)
+        coreCenterY: nucleus ? (nucleus.y + nucleus.height / 2) : (height / 2)
+        visible: (stage.visualTheme === 'cosmic_orbit' || stage.visualTheme === 'stark_reactor' || stage.visualTheme === '') && stage.cosmicDepthEnabled && (stage.model ? stage.model.launchProgress > 0.15 : true)
+        timeSeconds: stage.model ? stage.model.motionTime : 0
+        deployment: stage.model ? stage.model.launchProgress : 1
+        lowCost: stage.model ? stage.model.qualityMode : false
+        colorTheme: stage.visualTheme === 'stark_reactor' ? 0 : stage.cosmicTheme
+        activity: Math.max(
+            0.0,
+            Math.min(
+                1.0,
+                (stage.model ? Math.max(0.0, stage.model.glow - 1.0) : 0.0)
+                + (
+                    stage.musicReactionActive
+                    ? stage.musicSession.beat
+                      * stage.musicSession.reactionGain
+                      * 0.35
+                    : 0.0
+                )
+            )
+        )
+    }
+    QuantumSingularityField {
+        id: quantumSingularityFrontLayer
+        objectName: "quantumSingularityFrontLayer"
+        anchors.fill: parent
+        z: stage.musicActive ? 0.2 : 1
+        depthPass: 2
+        coreCenterX: nucleus ? (nucleus.x + nucleus.width / 2) : (width / 2)
+        coreCenterY: nucleus ? (nucleus.y + nucleus.height / 2) : (height / 2)
+        visible: stage.visualTheme === 'quantum_singularity' && stage.cosmicDepthEnabled && (stage.model ? stage.model.launchProgress > 0.15 : true)
+        timeSeconds: stage.model ? stage.model.motionTime : 0
+        deployment: stage.model ? stage.model.launchProgress : 1
+        lowCost: stage.model ? stage.model.qualityMode : false
+        activity: Math.max(
+            0.0,
+            Math.min(
+                1.0,
+                (stage.model ? Math.max(0.0, stage.model.glow - 1.0) : 0.0)
+                + (
+                    stage.musicReactionActive
+                    ? stage.musicSession.beat
+                      * stage.musicSession.reactionGain
+                      * 0.35
+                    : 0.0
+                )
+            )
+        )
     }
     MouseArea {
         id:interaction;objectName:'coreInteraction'
@@ -257,7 +371,7 @@ Item {
     Loader {
         id: musicLoader
         active: stage.musicActive
-        z: 3
+        z: 10
         x: stage.contentLeft
         y: 145
         width: stage.width - x - stage.margin
@@ -298,6 +412,59 @@ Item {
                 HudButton { objectName:'replayLaunch';width:parent.width;text:'REPLAY CORE PROJECTION';enabled:stage.model.animationEnabled;onClicked:{stage.drawer='';stage.model.replayLaunch()} }
                 HudButton { width:parent.width;text:'RESET VIEW';onClicked:stage.resetView() }
                 HudButton { width:parent.width;text:stage.checkerboard?'HIDE COMPOSITING CHECK':'CHECK TRANSPARENCY';onClicked:stage.checkerboard=!stage.checkerboard }
+                Rule { width:parent.width }
+                Label { text:'APPEARANCE THEME' }
+                Column {
+                    width:parent.width;spacing:8
+                    HudButton {
+                        width:parent.width
+                        text:'STARK ARC REACTOR (IRON MAN TECH)'
+                        selected:stage.visualTheme === 'stark_reactor'
+                        onClicked:stage.visualTheme = 'stark_reactor'
+                    }
+                    Row {
+                        width:parent.width;spacing:8
+                        HudButton {
+                            width:(parent.width - 8)/2
+                            text:'COSMIC ORBIT'
+                            selected:stage.visualTheme === 'cosmic_orbit' || stage.visualTheme === ''
+                            onClicked:stage.visualTheme = 'cosmic_orbit'
+                        }
+                        HudButton {
+                            width:(parent.width - 8)/2
+                            text:'QUANTUM SINGULARITY'
+                            selected:stage.visualTheme === 'quantum_singularity'
+                            onClicked:stage.visualTheme = 'quantum_singularity'
+                        }
+                    }
+                }
+
+                Column {
+                    width:parent.width;spacing:10
+                    visible:stage.visualTheme === 'cosmic_orbit' || stage.visualTheme === ''
+                    Label { text:'COSMIC COLORWAYS' }
+                    Row {
+                        width:parent.width;spacing:8
+                        HudButton {
+                            width:(parent.width - 16)/3
+                            text:'CYAN BLUE'
+                            selected:stage.cosmicTheme === 0
+                            onClicked:stage.cosmicTheme = 0
+                        }
+                        HudButton {
+                            width:(parent.width - 16)/3
+                            text:'SOLAR GOLD'
+                            selected:stage.cosmicTheme === 1
+                            onClicked:stage.cosmicTheme = 1
+                        }
+                        HudButton {
+                            width:(parent.width - 16)/3
+                            text:'HYBRID'
+                            selected:stage.cosmicTheme === 2
+                            onClicked:stage.cosmicTheme = 2
+                        }
+                    }
+                }
                 Rule { width:parent.width }
                 Column {
                     visible:stage.startupSound!==null;width:parent.width;spacing:12

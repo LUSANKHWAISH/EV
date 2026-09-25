@@ -1,0 +1,88 @@
+E.V. TASK 011C.2R10 — APPLY CHATGPT-GENERATED SPLIT NEURAL MONOLITH
+
+PROJECT:
+D:\EV
+
+IMPORTANT:
+ChatGPT has already generated the complete R10 QML implementation and the authored 3D assets.
+You are ONLY the executor/file applier.
+Do not design, rewrite, optimize, refactor, reinterpret, or generate replacement code.
+
+PACKAGE CONTENTS USED FOR RUNTIME:
+D:\EV\handoff\R10\EVIntelligenceCore_R10.qml
+D:\EV\handoff\R10\assets\ev_core_r10_a.glb
+D:\EV\handoff\R10\assets\ev_core_r10_b.glb
+D:\EV\handoff\R10\assets\ev_core_r10_c.glb
+D:\EV\handoff\R10\assets\ev_core_r10_d.glb
+D:\EV\handoff\R10\assets\ev_core_r10_e.glb
+D:\EV\handoff\R10\assets\ev_core_r10_f.glb
+D:\EV\handoff\R10\assets\ev_core_r10_shard.glb
+
+TARGET QML:
+D:\EV\gui\qml\components\EVIntelligenceCore.qml
+
+TARGET ASSET DIRECTORY:
+D:\EV\gui\qml\assets\
+
+STEP 1 — BACKUP CURRENT R9
+Create:
+D:\EV\gui\qml\components\EVIntelligenceCore.qml.pre-R10
+
+STEP 2 — CONFIRM ASSET DIRECTORY
+Ensure this directory exists:
+D:\EV\gui\qml\assets\
+Do not delete any existing R9 assets.
+
+STEP 3 — EXACT QML COPY
+Copy the complete contents of:
+D:\EV\handoff\R10\EVIntelligenceCore_R10.qml
+
+to:
+D:\EV\gui\qml\components\EVIntelligenceCore.qml
+
+STEP 4 — EXACT ASSET COPIES
+Copy these seven exact files from:
+D:\EV\handoff\R10\assets\
+
+to:
+D:\EV\gui\qml\assets\
+
+ev_core_r10_a.glb
+ev_core_r10_b.glb
+ev_core_r10_c.glb
+ev_core_r10_d.glb
+ev_core_r10_e.glb
+ev_core_r10_f.glb
+ev_core_r10_shard.glb
+
+DO NOT MODIFY:
+- EVFlagshipStage.qml
+- Theme.qml
+- EVWindow.qml
+- gui/app.py
+- gui/bridge.py
+- tests
+- qmldir
+- any other project file
+
+DO NOT:
+- generate code
+- edit the supplied QML
+- edit or convert the GLB files
+- delete R9 assets
+- redesign
+- run independent fixes
+
+REPORT ONLY:
+1. pre-R10 backup created
+2. target asset directory confirmed
+3. QML copied
+4. all seven R10 GLB assets copied
+5. source and target byte sizes for every copied file
+6. source and target SHA-256 for every copied file
+7. confirmation all hashes match
+8. confirmation no other files changed
+9. any copy corruption detected
+
+DO NOT claim Windows tests pass.
+The user will run Windows tests locally.

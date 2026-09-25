@@ -1,0 +1,883 @@
+import QtQuick 2.15
+import "../theme"
+
+// E.V. Intelligence Core
+//
+// The core is the primary visual identity of E.V.
+// It is intentionally not an orb, reactor, generic HUD, or decorative
+// equalizer. A material intelligence chamber provides a stable identity,
+// while restrained state-driven motion changes how that identity behaves.
+Item {
+    id: root
+
+    property real unit: Math.min(width, height)
+
+    property var state: null
+    property string visualMode: "STANDARD"
+    property string themeProfile: "EV_CORE"
+
+    property string stateText:
+        state === null ||
+        state === undefined ||
+        String(state).length === 0
+        ? "IDLE"
+        : String(state)
+
+    property real energy: Theme.stateEnergy(root.stateText)
+    property color stateTone: Theme.stateColor(root.stateText)
+
+    property bool idle: stateText === "IDLE"
+    property bool listening: stateText === "LISTENING"
+    property bool planning: stateText === "PLANNING"
+    property bool executing: stateText === "EXECUTING"
+    property bool verifying: stateText === "VERIFYING"
+    property bool awaiting: stateText === "AWAITING_APPROVAL"
+    property bool speaking: stateText === "SPEAKING"
+    property bool successful: stateText === "SUCCESS"
+    property bool failed: stateText === "FAILED"
+    property bool recovering: stateText === "RECOVERING"
+    property bool stopped: stateText === "STOPPED"
+
+    // One continuous phase drives restrained ambient/state motion.
+    // This is deterministic UI motion, not a fake representation of
+    // hidden model reasoning.
+    property real phase: 0.0
+
+    property real breath:
+        (Math.sin(root.phase) + 1.0) * 0.5
+
+    property int motionCycle:
+        root.stopped ? Theme.motionAmbient * 4 :
+        root.idle ? Theme.motionAmbient * 3 :
+        root.listening ? Theme.motionAmbient * 2 :
+        root.planning ? Theme.motionAmbient * 2 :
+        root.executing ? Theme.motionAmbient :
+        root.verifying ? Theme.motionAmbient * 2 :
+        root.awaiting ? Theme.motionAmbient * 3 :
+        root.speaking ? Theme.motionAmbient :
+        root.successful ? Theme.motionAmbient * 3 :
+        root.failed ? Theme.motionAmbient :
+        root.recovering ? Theme.motionAmbient * 2 :
+        Theme.motionAmbient * 3
+
+    opacity: root.stopped ? 0.34 : 1.0
+
+    Behavior on opacity {
+        NumberAnimation {
+            duration: Theme.motionDeliberate
+            easing.type: Theme.easingDeliberate
+        }
+    }
+
+    NumberAnimation on phase {
+        from: 0.0
+        to: Math.PI * 2
+        duration: root.motionCycle
+        loops: Animation.Infinite
+        running: root.visible && !root.stopped
+        easing.type: Easing.Linear
+    }
+
+    // ============================================================
+    // REAR COGNITIVE TOPOLOGY
+    // ============================================================
+
+    EVCoreLattice {
+        id: cognitiveTopology
+
+        anchors.centerIn: parent
+
+        width: root.unit * 0.86
+        height: root.unit * 0.73
+
+        energy: root.energy
+        state: root.stateText
+
+        opacity:
+            root.planning ? 0.62 :
+            root.verifying ? 0.48 :
+            root.executing ? 0.34 :
+            root.listening ? 0.29 :
+            root.recovering ? 0.38 :
+            root.failed ? 0.22 :
+            0.16
+
+        scale:
+            0.985 +
+            root.breath *
+            (
+                root.listening ? 0.025 :
+                root.planning ? 0.012 :
+                root.recovering ? 0.018 :
+                0.006
+            )
+
+        rotation:
+            root.planning
+            ? Math.sin(root.phase) * 1.2
+            : root.recovering
+                ? Math.sin(root.phase * 0.65) * 1.8
+                : 0
+
+        Behavior on opacity {
+            NumberAnimation {
+                duration: Theme.motionDeliberate
+                easing.type: Theme.easingDeliberate
+            }
+        }
+    }
+
+    // ============================================================
+    // ASYMMETRIC FIELD BRACES
+    // ============================================================
+
+    EVCoreRing {
+        id: leftFieldBrace
+
+        anchors.centerIn: parent
+        anchors.horizontalCenterOffset: -root.unit * 0.09
+        anchors.verticalCenterOffset: -root.unit * 0.015
+
+        width: root.unit * 0.70
+        height: width
+
+        thickness: Theme.coreRingThickness
+        gap: 0.75
+        baseOpacity: 0.16
+
+        rotation:
+            -24 +
+            Math.sin(root.phase) *
+            (
+                root.listening ? 3.0 :
+                root.planning ? 5.0 :
+                root.executing ? 2.5 :
+                root.recovering ? 4.0 :
+                1.2
+            )
+    }
+
+    EVCoreRing {
+        id: rightFieldBrace
+
+        anchors.centerIn: parent
+        anchors.horizontalCenterOffset: root.unit * 0.105
+        anchors.verticalCenterOffset: root.unit * 0.025
+
+        width: root.unit * 0.61
+        height: width
+
+        thickness: Theme.coreRingThickness
+        gap: 0.81
+        baseOpacity: 0.11
+
+        rotation:
+            17 -
+            Math.sin(root.phase * 0.82) *
+            (
+                root.speaking ? 5.0 :
+                root.awaiting ? 1.2 :
+                root.failed ? 3.0 :
+                1.8
+            )
+    }
+
+    // ============================================================
+    // SUBTLE CORE LUMINANCE
+    // ============================================================
+
+    Rectangle {
+        id: innerLuminance
+
+        anchors.centerIn: parent
+
+        width: root.unit * 0.30
+        height: root.unit * 0.56
+
+        radius: width / 2
+
+        color: root.stateTone
+
+        opacity:
+            0.025 +
+            root.energy * 0.035 +
+            root.breath *
+            (
+                root.listening || root.speaking
+                ? 0.025
+                : 0.008
+            )
+
+        scale:
+            1.0 +
+            root.breath *
+            (
+                root.listening ? 0.045 :
+                root.speaking ? 0.055 :
+                root.idle ? 0.012 :
+                0.020
+            )
+
+        Behavior on color {
+            ColorAnimation {
+                duration: Theme.motionDeliberate
+            }
+        }
+    }
+
+    // ============================================================
+    // PRIMARY MATERIAL INTELLIGENCE BODY
+    // ============================================================
+
+    Item {
+        id: body
+
+        anchors.centerIn: parent
+
+        anchors.horizontalCenterOffset:
+            root.failed
+            ? Math.sin(root.phase * 7.0) * root.unit * 0.004
+            : 0
+
+        anchors.verticalCenterOffset: -root.unit * 0.012
+
+        width: root.unit * 0.43
+        height: root.unit * 0.67
+
+        scale:
+            root.listening
+            ? 1.0 + root.breath * 0.012
+            : root.speaking
+                ? 1.0 + root.breath * 0.016
+                : root.recovering
+                    ? 0.985 + root.breath * 0.018
+                    : root.successful
+                        ? 1.015
+                        : 1.0 + root.breath * 0.004
+
+        rotation:
+            root.failed
+            ? Math.sin(root.phase * 5.0) * 0.65
+            : root.planning
+                ? Math.sin(root.phase) * 0.25
+                : 0
+
+        // --------------------------------------------------------
+        // FACETED MATERIAL SHELL
+        // --------------------------------------------------------
+
+        Canvas {
+            id: shell
+
+            anchors.fill: parent
+
+            function css(colorValue, alphaValue) {
+                return "rgba("
+                    + Math.round(colorValue.r * 255) + ","
+                    + Math.round(colorValue.g * 255) + ","
+                    + Math.round(colorValue.b * 255) + ","
+                    + alphaValue + ")"
+            }
+
+            function polygon(ctx, points, fillStyle, strokeStyle, lineWidth) {
+                if (points.length < 2)
+                    return
+
+                ctx.beginPath()
+                ctx.moveTo(points[0][0] * width, points[0][1] * height)
+
+                for (var i = 1; i < points.length; ++i)
+                    ctx.lineTo(points[i][0] * width, points[i][1] * height)
+
+                ctx.closePath()
+
+                if (fillStyle !== "") {
+                    ctx.fillStyle = fillStyle
+                    ctx.fill()
+                }
+
+                if (strokeStyle !== "") {
+                    ctx.strokeStyle = strokeStyle
+                    ctx.lineWidth = lineWidth
+                    ctx.stroke()
+                }
+            }
+
+            onPaint: {
+                var ctx = getContext("2d")
+
+                ctx.reset()
+                ctx.clearRect(0, 0, width, height)
+                ctx.lineJoin = "round"
+
+                var outer = [
+                    [0.50, 0.015],
+                    [0.69, 0.095],
+                    [0.84, 0.30],
+                    [0.81, 0.68],
+                    [0.66, 0.89],
+                    [0.50, 0.985],
+                    [0.34, 0.89],
+                    [0.19, 0.68],
+                    [0.16, 0.30],
+                    [0.31, 0.095]
+                ]
+
+                var inner = [
+                    [0.50, 0.075],
+                    [0.63, 0.145],
+                    [0.73, 0.33],
+                    [0.70, 0.65],
+                    [0.60, 0.82],
+                    [0.50, 0.895],
+                    [0.40, 0.82],
+                    [0.30, 0.65],
+                    [0.27, 0.33],
+                    [0.37, 0.145]
+                ]
+
+                polygon(
+                    ctx,
+                    outer,
+                    css(Theme.backgroundBase, 0.97),
+                    css(root.stateTone, 0.42 + root.energy * 0.16),
+                    Math.max(1.0, root.unit * 0.0018)
+                )
+
+                // Left structural facet.
+                polygon(
+                    ctx,
+                    [
+                        [0.16, 0.30],
+                        [0.31, 0.095],
+                        [0.37, 0.145],
+                        [0.30, 0.65],
+                        [0.34, 0.89],
+                        [0.19, 0.68]
+                    ],
+                    css(Theme.surfaceLow, 0.72),
+                    css(Theme.luminousPrimary, 0.16),
+                    1.0
+                )
+
+                // Right structural facet.
+                polygon(
+                    ctx,
+                    [
+                        [0.69, 0.095],
+                        [0.84, 0.30],
+                        [0.81, 0.68],
+                        [0.66, 0.89],
+                        [0.70, 0.65],
+                        [0.63, 0.145]
+                    ],
+                    css(Theme.surfaceLowest, 0.76),
+                    css(Theme.luminousSecondary, 0.13),
+                    1.0
+                )
+
+                polygon(
+                    ctx,
+                    inner,
+                    css(Theme.backgroundDeep, 0.94),
+                    css(root.stateTone, 0.24 + root.energy * 0.13),
+                    1.0
+                )
+
+                // Central intelligence prism.
+                polygon(
+                    ctx,
+                    [
+                        [0.50, 0.11],
+                        [0.59, 0.19],
+                        [0.62, 0.38],
+                        [0.60, 0.70],
+                        [0.54, 0.86],
+                        [0.46, 0.86],
+                        [0.40, 0.70],
+                        [0.38, 0.38],
+                        [0.41, 0.19]
+                    ],
+                    css(root.stateTone, 0.055 + root.energy * 0.035),
+                    css(root.stateTone, 0.31 + root.energy * 0.16),
+                    1.0
+                )
+
+                // Material facet lines.
+                ctx.beginPath()
+
+                ctx.moveTo(width * 0.31, height * 0.095)
+                ctx.lineTo(width * 0.41, height * 0.19)
+
+                ctx.moveTo(width * 0.69, height * 0.095)
+                ctx.lineTo(width * 0.59, height * 0.19)
+
+                ctx.moveTo(width * 0.19, height * 0.68)
+                ctx.lineTo(width * 0.40, height * 0.70)
+
+                ctx.moveTo(width * 0.81, height * 0.68)
+                ctx.lineTo(width * 0.60, height * 0.70)
+
+                ctx.moveTo(width * 0.34, height * 0.89)
+                ctx.lineTo(width * 0.46, height * 0.86)
+
+                ctx.moveTo(width * 0.66, height * 0.89)
+                ctx.lineTo(width * 0.54, height * 0.86)
+
+                ctx.strokeStyle = css(Theme.textSecondary, 0.11)
+                ctx.lineWidth = 1.0
+                ctx.stroke()
+            }
+
+            onWidthChanged: requestPaint()
+            onHeightChanged: requestPaint()
+
+            Connections {
+                target: root
+
+                function onStateToneChanged() {
+                    shell.requestPaint()
+                }
+
+                function onEnergyChanged() {
+                    shell.requestPaint()
+                }
+            }
+        }
+
+        // --------------------------------------------------------
+        // CENTRAL COGNITION APERTURE
+        // --------------------------------------------------------
+
+        Rectangle {
+            id: cognitionAperture
+
+            anchors.centerIn: parent
+
+            width: parent.width * 0.19
+            height: parent.height * 0.60
+
+            radius: width / 2
+
+            color: Theme.backgroundVoid
+
+            border.width: 1
+            border.color: root.stateTone
+
+            opacity: 0.78
+
+            Behavior on border.color {
+                ColorAnimation {
+                    duration: Theme.motionDeliberate
+                }
+            }
+        }
+
+        // Intelligence spine.
+        Rectangle {
+            id: intelligenceSpine
+
+            anchors.centerIn: parent
+
+            width:
+                root.executing
+                ? Math.max(4, root.unit * 0.006)
+                : Math.max(2, root.unit * 0.0035)
+
+            height: parent.height * 0.54
+
+            radius: width / 2
+
+            color: root.stateTone
+
+            opacity:
+                0.50 +
+                root.energy * 0.28 +
+                root.breath *
+                (
+                    root.listening || root.speaking
+                    ? 0.14
+                    : 0.035
+                )
+
+            Behavior on width {
+                NumberAnimation {
+                    duration: Theme.motionStandard
+                    easing.type: Theme.easingStandard
+                }
+            }
+
+            Behavior on color {
+                ColorAnimation {
+                    duration: Theme.motionDeliberate
+                }
+            }
+        }
+
+        // Internal registration marks.
+        Repeater {
+            model: 5
+
+            Rectangle {
+                property real widthFactor:
+                    index === 2
+                    ? 0.31
+                    : index % 2 === 0
+                        ? 0.23
+                        : 0.17
+
+                width: body.width * widthFactor
+                height: Math.max(1, root.unit * 0.0015)
+
+                x:
+                    body.width / 2
+                    - width / 2
+                    + (
+                        root.planning
+                        ? Math.sin(root.phase + index) *
+                          root.unit * 0.007
+                        : 0
+                      )
+
+                y:
+                    body.height *
+                    (
+                        0.27 +
+                        index * 0.115
+                    )
+
+                color:
+                    index === 2
+                    ? root.stateTone
+                    : Theme.textSecondary
+
+                opacity:
+                    root.planning
+                    ? 0.36 + index * 0.045
+                    : 0.12 + root.energy * 0.06
+            }
+        }
+
+        // LISTENING — receptive sensor gates.
+        Rectangle {
+            width: Math.max(1, root.unit * 0.0025)
+            height: body.height * 0.46
+            anchors.verticalCenter: parent.verticalCenter
+
+            x:
+                body.width *
+                (
+                    root.listening
+                    ? 0.245 + root.breath * 0.025
+                    : 0.19
+                )
+
+            color: root.stateTone
+            opacity: root.listening ? 0.68 : 0.10
+        }
+
+        Rectangle {
+            width: Math.max(1, root.unit * 0.0025)
+            height: body.height * 0.46
+            anchors.verticalCenter: parent.verticalCenter
+
+            x:
+                body.width *
+                (
+                    root.listening
+                    ? 0.245 + root.breath * 0.025
+                    : 0.19
+                )
+
+            color: root.stateTone
+            opacity: root.listening ? 0.68 : 0.10
+        }
+
+        // EXECUTING — directed energy transfer.
+        Repeater {
+            model: 5
+
+            Rectangle {
+                property real travel:
+                    (
+                        root.phase / (Math.PI * 2)
+                        + index / 5
+                    ) % 1.0
+
+                width: Math.max(2, root.unit * 0.004)
+                height: Math.max(9, root.unit * 0.025)
+                radius: width / 2
+
+                anchors.horizontalCenter: parent.horizontalCenter
+
+                y:
+                    body.height *
+                    (
+                        0.18 +
+                        travel * 0.64
+                    )
+
+                color: root.stateTone
+
+                opacity:
+                    root.executing
+                    ? 0.30 + (1.0 - Math.abs(0.5 - travel) * 2.0) * 0.52
+                    : 0.0
+            }
+        }
+
+        // VERIFYING — cross-check scan.
+        Rectangle {
+            width: body.width * 0.57
+            height: Math.max(1, root.unit * 0.0025)
+
+            anchors.horizontalCenter: parent.horizontalCenter
+
+            y:
+                body.height *
+                (
+                    0.22 +
+                    ((Math.sin(root.phase) + 1.0) * 0.5) * 0.56
+                )
+
+            color: root.stateTone
+            opacity: root.verifying ? 0.76 : 0.0
+        }
+
+        // SPEAKING — outward projection.
+        Rectangle {
+            anchors.verticalCenter: parent.verticalCenter
+            x: body.width * 0.76
+
+            width:
+                root.speaking
+                ? root.unit *
+                  (0.08 + root.breath * 0.055)
+                : 0
+
+            height: Math.max(1, root.unit * 0.0025)
+
+            color: root.stateTone
+            opacity: root.speaking ? 0.67 : 0.0
+        }
+
+        Rectangle {
+            anchors.verticalCenter: parent.verticalCenter
+
+            x:
+                root.speaking
+                ? -root.unit *
+                  (0.08 + root.breath * 0.055)
+                  + body.width * 0.24
+                : body.width * 0.24
+
+            width:
+                root.speaking
+                ? root.unit *
+                  (0.08 + root.breath * 0.055)
+                : 0
+
+            height: Math.max(1, root.unit * 0.0025)
+
+            color: root.stateTone
+            opacity: root.speaking ? 0.67 : 0.0
+        }
+
+        // AWAITING APPROVAL — controlled containment.
+        Item {
+            anchors.centerIn: parent
+
+            width: body.width * 1.14
+            height: body.height * 0.91
+
+            opacity:
+                root.awaiting
+                ? 0.52 + root.breath * 0.16
+                : 0.0
+
+            Rectangle {
+                width: parent.width * 0.16
+                height: 1
+                color: root.stateTone
+            }
+
+            Rectangle {
+                width: 1
+                height: parent.height * 0.09
+                color: root.stateTone
+            }
+
+            Rectangle {
+                anchors.right: parent.right
+                width: parent.width * 0.16
+                height: 1
+                color: root.stateTone
+            }
+
+            Rectangle {
+                anchors.right: parent.right
+                width: 1
+                height: parent.height * 0.09
+                color: root.stateTone
+            }
+
+            Rectangle {
+                anchors.bottom: parent.bottom
+                width: parent.width * 0.16
+                height: 1
+                color: root.stateTone
+            }
+
+            Rectangle {
+                anchors.bottom: parent.bottom
+                width: 1
+                height: parent.height * 0.09
+                color: root.stateTone
+            }
+
+            Rectangle {
+                anchors.right: parent.right
+                anchors.bottom: parent.bottom
+                width: parent.width * 0.16
+                height: 1
+                color: root.stateTone
+            }
+
+            Rectangle {
+                anchors.right: parent.right
+                anchors.bottom: parent.bottom
+                width: 1
+                height: parent.height * 0.09
+                color: root.stateTone
+            }
+        }
+
+        // SUCCESS — clean resolution.
+        Rectangle {
+            anchors.horizontalCenter: parent.horizontalCenter
+            y: body.height * 0.09
+
+            width:
+                root.successful
+                ? body.width * 0.48
+                : body.width * 0.18
+
+            height: Math.max(1, root.unit * 0.0025)
+
+            color: root.stateTone
+            opacity: root.successful ? 0.64 : 0.10
+
+            Behavior on width {
+                NumberAnimation {
+                    duration: Theme.motionCinematic
+                    easing.type: Theme.easingCinematic
+                }
+            }
+        }
+
+        Rectangle {
+            anchors.horizontalCenter: parent.horizontalCenter
+            y: body.height * 0.89
+
+            width:
+                root.successful
+                ? body.width * 0.38
+                : body.width * 0.14
+
+            height: Math.max(1, root.unit * 0.0025)
+
+            color: root.stateTone
+            opacity: root.successful ? 0.50 : 0.08
+
+            Behavior on width {
+                NumberAnimation {
+                    duration: Theme.motionCinematic
+                    easing.type: Theme.easingCinematic
+                }
+            }
+        }
+
+        // RECOVERING — reconstruction / realignment.
+        Rectangle {
+            anchors.verticalCenter: parent.verticalCenter
+
+            x:
+                root.recovering
+                ? body.width *
+                  (0.08 + root.breath * 0.13)
+                : body.width * 0.08
+
+            width: body.width * 0.13
+            height: Math.max(1, root.unit * 0.002)
+
+            color: root.stateTone
+            opacity: root.recovering ? 0.58 : 0.0
+        }
+
+        Rectangle {
+            anchors.verticalCenter: parent.verticalCenter
+
+            x:
+                root.recovering
+                ? body.width *
+                  (0.79 - root.breath * 0.13)
+                : body.width * 0.79
+
+            width: body.width * 0.13
+            height: Math.max(1, root.unit * 0.002)
+
+            color: root.stateTone
+            opacity: root.recovering ? 0.58 : 0.0
+        }
+    }
+
+    // ============================================================
+    // OUTER FIELD REGISTRATION
+    // ============================================================
+
+    Rectangle {
+        anchors.horizontalCenter: parent.horizontalCenter
+
+        y: parent.height / 2 - root.unit * 0.30
+
+        width:
+            root.planning || root.verifying
+            ? root.unit * 0.23
+            : root.unit * 0.12
+
+        height: 1
+
+        color: root.stateTone
+        opacity: 0.16 + root.energy * 0.08
+
+        Behavior on width {
+            NumberAnimation {
+                duration: Theme.motionDeliberate
+                easing.type: Theme.easingDeliberate
+            }
+        }
+    }
+
+    Rectangle {
+        anchors.horizontalCenter: parent.horizontalCenter
+
+        y: parent.height / 2 + root.unit * 0.30
+
+        width:
+            root.executing || root.successful
+            ? root.unit * 0.19
+            : root.unit * 0.10
+
+        height: 1
+
+        color: root.stateTone
+        opacity: 0.13 + root.energy * 0.07
+
+        Behavior on width {
+            NumberAnimation {
+                duration: Theme.motionDeliberate
+                easing.type: Theme.easingDeliberate
+            }
+        }
+    }
+}

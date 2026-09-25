@@ -1,0 +1,261 @@
+{
+  "ev_core_r10s_bridge.glb": {
+    "bytes": 4248,
+    "sha256": "b7c81bf8c8e6d1c336e3efd4195ce73d044b178a5e7b1035cbefbc213509db20",
+    "bounds": [
+      [
+        -211.04,
+        -58.46,
+        26.8
+      ],
+      [
+        212.58,
+        58.46,
+        52.9
+      ]
+    ],
+    "geometry_count": 5
+  },
+  "ev_core_r10s_halo_cool_a.glb": {
+    "bytes": 18800,
+    "sha256": "7a004fc7ee67ab4fda7b79f9e481fcfa6864413b091878ec1732e00f435669e3",
+    "bounds": [
+      [
+        -72.6,
+        -34.08,
+        20.41
+      ],
+      [
+        -11.01,
+        71.5,
+        27.59
+      ]
+    ],
+    "geometry_count": 1
+  },
+  "ev_core_r10s_halo_cool_b.glb": {
+    "bytes": 9796,
+    "sha256": "5202301bbbd30392947b47eccbf4213721a5f535ca0520386a3de6f8ea2027c6",
+    "bounds": [
+      [
+        -4.99,
+        49.41,
+        20.27
+      ],
+      [
+        45.96,
+        71.5,
+        25.73
+      ]
+    ],
+    "geometry_count": 1
+  },
+  "ev_core_r10s_halo_warm.glb": {
+    "bytes": 20960,
+    "sha256": "28d03918facb46e07026c65d747091533edc4a3d57dc2406606dbec2758e5856",
+    "bounds": [
+      [
+        16.36,
+        -70.32,
+        20.26
+      ],
+      [
+        72.8,
+        53.24,
+        27.74
+      ]
+    ],
+    "geometry_count": 1
+  },
+  "ev_core_r10s_halo_white.glb": {
+    "bytes": 12676,
+    "sha256": "1c6251deb48048fcd3f11ab30badc507d0245e4b290c2ec7cb894f1844fb236e",
+    "bounds": [
+      [
+        -61.72,
+        -71.99,
+        21.88
+      ],
+      [
+        14.97,
+        -32.96,
+        28.12
+      ]
+    ],
+    "geometry_count": 1
+  },
+  "ev_core_r10s_inner_b.glb": {
+    "bytes": 4464,
+    "sha256": "1295b16d115d1090b201ac458c3546fe0721c97436f220360c8b6cedbd4c352f",
+    "bounds": [
+      [
+        -78.77,
+        -105.98,
+        -2.0
+      ],
+      [
+        -1.62,
+        -62.23,
+        27.21
+      ]
+    ],
+    "geometry_count": 2
+  },
+  "ev_core_r10s_inner_l.glb": {
+    "bytes": 4460,
+    "sha256": "d8b406b2a8fbfb157a46bb403de12f126cb6f6a133c8e5b78226915e54ca4718",
+    "bounds": [
+      [
+        -106.0,
+        -7.39,
+        2.5
+      ],
+      [
+        -62.23,
+        78.77,
+        29.45
+      ]
+    ],
+    "geometry_count": 2
+  },
+  "ev_core_r10s_inner_r.glb": {
+    "bytes": 4460,
+    "sha256": "80b9eba5fe7d5b0a07809b97ce170723e41afe1aec9025c967da1ad25993321e",
+    "bounds": [
+      [
+        61.01,
+        -5.55,
+        4.5
+      ],
+      [
+        105.99,
+        80.0,
+        31.45
+      ]
+    ],
+    "geometry_count": 2
+  },
+  "ev_core_r10s_ne.glb": {
+    "bytes": 7492,
+    "sha256": "f3bd09fe597edaf4418becf78eaf0f626054c8a0f0be15eb7e345ed2ab56ef51",
+    "bounds": [
+      [
+        30.97,
+        39.55,
+        -28.5
+      ],
+      [
+        150.27,
+        159.51,
+        22.1
+      ]
+    ],
+    "geometry_count": 3
+  },
+  "ev_core_r10s_nodes.glb": {
+    "bytes": 6408,
+    "sha256": "5d6594d98331b0c6d8c0360126a6d037e7bebf3aebdd0f0449244cbde62a5183",
+    "bounds": [
+      [
+        -37.6,
+        -35.7,
+        29.62
+      ],
+      [
+        39.7,
+        50.7,
+        48.64
+      ]
+    ],
+    "geometry_count": 5
+  },
+  "ev_core_r10s_nw.glb": {
+    "bytes": 7504,
+    "sha256": "b91cbbe944bec2eb6b968710ba0fb21683e91bf84664db9da75c6346feda140c",
+    "bounds": [
+      [
+        -161.51,
+        30.48,
+        -34.0
+      ],
+      [
+        -38.94,
+        148.36,
+        12.16
+      ]
+    ],
+    "geometry_count": 3
+  },
+  "ev_core_r10s_se.glb": {
+    "bytes": 7456,
+    "sha256": "b40166780f2b625d71b949cfb9daad0c269bdd8211d021e8147add710724dcc1",
+    "bounds": [
+      [
+        34.73,
+        -152.84,
+        -30.0
+      ],
+      [
+        152.42,
+        -43.09,
+        20.81
+      ]
+    ],
+    "geometry_count": 3
+  },
+  "ev_core_r10s_sw.glb": {
+    "bytes": 7504,
+    "sha256": "d869109d4bc43ee159546aad2658646036e16a0e072057d6c194e3d8226f4e8e",
+    "bounds": [
+      [
+        -157.7,
+        -146.57,
+        -32.5
+      ],
+      [
+        -44.8,
+        -34.45,
+        19.7
+      ]
+    ],
+    "geometry_count": 3
+  },
+  "ev_core_r10s_vanes.glb": {
+    "bytes": 3908,
+    "sha256": "f10b616b788d2dfa62a8d727688126bf80f2862e3bd1e60a91cf4e7785496140",
+    "bounds": [
+      [
+        -156.54,
+        -164.0,
+        -5.5
+      ],
+      [
+        157.19,
+        161.55,
+        30.5
+      ]
+    ],
+    "geometry_count": 6
+  },
+  "ev_core_r10s_void.glb": {
+    "bytes": 30000,
+    "sha256": "b892a2fd8bf54c65561efd51bc01c90d0dc464aebdfd0b2b18b4febc397f8ac0",
+    "bounds": [
+      [
+        -78.0,
+        -78.0,
+        -33.5
+      ],
+      [
+        78.0,
+        78.0,
+        32.94
+      ]
+    ],
+    "geometry_count": 2
+  },
+  "_qml": {
+    "bytes": 20152,
+    "sha256": "5a6e557713962c75926e0d8c08ab691f621e32feaa464204180c2b90936bea26"
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "task": "012B.2 Windows test SQLite close fix",
+  "baseline": {
+    "live_target": "D:\\EV\\tests\\test_history.py",
+    "bytes": 10976,
+    "sha256": "e5a043dfc39f0c1406d409b7d8674ba988fd016d103e2a40ee3b925fbeeb6ac3"
+  },
+  "replacement": {
+    "file": "test_history_012B2.py",
+    "bytes": 11016,
+    "sha256": "fac7f4cc87c2ce1e7f89a3c2e7df7271f10d907acd9730cb9e0bb945771de4df"
+  },
+  "changed_files": [
+    "tests/test_history.py"
+  ],
+  "production_files_changed": [],
+  "isolated_validation": "\u001b[32m\u001b[32m\u001b[1m15 passed\u001b[0m\u001b[32m in 0.74s\u001b[0m\u001b[0m"
+}

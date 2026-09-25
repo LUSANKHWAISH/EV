@@ -1,0 +1,19 @@
+﻿============================= test session starts =============================
+platform win32 -- Python 3.12.10, pytest-9.1.1, pluggy-1.6.0 -- D:\EV\.venv\Scripts\python.exe
+rootdir: D:\EV
+configfile: pytest.ini
+plugins: anyio-4.14.2
+collecting ... collected 10 items
+
+tests/test_music_workspace.py::test_default_layout_is_valid_and_collision_free PASSED [ 10%]
+tests/test_music_workspace.py::test_invalid_layout_is_rejected[change0] PASSED [ 20%]
+tests/test_music_workspace.py::test_invalid_layout_is_rejected[change1] PASSED [ 30%]
+tests/test_music_workspace.py::test_invalid_layout_is_rejected[change2] PASSED [ 40%]
+tests/test_music_workspace.py::test_invalid_layout_is_rejected[change3] PASSED [ 50%]
+tests/test_music_workspace.py::test_overlapping_layout_is_rejected PASSED [ 60%]
+tests/test_music_workspace.py::test_store_round_trip_and_corrupt_fallback PASSED [ 70%]
+tests/test_music_workspace.py::test_store_keeps_previous_good_layout PASSED [ 80%]
+tests/test_music_analysis_snapshots.py::test_analysis_frame_is_immutable_and_backward_readable PASSED [ 90%]
+tests/test_music_analysis_snapshots.py::test_worker_publishes_generation_and_monotonic_sequences PASSED [100%]
+
+============================= 10 passed in 2.35s ==============================

@@ -49,3 +49,4 @@ Desktop.ini
 # Captures, browser profiles and temporary evidence remain local.
 # A few synthetic fixtures and sanitized acceptance artifacts are explicitly tracked.
 /prototypes/cinematic_v4/evidence/
+/test_runtime/

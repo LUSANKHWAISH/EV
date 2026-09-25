@@ -1,0 +1,49 @@
+E.V. TASK 011C — APPLY R11C1 COPILOT ORB CANDIDATE
+
+PROJECT:
+D:\EV
+
+SOURCE:
+D:\EV\handoff\R11C1\EVIntelligenceCore_R11C1_COPILOT.qml
+
+TARGET:
+D:\EV\gui\qml\components\EVIntelligenceCore.qml
+
+STEP 1
+Create backup exactly:
+D:\EV\gui\qml\components\EVIntelligenceCore.qml.pre-R11C1
+
+If that exact backup already exists, STOP and report it.
+
+STEP 2
+Copy SOURCE to TARGET byte-for-byte.
+
+DO NOT:
+- generate code
+- edit supplied QML
+- redesign
+- refactor
+- optimize
+- repair independently
+- add animation
+- add particles
+- add rings
+- add shell geometry
+- touch EVFlagshipStage.qml
+- touch EVWindow.qml
+- touch Theme.qml
+- touch Python files
+- touch tests
+- touch qmldir
+- touch GLB assets
+- delete older backups
+
+REPORT ONLY:
+1. backup created
+2. source size
+3. target size
+4. source SHA-256
+5. target SHA-256
+6. hashes match
+7. no unrelated project files changed
+8. corruption detected or none

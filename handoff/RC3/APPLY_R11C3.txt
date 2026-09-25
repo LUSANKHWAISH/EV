@@ -1,0 +1,62 @@
+E.V. TASK 011C — APPLY R11C3 ARMORED CUBE CORE
+
+PROJECT:
+D:\EV
+
+PURPOSE:
+Apply the user-approved armored cube core candidate derived from the supplied
+E.V. CORE reference image.
+
+SOURCE:
+D:\EV\handoff\R11C3\EVIntelligenceCore_R11C3_ARMORED_CUBE_CORE.qml
+
+TARGET:
+D:\EV\gui\qml\components\EVIntelligenceCore.qml
+
+IMPORTANT:
+This is a visual candidate.
+Do NOT merge it with R11C2, R11Q-D2, R11M1, or R11G1.
+
+STEP 1 — BACKUP CURRENT LIVE CORE
+
+Create exactly:
+
+D:\EV\gui\qml\components\EVIntelligenceCore.qml.pre-R11C3
+
+If that exact backup already exists:
+STOP.
+Do not overwrite it.
+Report that the backup already exists.
+
+STEP 2 — EXACT COPY
+
+Copy SOURCE to TARGET byte-for-byte.
+
+DO NOT:
+- generate code
+- edit supplied QML
+- redesign
+- refactor
+- optimize
+- repair independently
+- add assets
+- add GLBs
+- touch EVFlagshipStage.qml
+- touch EVWindow.qml
+- touch Theme.qml
+- touch Python files
+- touch tests
+- touch qmldir
+- delete older backups
+
+REPORT ONLY:
+1. backup created
+2. source size
+3. target size
+4. source SHA-256
+5. target SHA-256
+6. hashes match
+7. no unrelated project files changed
+8. corruption detected or none
+
+Do not run or claim Windows tests unless the user explicitly asks.

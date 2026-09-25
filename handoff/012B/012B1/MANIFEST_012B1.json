@@ -1,0 +1,20 @@
+{
+  "task": "012B.1 Windows SQLite connection-close fix",
+  "baseline": {
+    "live_target": "D:\\EV\\core\\history.py",
+    "bytes": 22990,
+    "sha256": "84a68ada4a410a149469dbecf2c8df2b003d566abbf41a9e4fcb95c7288cc8e9"
+  },
+  "replacement": {
+    "file": "history_012B1.py",
+    "bytes": 23093,
+    "sha256": "238697d1aebe468f7bb3578dcbafaef5e9a3e0b691c8060ece31e8ebc9c09739"
+  },
+  "repair": {
+    "import_added": "from contextlib import closing",
+    "connection_contexts_changed": 8,
+    "schema_changed": false,
+    "public_api_changed": false
+  },
+  "isolated_validation": "\u001b[32m\u001b[32m\u001b[1m15 passed\u001b[0m\u001b[32m in 0.79s\u001b[0m\u001b[0m"
+}

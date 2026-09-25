@@ -1,0 +1,72 @@
+E.V. TASK 011C.2R10 — APPLY CHATGPT DEPTH / COLOR / PRECISION REVISION
+
+PROJECT:
+D:\EV
+
+ChatGPT has already generated the complete QML implementation and all authored 3D assets.
+You are ONLY the executor/file applier.
+
+SOURCE QML:
+D:\EV\handoff\R10_DEPTH_PRECISION\EVIntelligenceCore_R10_DEPTH_PRECISION.qml
+
+SOURCE ASSETS:
+D:\EV\handoff\R10_DEPTH_PRECISION\assets\
+
+TARGET QML:
+D:\EV\gui\qml\components\EVIntelligenceCore.qml
+
+TARGET ASSETS:
+D:\EV\gui\qml\assets\
+
+STEP 1 — BACKUP CURRENT CORE
+Create:
+D:\EV\gui\qml\components\EVIntelligenceCore.qml.pre-R10-depth-precision
+
+STEP 2 — COPY QML EXACTLY
+Replace the complete contents of:
+D:\EV\gui\qml\components\EVIntelligenceCore.qml
+with the exact contents of:
+D:\EV\handoff\R10_DEPTH_PRECISION\EVIntelligenceCore_R10_DEPTH_PRECISION.qml
+
+STEP 3 — COPY ALL R10DP GLB ASSETS
+Copy every file matching:
+D:\EV\handoff\R10_DEPTH_PRECISION\assets\ev_core_r10dp_*.glb
+into:
+D:\EV\gui\qml\assets\
+
+Do not delete old R9/R10/R10S assets. They may remain unused.
+
+STEP 4 — VERIFY
+Use MANIFEST_R10_DEPTH_PRECISION.json to verify source/target byte size and SHA-256 for the QML and all R10DP GLB assets.
+
+DO NOT:
+- generate code
+- alter the supplied QML
+- alter or convert GLB assets
+- redesign
+- optimize
+- refactor
+- fix independently
+- modify EVFlagshipStage.qml
+- modify Theme.qml
+- modify EVWindow.qml
+- modify Python files
+- modify tests
+- modify qmldir
+- modify any other project file
+
+IMPORTANT DESIGN REQUIREMENT ALREADY IMPLEMENTED:
+The old long straight diagonal bridge is intentionally removed. Do not restore it.
+
+REPORT ONLY:
+1. backup created
+2. QML copied exactly
+3. number of R10DP assets copied
+4. source/target QML size + SHA-256
+5. source/target size + SHA-256 for every R10DP GLB
+6. confirmation every pair matches
+7. confirmation no other project files changed
+8. any copy corruption detected
+
+DO NOT claim Windows tests pass.
+The user will test locally.

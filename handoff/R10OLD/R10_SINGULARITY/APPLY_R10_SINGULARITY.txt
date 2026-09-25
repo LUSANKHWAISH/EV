@@ -1,0 +1,74 @@
+E.V. TASK 011C.2R10 — APPLY CHATGPT ENGINEERED SINGULARITY REVISION
+
+PROJECT:
+D:\EV
+
+ChatGPT has already generated the complete QML and authored GLB assets.
+You are ONLY the file executor.
+
+SOURCE QML:
+D:\EV\handoff\R10_SINGULARITY\EVIntelligenceCore_R10_SINGULARITY.qml
+
+SOURCE ASSETS:
+D:\EV\handoff\R10_SINGULARITY\assets\
+
+TARGET QML:
+D:\EV\gui\qml\components\EVIntelligenceCore.qml
+
+TARGET ASSET DIRECTORY:
+D:\EV\gui\qml\assets\
+
+STEP 1 — BACKUP CURRENT R10
+Create:
+D:\EV\gui\qml\components\EVIntelligenceCore.qml.pre-R10-singularity
+
+STEP 2 — EXACT QML COPY
+Copy the complete source QML to the target QML.
+Do not edit, reformat, reinterpret, optimize, or repair it.
+
+STEP 3 — COPY THESE ASSETS EXACTLY
+
+ev_core_r10s_nw.glb
+ev_core_r10s_ne.glb
+ev_core_r10s_sw.glb
+ev_core_r10s_se.glb
+ev_core_r10s_inner_l.glb
+ev_core_r10s_inner_r.glb
+ev_core_r10s_inner_b.glb
+ev_core_r10s_vanes.glb
+ev_core_r10s_void.glb
+ev_core_r10s_halo_cool_a.glb
+ev_core_r10s_halo_cool_b.glb
+ev_core_r10s_halo_white.glb
+ev_core_r10s_halo_warm.glb
+ev_core_r10s_bridge.glb
+ev_core_r10s_nodes.glb
+
+Copy them into:
+D:\EV\gui\qml\assets\
+
+Do not delete R9 or earlier R10 assets.
+
+DO NOT MODIFY:
+- EVFlagshipStage.qml
+- EVWindow.qml
+- Theme.qml
+- gui/app.py
+- gui/bridge.py
+- tests
+- qmldir
+- any other project file
+
+DO NOT GENERATE OR FIX CODE YOURSELF.
+
+REPORT ONLY:
+1. pre-R10-singularity backup created
+2. QML copied exactly
+3. all 15 R10 singularity assets copied
+4. source/target QML SHA-256
+5. source/target SHA-256 for all 15 GLBs
+6. confirmation every pair matches
+7. confirmation no other project files changed
+8. any copy corruption detected
+
+Do NOT claim Windows tests pass.

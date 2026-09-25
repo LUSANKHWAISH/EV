@@ -1,0 +1,24 @@
+E.V. R11B DENSE MACHINE BUILD REPORT
+===================================
+
+Blender: 5.2.0 LTS
+Evaluated triangles: 71940
+Live E.V. GUI modified: NO
+Design intent: dense manufactured reactor; no flat white center; no giant HUD ring.
+
+Approval renders:
+- D:\EV\handoff\R11B_FORGE\output\renders\R11B_FRONT.png
+- D:\EV\handoff\R11B_FORGE\output\renders\R11B_PRIMARY_3Q.png
+- D:\EV\handoff\R11B_FORGE\output\renders\R11B_OPPOSITE_3Q.png
+- D:\EV\handoff\R11B_FORGE\output\renders\R11B_SIDE_DEPTH.png
+- D:\EV\handoff\R11B_FORGE\output\renders\R11B_DARK_ENERGY.png
+
+Assets:
+- D:\EV\handoff\R11B_FORGE\output\assets\ev_core_r11b_frame.glb (226140 bytes)
+- D:\EV\handoff\R11B_FORGE\output\assets\ev_core_r11b_stator.glb (419684 bytes)
+- D:\EV\handoff\R11B_FORGE\output\assets\ev_core_r11b_flux.glb (316416 bytes)
+- D:\EV\handoff\R11B_FORGE\output\assets\ev_core_r11b_coils.glb (420972 bytes)
+- D:\EV\handoff\R11B_FORGE\output\assets\ev_core_r11b_lens.glb (659400 bytes)
+- D:\EV\handoff\R11B_FORGE\output\assets\ev_core_r11b_bezel.glb (77172 bytes)
+- D:\EV\handoff\R11B_FORGE\output\assets\ev_core_r11b_energy.glb (311320 bytes)
+- D:\EV\handoff\R11B_FORGE\output\assets\ev_core_r11b_nodes.glb (121356 bytes)

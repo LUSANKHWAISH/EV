@@ -1,0 +1,14 @@
+{
+  "BUILD_R11B_DENSE_MACHINE.py": {
+    "bytes": 19619,
+    "sha256": "2d2a7def4cf7007167c57722e388259e820d51ed96488235b4a3595248dd323d"
+  },
+  "README_R11B.txt": {
+    "bytes": 1187,
+    "sha256": "42b5791b9fb95351503c7fe9c2bf9a735d57bb7aaa693aa61afc059b5c78dd15"
+  },
+  "RUN_R11B_FORGE.ps1": {
+    "bytes": 1129,
+    "sha256": "9a53c1748f580674a82dd8282e1a9b11a1ca43859abe7efe97a18b0a89dd6634"
+  }
+}

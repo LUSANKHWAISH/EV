@@ -1,0 +1,41 @@
+E.V. TASK 011C.2R10F — FLAGSHIP FORGE CORE
+
+This revision stops treating the flagship core as a QML geometry experiment.
+The visible body is authored 3D content loaded by Qt Quick 3D.
+
+DESIGN LANGUAGE
+- Deep black cognition aperture instead of a blue/flat centre disc.
+- Three major containment masses instead of many simple radial wedges.
+- Front/mid/rear Z separation exceeds 150 world units across the full artifact.
+- Primary graphite masses use authored camber, thickness, irregular radial width,
+  and titanium ribs so light reveals real surface hierarchy.
+- Precision collar is recessed and incomplete; it never becomes a full HUD ring.
+- Event-horizon halo is segmented into cool / white / warm authored arcs.
+- Curved computation/accretion stream sweeps BELOW and around the aperture;
+  it does not draw a straight line through the centre.
+- State colour is concentrated inside cognition signals and state lighting.
+- Shells remain graphite/gunmetal rather than glowing wholesale.
+
+STATE MOTION
+IDLE      restrained breathing / drift
+LISTENING left/right containment masses physically open
+PLANNING  rear architecture recedes while the precision collar advances
+EXECUTING right mass and computation stream drive forward
+VERIFYING state light scans vertically through the aperture depth
+AWAITING  ambient motion is almost fully gated
+SUCCESS   controlled lift / energy coherence
+FAILED    major masses desynchronise with different position/rotation offsets
+RECOVERING state smoothing re-registers the structure
+
+ASSETS
+- ev_core_flagship_left.glb    : primary left containment sculpture + ribs
+- ev_core_flagship_right.glb   : primary upper/right containment sculpture + ribs
+- ev_core_flagship_rear.glb    : rear buttress / cognition frame / depth ribs
+- ev_core_flagship_collar.glb  : recessed precision collar
+- ev_core_flagship_void.glb    : open deep cognition funnel + black rear cap
+- ev_core_flagship_halo.glb    : segmented cool/white/warm event-horizon arcs
+- ev_core_flagship_stream.glb  : curved warm stream + ice-white core
+- ev_core_flagship_nodes.glb   : sparse authored cognition nodes
+
+The shell/collar/halo/stream/node geometries are watertight. The main void funnel
+is intentionally open at the front because it is an aperture/tunnel, not a solid disc.

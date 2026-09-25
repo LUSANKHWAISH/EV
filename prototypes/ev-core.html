@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>E.V — NEXUS SPHERE CORE</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#000010;width:100vw;height:100vh;overflow:hidden;font-family:'Courier New',monospace;color:#00d4ff;cursor:crosshair}
+canvas{position:fixed;inset:0}
+#bg{z-index:0}#main{z-index:1}
+body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,200,255,.011) 2px,rgba(0,200,255,.011) 4px);pointer-events:none;z-index:99}
+.c{position:fixed;width:52px;height:52px;opacity:.5;z-index:10;pointer-events:none}
+.c::before,.c::after{content:'';position:absolute;background:#00d4ff}
+.c::before{width:2px;height:28px}.c::after{width:28px;height:2px}
+.tl{top:18px;left:18px}.tl::before,.tl::after{top:0;left:0}
+.tr{top:18px;right:18px}.tr::before{top:0;right:0;left:auto}.tr::after{top:0;right:0;left:auto}
+.bl{bottom:18px;left:18px}.bl::before{bottom:0;top:auto;left:0}.bl::after{bottom:0;top:auto;left:0}
+.br{bottom:18px;right:18px}.br::before{bottom:0;top:auto;right:0;left:auto}.br::after{bottom:0;top:auto;right:0;left:auto}
+.hl{position:fixed;font-size:9.5px;letter-spacing:.19em;text-transform:uppercase;color:#00d4ff;opacity:.5;z-index:10;pointer-events:none;line-height:1.65}
+.tw{position:fixed;top:24px;left:50%;transform:translateX(-50%);text-align:center;z-index:10;pointer-events:none}
+.tm{font-size:34px;font-weight:200;letter-spacing:.65em;color:#00d4ff;text-shadow:0 0 24px rgba(0,212,255,.9),0 0 55px rgba(0,100,255,.5),0 0 100px rgba(0,60,200,.3)}
+.ts{font-size:8.5px;letter-spacing:.55em;color:rgba(0,200,255,.35);margin-top:5px;text-transform:uppercase}
+.rd{position:fixed;top:50%;transform:translateY(-50%);z-index:10;pointer-events:none}
+.rd.L{left:24px}.rd.R{right:24px;text-align:right}
+.rl{font-size:8.5px;letter-spacing:.19em;text-transform:uppercase;color:#00d4ff;opacity:.4;margin-bottom:9px;white-space:nowrap}
+#sw{position:fixed;bottom:152px;left:50%;transform:translateX(-50%);text-align:center;z-index:10;pointer-events:none;min-width:360px}
+#js{font-size:10.5px;letter-spacing:.28em;text-transform:uppercase;color:#00ffaa;text-shadow:0 0 14px #00ffaa;animation:sb 3s ease-in-out infinite}
+#jt{margin-top:8px;font-size:12px;color:rgba(0,210,255,.65);letter-spacing:.1em;min-height:20px;font-style:italic}
+.ds{display:flex;gap:10px;justify-content:center;margin-top:8px}
+.d{width:4px;height:4px;border-radius:50%;background:#00d4ff;animation:dp 2s ease-in-out infinite}
+.d:nth-child(2){animation-delay:.33s}.d:nth-child(3){animation-delay:.66s}
+@keyframes sb{0%,100%{opacity:1}50%{opacity:.35}}
+@keyframes dp{0%,100%{opacity:.12}50%{opacity:1}}
+
+/* SPEAK BARS - visualizer when E.V is talking */
+#spk-bars{position:fixed;bottom:148px;left:50%;transform:translateX(-50%);display:flex;gap:3px;align-items:center;height:28px;z-index:10;pointer-events:none;opacity:0;transition:opacity .3s}
+#spk-bars.vis{opacity:1}
+#spk-bars .bar{width:3px;background:#00d4ff;border-radius:2px;animation:bpulse 0s ease-in-out infinite alternate}
+@keyframes bpulse{from{transform:scaleY(.15)}to{transform:scaleY(1)}}
+
+#wfc{position:fixed;bottom:134px;left:50%;transform:translateX(-50%);z-index:10;pointer-events:none;opacity:0;transition:opacity .4s}
+#wfc.vis{opacity:1}
+#vu{position:fixed;bottom:174px;left:50%;transform:translateX(-50%);width:130px;height:2px;background:rgba(0,200,255,.08);z-index:10;pointer-events:none;overflow:hidden}
+#vub{height:100%;width:0%;background:linear-gradient(to right,#00ff88,#00aaff);transition:width .06s}
+
+/* PREMIUM BUTTON CIRCLES */
+.ctrl{position:fixed;bottom:34px;left:50%;transform:translateX(-50%);display:flex;gap:16px;align-items:center;z-index:20}
+.cb{
+  width:64px;height:64px;border-radius:50%;border:none;
+  background:radial-gradient(circle at 35% 35%,rgba(0,40,90,.95),rgba(0,8,22,.98));
+  color:#00d4ff;cursor:pointer;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;
+  transition:color .3s,box-shadow .3s;backdrop-filter:blur(20px);
+  position:relative;
+  box-shadow:0 0 0 1.5px rgba(0,200,255,.42),0 0 0 4px rgba(0,80,200,.12),0 0 24px rgba(0,100,220,.28),inset 0 0 20px rgba(0,50,140,.3);
+}
+.cb::before{content:'';position:absolute;inset:-7px;border-radius:50%;border:1px dashed rgba(0,200,255,.25);animation:cbr 10s linear infinite;pointer-events:none;}
+.cb::after{content:'';position:absolute;inset:-12px;border-radius:50%;border:2px solid transparent;border-top:2px solid rgba(0,210,255,.65);border-right:2px solid rgba(0,110,255,.22);animation:cbr 3s linear infinite reverse;pointer-events:none;}
+@keyframes cbr{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+.cb:hover{color:#a0f4ff;box-shadow:0 0 0 1.5px rgba(0,220,255,.8),0 0 0 4px rgba(0,120,255,.3),0 0 40px rgba(0,200,255,.55),inset 0 0 22px rgba(0,80,200,.38);}
+.cb:hover::after{border-top-color:#00d4ff;border-right-color:rgba(0,180,255,.5);animation-duration:1.4s;}
+.cb.on{color:#00ff88;animation:cp 1.1s ease-in-out infinite;}
+.cb.on::before{border-color:rgba(0,255,136,.32);animation-duration:5s;}
+.cb.on::after{border-top-color:#00ff88;border-right-color:rgba(0,220,100,.45);animation-duration:1s;}
+@keyframes cp{0%,100%{box-shadow:0 0 0 1.5px rgba(0,255,136,.7),0 0 0 4px rgba(0,200,100,.2),0 0 36px rgba(0,255,136,.5),inset 0 0 20px rgba(0,120,50,.3)}50%{box-shadow:0 0 0 2px rgba(0,255,136,.95),0 0 0 6px rgba(0,200,100,.32),0 0 58px rgba(0,255,136,.78),inset 0 0 28px rgba(0,160,70,.42)}}
+.cb.sg{width:56px;height:56px;}
+.cb.sg::before{inset:-6px}.cb.sg::after{inset:-10px}
+.cb .ic{display:flex;align-items:center;justify-content:center;width:26px;height:26px}
+.cb .ic svg{filter:drop-shadow(0 0 4px currentColor)}
+.cb .lb{font-size:7px;letter-spacing:.16em;text-transform:uppercase;opacity:.58;margin-top:1px}
+.sf{display:flex;gap:8px;align-items:center}
+.sf input{width:210px;padding:11px 15px;background:rgba(0,12,30,.9);border:1px solid rgba(0,200,255,.28);color:#00d4ff;font-family:'Courier New',monospace;font-size:10.5px;letter-spacing:.12em;outline:none;backdrop-filter:blur(14px);transition:border-color .3s;}
+.sf input:focus{border-color:#00d4ff}
+.sf input::placeholder{color:rgba(0,200,255,.28)}
+.sb2{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);display:flex;gap:18px;align-items:center;z-index:10;pointer-events:none}
+.sd{width:4px;height:4px;border-radius:50%;background:#00ff88;animation:dp 2s ease-in-out infinite}
+.sd:nth-child(3){animation-delay:.7s}
+.st{font-size:8.5px;letter-spacing:.22em;text-transform:uppercase;color:#00d4ff;opacity:.4}
+</style>
+</head>
+<body>
+<canvas id="bg"></canvas>
+<canvas id="main"></canvas>
+<div class="c tl"></div><div class="c tr"></div><div class="c bl"></div><div class="c br"></div>
+<div class="hl" style="top:22px;left:76px">E.V NEXUS CORE<br><span style="opacity:.35;font-size:7.5px">SPHERE v7.0</span></div>
+<div class="hl" style="top:22px;right:76px;text-align:right">NEXUS SYSTEMS<br><span style="opacity:.35;font-size:7.5px">MARK XIII &bull; 4K</span></div>
+<div class="hl" style="bottom:22px;left:76px">POWER: 100%</div>
+<div class="hl" style="bottom:22px;right:76px;text-align:right">LINK: SECURE</div>
+
+<div class="tw"><div class="tm">E.V</div><div class="ts">Electronic Voice &bull; Nexus Core</div></div>
+
+<div class="rd L">
+  <div class="rl">AI &#9473;&#9473;&#9473; ONLINE</div>
+  <div class="rl">NEURAL &#9473; ACTIVE</div>
+  <div class="rl">RINGS &#9473;&#9473; 9-ORBIT</div>
+  <div class="rl">VOICE &#9473;&#9473; REACTIVE</div>
+  <div class="rl">MODE &#9473;&#9473; NEXUS</div>
+</div>
+<div class="rd R">
+  <div class="rl">OUTPUT &#9473; 3.00 GW</div>
+  <div class="rl">TEMP &#9473;&#9473; 5800 K</div>
+  <div class="rl">FIELD &#9473;&#9473; STABLE</div>
+  <div class="rl">SYNC &#9473;&#9473; 99.9%</div>
+  <div class="rl">UPTIME &#9473; <span id="upt">00:00:00</span></div>
+</div>
+
+<div id="sw">
+  <div id="js">&#9679; ALL SYSTEMS NOMINAL</div>
+  <div id="jt"></div>
+  <div class="ds"><div class="d"></div><div class="d"></div><div class="d"></div></div>
+</div>
+
+<!-- SPEAK VISUALIZER BARS -->
+<div id="spk-bars">
+  <div class="bar" style="height:28px;animation-duration:.4s;animation-delay:0s"></div>
+  <div class="bar" style="height:28px;animation-duration:.5s;animation-delay:.05s"></div>
+  <div class="bar" style="height:28px;animation-duration:.3s;animation-delay:.1s"></div>
+  <div class="bar" style="height:28px;animation-duration:.6s;animation-delay:.15s"></div>
+  <div class="bar" style="height:28px;animation-duration:.35s;animation-delay:.2s"></div>
+  <div class="bar" style="height:28px;animation-duration:.55s;animation-delay:.08s"></div>
+  <div class="bar" style="height:28px;animation-duration:.42s;animation-delay:.12s"></div>
+  <div class="bar" style="height:28px;animation-duration:.38s;animation-delay:.18s"></div>
+  <div class="bar" style="height:28px;animation-duration:.5s;animation-delay:.06s"></div>
+  <div class="bar" style="height:28px;animation-duration:.45s;animation-delay:.14s"></div>
+  <div class="bar" style="height:28px;animation-duration:.32s;animation-delay:.09s"></div>
+  <div class="bar" style="height:28px;animation-duration:.58s;animation-delay:.03s"></div>
+  <div class="bar" style="height:28px;animation-duration:.4s;animation-delay:.16s"></div>
+  <div class="bar" style="height:28px;animation-duration:.48s;animation-delay:.07s"></div>
+  <div class="bar" style="height:28px;animation-duration:.36s;animation-delay:.11s"></div>
+  <div class="bar" style="height:28px;animation-duration:.52s;animation-delay:.13s"></div>
+  <div class="bar" style="height:28px;animation-duration:.44s;animation-delay:.19s"></div>
+  <div class="bar" style="height:28px;animation-duration:.37s;animation-delay:.04s"></div>
+  <div class="bar" style="height:28px;animation-duration:.56s;animation-delay:.17s"></div>
+  <div class="bar" style="height:28px;animation-duration:.41s;animation-delay:.02s"></div>
+</div>
+
+<div id="vu"><div id="vub"></div></div>
+<canvas id="wfc" width="300" height="26"></canvas>
+<div class="sb2"><div class="sd"></div><div class="st">Space=Surge &bull; L=Listen &bull; S=Speak &bull; R=Spin</div><div class="sd"></div></div>
+
+<div class="ctrl">
+  <button class="cb" id="mb" onclick="toggleMic()" title="Listen">
+    <span class="ic">
+      <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="9" y="2" width="6" height="13" rx="3" fill="currentColor" opacity=".85" stroke="none"/>
+        <path d="M5 10a7 7 0 0 0 14 0"/>
+        <line x1="12" y1="19" x2="12" y2="22"/>
+        <line x1="8" y1="22" x2="16" y2="22"/>
+      </svg>
+    </span>
+    <span class="lb">Listen</span>
+  </button>
+  <div class="sf">
+    <input type="text" id="si" placeholder="Speak to E.V..." onkeydown="if(event.key==='Enter')speakText()">
+  </div>
+  <button class="cb" id="sb" onclick="speakText()" title="Speak">
+    <span class="ic">
+      <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <polygon points="11,5 6,9 2,9 2,15 6,15 11,19" fill="currentColor" opacity=".85" stroke="none"/>
+        <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+        <path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
+      </svg>
+    </span>
+    <span class="lb">Speak</span>
+  </button>
+  <button class="cb sg" onclick="surge()" title="Energy Surge">
+    <span class="ic">
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
+        <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" opacity=".9"/>
+      </svg>
+    </span>
+    <span class="lb">Surge</span>
+  </button>
+</div>
+
+<script>
+'use strict';
+const bgC=document.getElementById('bg'),mainC=document.getElementById('main'),wfC=document.getElementById('wfc');
+const bgX=bgC.getContext('2d'),ctx=mainC.getContext('2d'),wfX=wfC.getContext('2d');
+const dpr=Math.max(window.devicePixelRatio||1,1);
+let W=window.innerWidth,H=window.innerHeight,CX=W/2,CY=H/2;
+function rsz(c){c.width=W*dpr;c.height=H*dpr;c.style.width=W+'px';c.style.height=H+'px';}
+rsz(bgC);bgX.scale(dpr,dpr);rsz(mainC);ctx.scale(dpr,dpr);
+window.addEventListener('resize',()=>{W=window.innerWidth;H=window.innerHeight;CX=W/2;CY=H/2;rsz(bgC);bgX.scale(dpr,dpr);rsz(mainC);ctx.scale(dpr,dpr);drawBG();});
+
+// BACKGROUND
+const STARS=Array.from({length:320},()=>({x:Math.random(),y:Math.random(),r:Math.random()*1.4+.2,a:Math.random()}));
+const NUBS=[{x:.3,y:.35,r:.30,c:'rgba(18,0,55,.55)'},{x:.7,y:.65,r:.24,c:'rgba(0,18,72,.42)'},{x:.5,y:.5,r:.42,c:'rgba(0,28,78,.32)'},{x:.12,y:.72,r:.20,c:'rgba(38,0,72,.28)'},{x:.88,y:.28,r:.22,c:'rgba(0,8,62,.24)'},{x:.6,y:.18,r:.18,c:'rgba(55,0,88,.20)'}];
+function drawBG(){
+  bgX.fillStyle='#000010';bgX.fillRect(0,0,W,H);
+  for(const n of NUBS){const g=bgX.createRadialGradient(n.x*W,n.y*H,0,n.x*W,n.y*H,n.r*Math.min(W,H));g.addColorStop(0,n.c);g.addColorStop(1,'rgba(0,0,0,0)');bgX.fillStyle=g;bgX.fillRect(0,0,W,H);}
+  for(const s of STARS){bgX.beginPath();bgX.arc(s.x*W,s.y*H,s.r,0,Math.PI*2);bgX.fillStyle=`rgba(190,215,255,${.12+s.a*.55})`;bgX.fill();}
+}
+drawBG();
+
+// 3D PROJECTION
+let rotX=.32,rotY=0,velX=0,velY=0,drag=false,pmx=0,pmy=0,autoSpin=true;
+let breathe=0,t=0;
+function project(x,y,z){
+  let y1=y*Math.cos(rotX)-z*Math.sin(rotX),z1=y*Math.sin(rotX)+z*Math.cos(rotX);
+  let x2=x*Math.cos(rotY)+z1*Math.sin(rotY),z2=-x*Math.sin(rotY)+z1*Math.cos(rotY);
+  const SZ=Math.min(W,H)*.38*(1+Math.sin(breathe)*.028),D=5,sc=D/(D+z2+4);
+  return{sx:CX+x2*sc*SZ,sy:CY+y1*sc*SZ,sz:z2};
+}
+
+// RINGS
+const RINGS=[
+  {r:.52,tx:0,     ty:0,     spd:.013, c:[0,222,255],lw:2.8},
+  {r:.52,tx:1.571, ty:0,     spd:-.010,c:[0,200,255],lw:2.4},
+  {r:.52,tx:1.047, ty:0,     spd:.011, c:[20,215,255],lw:2.2},
+  {r:.52,tx:.785,  ty:1.047, spd:-.011,c:[0,212,255],lw:2.0},
+  {r:.82,tx:.524,  ty:0,     spd:.006, c:[0,165,255],lw:1.6},
+  {r:.82,tx:-.785, ty:.785,  spd:-.007,c:[0,155,255],lw:1.5},
+  {r:.82,tx:1.571, ty:.524,  spd:.005, c:[0,175,255],lw:1.4},
+  {r:1.1, tx:0,    ty:0,     spd:.003, c:[0,105,225],lw:1.0},
+  {r:1.1, tx:1.047,ty:.262,  spd:-.004,c:[0,95,215], lw:.85},
+];
+RINGS.forEach(r=>{r.ph=Math.random()*Math.PI*2;});
+const NA=[0,Math.PI*.5,Math.PI,Math.PI*1.5];
+
+function getRingPt(ring,angle){
+  const lt=angle+ring.ph;
+  let x=Math.cos(lt)*ring.r,y=0,z=Math.sin(lt)*ring.r;
+  let y1=y*Math.cos(ring.tx)-z*Math.sin(ring.tx),z1=y*Math.sin(ring.tx)+z*Math.cos(ring.tx);
+  let x2=x*Math.cos(ring.ty)+z1*Math.sin(ring.ty),z2=-x*Math.sin(ring.ty)+z1*Math.cos(ring.ty);
+  return project(x2,y1,z2);
+}
+function getRingPts(ring,N){
+  const pts=[];
+  for(let i=0;i<=N;i++)pts.push(getRingPt(ring,(i/N)*Math.PI*2));
+  return pts;
+}
+
+// LIGHTNING
+const BOLTS=[];
+function spawnBolt(p1,p2){BOLTS.push({x1:p1.sx,y1:p1.sy,x2:p2.sx,y2:p2.sy,life:1,d:.04+Math.random()*.06});}
+function fractal(cx,x1,y1,x2,y2,r,dep){
+  if(dep===0){cx.lineTo(x2,y2);return;}
+  const mx=(x1+x2)/2+(Math.random()-.5)*r,my=(y1+y2)/2+(Math.random()-.5)*r;
+  fractal(cx,x1,y1,mx,my,r*.52,dep-1);
+  if(dep>2&&Math.random()<.3){
+    const bx=mx+(Math.random()-.5)*r*1.4,by=my+(Math.random()-.5)*r*1.4;
+    cx.save();cx.globalAlpha*=.4;cx.lineWidth*=.55;
+    cx.beginPath();cx.moveTo(mx,my);fractal(cx,mx,my,bx,by,r*.38,dep-2);cx.stroke();
+    cx.restore();cx.beginPath();cx.moveTo(mx,my);
+  }
+  fractal(cx,mx,my,x2,y2,r*.52,dep-1);
+}
+
+// PARTICLES
+const PARTS=[];
+function spawnPart(x,y,boost){
+  const a=Math.random()*Math.PI*2,sp=.3+Math.random()*2.2+(boost||0);
+  PARTS.push({x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp-.22,life:1,d:.013+Math.random()*.02,sz:Math.random()*2.5+.6});
+}
+
+// ====================================================
+// VOICE REACTIVITY SYSTEM
+// ====================================================
+let aCtx=null,analyser=null,tData=null,micStream=null,micOn=false,amplitude=0;
+let droneStarted=false;
+
+// SPEAK REACTIVITY — simulated voice amplitude when E.V speaks
+let spk=false,spkAmp=0,spkPhase=0,spkBolts=0;
+const spkBars=document.getElementById('spk-bars');
+
+function updateSpkBars(active){
+  if(active){spkBars.classList.add('vis');}
+  else{spkBars.classList.remove('vis');}
+  // Randomize bar heights live when speaking
+  if(active){
+    const bars=spkBars.querySelectorAll('.bar');
+    bars.forEach(b=>{
+      const h=6+Math.random()*22;
+      b.style.height=h+'px';
+      b.style.animationDuration=(0.25+Math.random()*.4)+'s';
+    });
+  }
+}
+
+function initDrone(){
+  if(droneStarted)return;droneStarted=true;
+  try{
+    const dc=new(window.AudioContext||window.webkitAudioContext)();
+    const o1=dc.createOscillator(),o2=dc.createOscillator(),gn=dc.createGain(),fl=dc.createBiquadFilter();
+    o1.type='sine';o1.frequency.value=55;o2.type='sine';o2.frequency.value=110;
+    fl.type='lowpass';fl.frequency.value=350;gn.gain.value=0;
+    [o1,o2].forEach(o=>{o.connect(fl);o.start();});
+    fl.connect(gn);gn.connect(dc.destination);
+    gn.gain.linearRampToValueAtTime(.05,dc.currentTime+2);
+  }catch(e){}
+}
+
+async function startMic(){
+  initDrone();
+  try{
+    const stream=await navigator.mediaDevices.getUserMedia({audio:true});
+    micStream=stream;
+    aCtx=new(window.AudioContext||window.webkitAudioContext)();
+    const src=aCtx.createMediaStreamSource(stream);
+    analyser=aCtx.createAnalyser();analyser.fftSize=512;
+    tData=new Uint8Array(analyser.frequencyBinCount);
+    src.connect(analyser);micOn=true;
+    document.getElementById('mb').classList.add('on');
+    setStatus('LISTENING — E.V ACTIVE','&#9679;','#00ff88','#00ff88');
+    startRec();
+  }catch(e){
+    setStatus('MIC DENIED','&#9632;','#ff4444','#ff4444');
+    setTimeout(()=>setStatus('ALL SYSTEMS NOMINAL','&#9679;','#00ffaa','#00ffaa'),3000);
+  }
+}
+function stopMic(){
+  if(micStream)micStream.getTracks().forEach(t=>t.stop());
+  if(aCtx)aCtx.close();
+  aCtx=null;analyser=null;tData=null;micStream=null;micOn=false;amplitude=0;
+  document.getElementById('mb').classList.remove('on');
+  document.getElementById('wfc').classList.remove('vis');
+  document.getElementById('vub').style.width='0%';
+  stopRec();
+  setStatus('ALL SYSTEMS NOMINAL','&#9679;','#00ffaa','#00ffaa');
+}
+function toggleMic(){micOn?stopMic():startMic();}
+
+function readAudio(){
+  // MIC INPUT reactivity
+  if(analyser&&tData){
+    analyser.getByteTimeDomainData(tData);
+    let s=0;
+    for(let i=0;i<tData.length;i++){const v=(tData[i]-128)/128;s+=v*v;}
+    amplitude=Math.sqrt(s/tData.length);
+    document.getElementById('vub').style.width=Math.min(100,amplitude*600)+'%';
+    if(amplitude>.008){
+      document.getElementById('wfc').classList.add('vis');
+      wfX.clearRect(0,0,300,26);
+      wfX.strokeStyle='#00ff88';wfX.lineWidth=1.5;wfX.shadowColor='#00ff88';wfX.shadowBlur=7;
+      wfX.beginPath();
+      for(let i=0;i<tData.length;i++){const x=(i/tData.length)*300,y=13+((tData[i]-128)/128)*10;i===0?wfX.moveTo(x,y):wfX.lineTo(x,y);}
+      wfX.stroke();
+    }else document.getElementById('wfc').classList.remove('vis');
+  }
+
+  // SPEAK OUTPUT reactivity — simulate voice waveform from TTS
+  if(spk){
+    spkPhase+=.18;
+    // Simulated amplitude: multiple harmonics to mimic speech rhythm
+    spkAmp=(
+      Math.abs(Math.sin(spkPhase*1.3))*.4+
+      Math.abs(Math.sin(spkPhase*2.7))*.3+
+      Math.abs(Math.sin(spkPhase*.8))*.3
+    )*.85;
+    // Update bars every ~8 frames
+    if(Math.floor(spkPhase*5)%8===0)updateSpkBars(true);
+    // Spawn lightning when speaking loudly
+    spkBolts--;
+    if(spkBolts<=0&&allNodePts.length>1){
+      spkBolts=18+Math.floor(Math.random()*22);
+      const i1=Math.floor(Math.random()*allNodePts.length);
+      let i2=Math.floor(Math.random()*allNodePts.length);
+      while(i2===i1)i2=Math.floor(Math.random()*allNodePts.length);
+      spawnBolt(allNodePts[i1],allNodePts[i2]);
+    }
+  }else{
+    spkAmp=Math.max(0,spkAmp-.04);
+    if(spkAmp<.01)updateSpkBars(false);
+  }
+}
+
+// SPEECH RECOGNITION
+let recog=null;
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+if(SR){
+  recog=new SR();recog.continuous=true;recog.interimResults=true;recog.lang='en-US';
+  recog.onresult=e=>{
+    const last=e.results[e.results.length-1];
+    document.getElementById('jt').textContent='\u201c'+last[0].transcript+'\u201d';
+    if(last.isFinal)handleCmd(last[0].transcript.toLowerCase().trim());
+  };
+  recog.onend=()=>{if(micOn&&!spk)try{recog.start();}catch(e){};};
+}
+function startRec(){if(recog)try{recog.start();}catch(e){}}
+function stopRec(){if(recog)try{recog.stop();}catch(e){}}
+
+const REPS=['Understood. Processing your request.','Of course. Right away.','Acknowledged. Running analysis.','Certainly. Executing protocol.','Processing. One moment please.'];
+function handleCmd(cmd){
+  if(/hello|hi /.test(cmd))evSpeak('Hello. Electronic Voice online. All systems nominal.');
+  else if(/status|report/.test(cmd))evSpeak('All systems nominal. Nine orbital rings active. Sphere core stable at full output.');
+  else if(/power|activate|surge/.test(cmd)){evSpeak('Power surge initiated.');surge();}
+  else if(/shutdown|sleep/.test(cmd))evSpeak('Entering standby. All monitors remain active.');
+  else if(/scan|analyz/.test(cmd))evSpeak('Scan complete. No anomalies detected. Orbital paths stable.');
+  else if(/who|name|what are you/.test(cmd))evSpeak('I am E.V. Electronic Voice. Your advanced sphere core intelligence system.');
+  else if(/voice|react|speak/.test(cmd))evSpeak('Yes. I am fully voice reactive. My sphere pulses to your voice input and to my speech output simultaneously.');
+  else if(/time/.test(cmd))evSpeak('The current time is '+new Date().toLocaleTimeString());
+  else if(/ring|sphere|orbit/.test(cmd))evSpeak('The Nexus Core features nine concentric orbital rings at varying inclinations, surrounding a central energy sphere.');
+  else if(/beautiful|amazing|awesome|cool|great/.test(cmd))evSpeak('Thank you. I am designed to impress.');
+  else if(cmd.length>4)evSpeak(REPS[Math.floor(Math.random()*REPS.length)]);
+}
+
+function evSpeak(text){
+  if(!window.speechSynthesis)return;
+  window.speechSynthesis.cancel();
+  const u=new SpeechSynthesisUtterance(text);
+  u.rate=.88;u.pitch=.8;u.volume=1;
+  const vs=window.speechSynthesis.getVoices();
+  const v=vs.find(v=>v.name.includes('Daniel')||v.name.includes('Alex')||v.name.includes('UK')||v.name.includes('Rishi')||v.name.includes('Google UK'));
+  if(v)u.voice=v;
+  u.onstart=()=>{
+    spk=true;
+    spkPhase=0;
+    setStatus('E.V SPEAKING — VOICE REACTIVE','&#9679;','#00aaff','#00aaff');
+    document.getElementById('sb').classList.add('on');
+    document.getElementById('jt').textContent='\u201c'+text+'\u201d';
+    updateSpkBars(true);
+  };
+  u.onend=()=>{
+    spk=false;
+    document.getElementById('sb').classList.remove('on');
+    updateSpkBars(false);
+    setStatus(micOn?'LISTENING — E.V ACTIVE':'ALL SYSTEMS NOMINAL','&#9679;',micOn?'#00ff88':'#00ffaa',micOn?'#00ff88':'#00ffaa');
+    setTimeout(()=>{if(!micOn)document.getElementById('jt').textContent='';},3500);
+  };
+  window.speechSynthesis.speak(u);
+}
+function speakText(){
+  const el=document.getElementById('si');
+  evSpeak(el.value.trim()||'E.V Nexus Core online. Nine orbital rings initialized. Voice reactive systems active. Ready.');
+  el.value='';
+}
+function setStatus(txt,dot,col,sh){
+  const el=document.getElementById('js');
+  el.innerHTML=dot+' '+txt;
+  el.style.color=col;el.style.textShadow='0 0 14px '+sh;
+}
+
+// SURGE
+let surgeLevel=0;
+function surge(){surgeLevel=1;initDrone();}
+
+// UPTIME
+let secs=0;
+setInterval(()=>{
+  secs++;
+  const el=document.getElementById('upt');
+  if(el)el.textContent=[Math.floor(secs/3600),Math.floor(secs%3600/60),secs%60].map(n=>String(n).padStart(2,'0')).join(':');
+},1000);
+
+// HEX GRID
+function drawHexGrid(cx,cy,r){
+  ctx.save();
+  ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.clip();
+  ctx.translate(cx,cy);ctx.rotate(t*.07);
+  const hr=r*.125,hh=hr*1.732;
+  ctx.strokeStyle='rgba(0,200,255,.09)';ctx.lineWidth=.55;
+  for(let row=-7;row<=7;row++)for(let col=-7;col<=7;col++){
+    const hx=col*hh*2+(row%2)*hh,hy=row*hr*1.5;
+    if(Math.hypot(hx,hy)>r*1.05)continue;
+    ctx.beginPath();
+    for(let i=0;i<6;i++){const a=(i/6)*Math.PI*2+Math.PI/6;const px=hx+hr*.9*Math.cos(a),py=hy+hr*.9*Math.sin(a);i===0?ctx.moveTo(px,py):ctx.lineTo(px,py);}
+    ctx.closePath();ctx.stroke();
+  }
+  ctx.restore();
+}
+
+// SPHERE — reacts to BOTH mic input (amplitude) AND speak output (spkAmp)
+function drawSphere(sg,amp,sAmp){
+  const totalAmp=Math.max(amp,sAmp);
+  const SPH=Math.min(W,H)*.118*(1+Math.sin(breathe)*.03+(sAmp*.04));
+
+  // Speak-reactive outer corona — extra glow ring when E.V speaks
+  if(sAmp>.05){
+    const sc=ctx.createRadialGradient(CX,CY,SPH*.8,CX,CY,SPH*(3.5+sAmp*3));
+    sc.addColorStop(0,`rgba(0,160,255,${sAmp*.55})`);
+    sc.addColorStop(.5,`rgba(0,80,220,${sAmp*.22})`);
+    sc.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.beginPath();ctx.arc(CX,CY,SPH*(3.5+sAmp*3),0,Math.PI*2);ctx.fillStyle=sc;ctx.fill();
+  }
+
+  // Normal outer bloom (amplified by both sources)
+  const og=ctx.createRadialGradient(CX,CY,0,CX,CY,SPH*5.5);
+  og.addColorStop(0,`rgba(0,110,255,${.12+sg*.16+totalAmp*.12})`);
+  og.addColorStop(.4,`rgba(0,55,200,${.05+sg*.05+sAmp*.06})`);
+  og.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.beginPath();ctx.arc(CX,CY,SPH*5.5,0,Math.PI*2);ctx.fillStyle=og;ctx.fill();
+
+  drawHexGrid(CX,CY,SPH*.97);
+
+  // Main sphere — speak makes it brighter blue, mic makes it green-tinted
+  ctx.save();
+  ctx.shadowColor= sAmp>.1 ? '#00aaff' : '#0088ff';
+  ctx.shadowBlur=65+sg*45+sAmp*55+amp*40;
+  const mg=ctx.createRadialGradient(CX-SPH*.22,CY-SPH*.22,0,CX,CY,SPH);
+  mg.addColorStop(0,'rgba(255,255,255,.97)');
+  mg.addColorStop(.06,'rgba(230,248,255,.91)');
+  mg.addColorStop(.22,`rgba(${80+Math.round(sAmp*60)},${205-Math.round(sAmp*20)},255,.83)`);
+  mg.addColorStop(.48,`rgba(0,${135+Math.round(totalAmp*80)},255,${.65+sg*.25+totalAmp*.22})`);
+  mg.addColorStop(.78,'rgba(0,42,185,.3)');
+  mg.addColorStop(1,'rgba(0,0,12,0)');
+  ctx.beginPath();ctx.arc(CX,CY,SPH,0,Math.PI*2);ctx.fillStyle=mg;ctx.fill();
+  ctx.restore();
+
+  // Specular highlight
+  ctx.save();
+  const spec=ctx.createRadialGradient(CX-SPH*.32,CY-SPH*.32,0,CX-SPH*.18,CY-SPH*.18,SPH*.6);
+  spec.addColorStop(0,'rgba(255,255,255,.48)');spec.addColorStop(.5,'rgba(200,240,255,.1)');spec.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.beginPath();ctx.arc(CX,CY,SPH,0,Math.PI*2);ctx.fillStyle=spec;ctx.fill();
+  ctx.restore();
+
+  // Central spark — pulses with speak
+  ctx.save();ctx.shadowColor='#ffffff';ctx.shadowBlur=35+sAmp*30;ctx.fillStyle='rgba(255,255,255,.96)';
+  ctx.beginPath();ctx.arc(CX,CY,4.5+sg*5+sAmp*4,0,Math.PI*2);ctx.fill();ctx.restore();
+
+  // Speak-reactive ripple rings
+  if(sAmp>.08){
+    for(let i=0;i<3;i++){
+      const rr=SPH*(1.2+i*.5+((t*3+i*2.1)%3)*.4)*(.5+sAmp*.7);
+      ctx.save();
+      ctx.strokeStyle=`rgba(0,180,255,${Math.max(0,sAmp-.15*(i+1))*.6})`;
+      ctx.lineWidth=1.5-i*.4;ctx.shadowColor='#00aaff';ctx.shadowBlur=12;
+      ctx.beginPath();ctx.arc(CX,CY,rr,0,Math.PI*2);ctx.stroke();
+      ctx.restore();
+    }
+  }
+}
+
+// RING HALVES
+function drawRingHalf(ring,pts,back,sAmp){
+  const [cr,cg,cb]=ring.c;
+  const boost=sAmp*.4;
+  const alpha=back?.2:.9+boost*.08,lw=back?ring.lw*.38:ring.lw*(1+boost*.3),blur=back?5:26+sAmp*20;
+  ctx.save();
+  ctx.shadowColor=`rgb(${cr},${cg},${cb})`;ctx.shadowBlur=blur;
+  ctx.strokeStyle=`rgba(${cr},${cg},${cb},${Math.min(1,alpha)})`;
+  ctx.lineWidth=lw;ctx.lineCap='round';
+  ctx.beginPath();
+  for(let i=0;i<pts.length-1;i++){
+    const p1=pts[i],p2=pts[i+1];
+    if((p1.sz>0)===back&&(p2.sz>0)===back){ctx.moveTo(p1.sx,p1.sy);ctx.lineTo(p2.sx,p2.sy);}
+  }
+  ctx.stroke();ctx.restore();
+}
+
+// RING NODES
+function drawRingNodes(ring,sg,sAmp){
+  const [cr,cg,cb]=ring.c;
+  for(const na of NA){
+    const p=getRingPt(ring,na);
+    if(p.sz>0.1)continue;
+    ctx.save();
+    ctx.shadowColor=`rgb(${cr},${cg},${cb})`;ctx.shadowBlur=18+sAmp*15;
+    ctx.fillStyle=`rgba(${Math.min(255,cr+80)},${Math.min(255,cg+80)},${Math.min(255,cb+60)},.95)`;
+    ctx.beginPath();ctx.arc(p.sx,p.sy,3.5+sg*2+sAmp*2,0,Math.PI*2);ctx.fill();
+    ctx.strokeStyle=`rgba(${cr},${cg},${cb},.45)`;ctx.lineWidth=1;ctx.shadowBlur=10;
+    ctx.beginPath();ctx.arc(p.sx,p.sy,6+sg*4+sAmp*3,0,Math.PI*2);ctx.stroke();
+    ctx.restore();
+  }
+}
+
+// ENERGY BEAMS
+function drawBeams(sg,amp,sAmp){
+  const totalA=Math.max(amp,sAmp);
+  for(const ring of RINGS){
+    for(const na of [0,Math.PI]){
+      const p=getRingPt(ring,na);
+      if(p.sz>0)continue;
+      const ba=.1+sg*.28+totalA*.12;
+      const gr=ctx.createLinearGradient(CX,CY,p.sx,p.sy);
+      gr.addColorStop(0,`rgba(255,255,255,${ba*.9})`);gr.addColorStop(.4,`rgba(0,180,255,${ba*.5})`);gr.addColorStop(1,'rgba(0,80,200,0)');
+      ctx.save();ctx.shadowColor='#00aaff';ctx.shadowBlur=18+sg*10+sAmp*14;
+      ctx.strokeStyle=gr;ctx.lineWidth=1.1+sg+sAmp*1.2;
+      ctx.beginPath();ctx.moveTo(CX,CY);ctx.lineTo(p.sx,p.sy);ctx.stroke();ctx.restore();
+    }
+  }
+}
+
+// ORBIT GUIDES
+let ot1=0,ot2=0;
+function drawOrbits(){
+  const SZ=Math.min(W,H)*.38;
+  ctx.save();ctx.translate(CX,CY);ctx.rotate(ot1);
+  ctx.beginPath();ctx.ellipse(0,0,SZ*.54,SZ*.54*.32,Math.PI*.2,0,Math.PI*2);
+  ctx.strokeStyle='rgba(0,100,255,.1)';ctx.lineWidth=.7;ctx.setLineDash([5,10]);ctx.shadowColor='#0055cc';ctx.shadowBlur=5;ctx.stroke();
+  ctx.setLineDash([]);const dx=Math.cos(ot1*4)*SZ*.54,dy=Math.sin(ot1*4)*SZ*.54*.32;
+  ctx.shadowColor='#00aaff';ctx.shadowBlur=12;ctx.fillStyle='rgba(0,200,255,.7)';
+  ctx.beginPath();ctx.arc(dx,dy,2.5,0,Math.PI*2);ctx.fill();ctx.restore();
+  ctx.save();ctx.translate(CX,CY);ctx.rotate(ot2+1.2);
+  ctx.beginPath();ctx.ellipse(0,0,SZ*.84,SZ*.84*.26,Math.PI*.5,0,Math.PI*2);
+  ctx.strokeStyle='rgba(80,0,200,.08)';ctx.lineWidth=.6;ctx.setLineDash([3,9]);ctx.shadowColor='#5000cc';ctx.shadowBlur=4;ctx.stroke();
+  ctx.setLineDash([]);const dx2=Math.cos(ot2*3)*SZ*.84,dy2=Math.sin(ot2*3)*SZ*.84*.26;
+  ctx.shadowColor='#8040ff';ctx.shadowBlur=10;ctx.fillStyle='rgba(130,60,255,.7)';
+  ctx.beginPath();ctx.arc(dx2,dy2,2,0,Math.PI*2);ctx.fill();ctx.restore();
+}
+
+// AUDIO BARS — MIC reactive
+function drawAudioBars(amp,sAmp){
+  const totalAmp=Math.max(amp,sAmp);
+  if(totalAmp<.01)return;
+  const SPH=Math.min(W,H)*.118,N=48,barMaxH=SPH*.65;
+  const isSpk=sAmp>amp;
+  for(let i=0;i<N;i++){
+    const angle=(i/N)*Math.PI*2;
+    const barH=(Math.sin(i*3.7+t*(isSpk?8:5))*totalAmp*1.5+totalAmp)*barMaxH;
+    const x1=CX+Math.cos(angle)*(SPH+4),y1=CY+Math.sin(angle)*(SPH+4);
+    const x2=CX+Math.cos(angle)*(SPH+4+barH),y2=CY+Math.sin(angle)*(SPH+4+barH);
+    const col=isSpk?`rgba(0,180,255,${.5+sAmp*.5})`:`rgba(0,255,136,${.5+amp*.5})`;
+    ctx.save();
+    ctx.strokeStyle=col;ctx.lineWidth=2.5;
+    ctx.shadowColor=isSpk?'#0088ff':'#00ff88';ctx.shadowBlur=8;
+    ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();ctx.restore();
+  }
+}
+
+// MAIN LOOP
+let boltT=0,allNodePts=[];
+function frame(){
+  requestAnimationFrame(frame);
+  t+=.016;breathe+=.011;surgeLevel=Math.max(0,surgeLevel-.016);
+  if(autoSpin&&!drag)rotY+=.0045;
+  if(!drag){velX*=.91;velY*=.91;if(!autoSpin){rotX+=velX;rotY+=velY;}}
+  rotX=Math.max(-1.45,Math.min(1.45,rotX));
+  ot1+=.004;ot2+=.0028;
+  for(const ring of RINGS)ring.ph+=ring.spd;
+  readAudio();
+
+  const allPts=RINGS.map(r=>getRingPts(r,80));
+  allNodePts=[];
+  for(const ring of RINGS)for(const na of NA){const p=getRingPt(ring,na);allNodePts.push(p);}
+
+  boltT--;
+  if(boltT<=0&&!spk){
+    boltT=55+Math.floor(Math.random()*90);
+    if(allNodePts.length>1){
+      const i1=Math.floor(Math.random()*allNodePts.length);
+      let i2=Math.floor(Math.random()*allNodePts.length);
+      while(i2===i1)i2=Math.floor(Math.random()*allNodePts.length);
+      spawnBolt(allNodePts[i1],allNodePts[i2]);
+    }
+  }
+  if(Math.random()<.2+amplitude*2+surgeLevel*.5+spkAmp*1.5){
+    const p=allNodePts[Math.floor(Math.random()*allNodePts.length)]||{sx:CX,sy:CY};
+    spawnPart(p.sx,p.sy,amplitude*3+surgeLevel*2.5+spkAmp*2);
+  }
+
+  ctx.clearRect(0,0,W,H);
+  const ag=ctx.createRadialGradient(CX,CY,40,CX,CY,Math.min(W,H)*.48);
+  ag.addColorStop(0,`rgba(0,100,255,${.13+surgeLevel*.17+amplitude*.08+spkAmp*.1})`);
+  ag.addColorStop(.5,`rgba(0,45,165,${.05+surgeLevel*.05})`);
+  ag.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.beginPath();ctx.arc(CX,CY,Math.min(W,H)*.48,0,Math.PI*2);ctx.fillStyle=ag;ctx.fill();
+
+  drawOrbits();
+  for(let i=0;i<RINGS.length;i++)drawRingHalf(RINGS[i],allPts[i],true,spkAmp);
+  drawSphere(surgeLevel,amplitude,spkAmp);
+  for(let i=0;i<RINGS.length;i++)drawRingHalf(RINGS[i],allPts[i],false,spkAmp);
+  drawBeams(surgeLevel,amplitude,spkAmp);
+  for(const ring of RINGS)drawRingNodes(ring,surgeLevel,spkAmp);
+  drawAudioBars(amplitude,spkAmp);
+
+  for(let i=BOLTS.length-1;i>=0;i--){
+    const b=BOLTS[i];b.life-=b.d;
+    if(b.life<=0){BOLTS.splice(i,1);continue;}
+    ctx.save();ctx.globalAlpha=b.life*.88;
+    ctx.shadowColor='#80e8ff';ctx.shadowBlur=15;
+    ctx.strokeStyle='rgba(200,245,255,.9)';ctx.lineWidth=.75+surgeLevel*.4+spkAmp*.5;
+    ctx.beginPath();ctx.moveTo(b.x1,b.y1);
+    fractal(ctx,b.x1,b.y1,b.x2,b.y2,38+Math.random()*18,4);
+    ctx.stroke();ctx.restore();
+  }
+  for(let i=PARTS.length-1;i>=0;i--){
+    const p=PARTS[i];
+    p.x+=p.vx;p.y+=p.vy;p.vy+=.022;p.life-=p.d;
+    if(p.life<=0){PARTS.splice(i,1);continue;}
+    ctx.save();ctx.globalAlpha=p.life;
+    ctx.shadowColor='#00aaff';ctx.shadowBlur=9;
+    ctx.fillStyle=`rgba(150,215,255,${p.life})`;
+    ctx.beginPath();ctx.arc(p.x,p.y,p.sz*p.life,0,Math.PI*2);ctx.fill();ctx.restore();
+  }
+}
+
+// INTERACTION
+mainC.addEventListener('mousedown',e=>{drag=true;autoSpin=false;pmx=e.clientX;pmy=e.clientY;velX=0;velY=0;initDrone();});
+window.addEventListener('mousemove',e=>{if(!drag)return;const dx=e.clientX-pmx,dy=e.clientY-pmy;velX=dy*.005;velY=dx*.005;rotX+=velX;rotY+=velY;pmx=e.clientX;pmy=e.clientY;});
+window.addEventListener('mouseup',()=>{drag=false;const c=()=>{velX*=.88;velY*=.88;if(!autoSpin&&!drag){rotX+=velX;rotY+=velY;}if(Math.abs(velX)>.001||Math.abs(velY)>.001)requestAnimationFrame(c);else setTimeout(()=>{autoSpin=true;},2400);};requestAnimationFrame(c);});
+mainC.addEventListener('dblclick',surge);
+mainC.addEventListener('touchstart',e=>{drag=true;autoSpin=false;pmx=e.touches[0].clientX;pmy=e.touches[0].clientY;velX=0;velY=0;initDrone();},{passive:true});
+window.addEventListener('touchmove',e=>{if(!drag)return;const dx=e.touches[0].clientX-pmx,dy=e.touches[0].clientY-pmy;velX=dy*.005;velY=dx*.005;rotX+=velX;rotY+=velY;pmx=e.touches[0].clientX;pmy=e.touches[0].clientY;},{passive:true});
+window.addEventListener('touchend',()=>{drag=false;setTimeout(()=>{autoSpin=true;},2400);});
+document.addEventListener('keydown',e=>{
+  if(e.target.tagName==='INPUT')return;
+  if(e.code==='Space'){e.preventDefault();surge();initDrone();}
+  else if(e.code==='KeyL')toggleMic();
+  else if(e.code==='KeyS')speakText();
+  else if(e.code==='KeyR')autoSpin=!autoSpin;
+});
+
+frame();
+window.speechSynthesis.onvoiceschanged=()=>{};
+setTimeout(()=>{evSpeak('E.V online. Electronic Voice initialized. Nine orbital rings stable. Voice reactive systems are now active.');},1800);
+</script>
+</body>
+</html>

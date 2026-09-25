@@ -1,5 +1,5 @@
 {
-  "passed": true,
+  "passed": false,
   "checks": [
     {
       "name": "startup_has_no_capture_or_analysis",
@@ -8,8 +8,8 @@
     },
     {
       "name": "real_player_beats_reach_assistant",
-      "passed": true,
-      "detail": 0.25
+      "passed": false,
+      "detail": 0.0
     },
     {
       "name": "assistant_strength_is_quarter",
@@ -53,7 +53,7 @@
     },
     {
       "name": "idle_restores_reaction",
-      "passed": true,
+      "passed": false,
       "detail": null
     },
     {
@@ -98,8 +98,8 @@
     },
     {
       "name": "assistant_source_control_starts_capture",
-      "passed": true,
-      "detail": "Listening to output \u00b7 BenQ VZ2250 (NVIDIA High Definition Audio) [Loopback]"
+      "passed": false,
+      "detail": "Capture unavailable \u00b7 OSError: [Errno -9996] Invalid device info"
     },
     {
       "name": "capture_indicator_visible",
@@ -108,8 +108,8 @@
     },
     {
       "name": "windows_mix_drives_assistant",
-      "passed": true,
-      "detail": 0.25
+      "passed": false,
+      "detail": 0.0
     },
     {
       "name": "navigation_preserves_capture_instance",
@@ -118,12 +118,12 @@
     },
     {
       "name": "music_full_strength_preserved",
-      "passed": true,
-      "detail": 1.0
+      "passed": false,
+      "detail": 0.0
     },
     {
       "name": "off_disables_core_but_not_spectrum",
-      "passed": true,
+      "passed": false,
       "detail": null
     },
     {
@@ -133,22 +133,22 @@
     },
     {
       "name": "all_restores_requested_capture",
-      "passed": true,
+      "passed": false,
       "detail": null
     },
     {
       "name": "stop_capture_control_releases_background",
-      "passed": true,
+      "passed": false,
       "detail": null
     },
     {
       "name": "indicator_hides_after_stop",
-      "passed": true,
+      "passed": false,
       "detail": null
     },
     {
       "name": "manual_stop_survives_navigation",
-      "passed": true,
+      "passed": false,
       "detail": null
     },
     {

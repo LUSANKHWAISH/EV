@@ -1,0 +1,31 @@
+{
+  "files": {
+    "APPLY_R11C3.txt": {
+      "bytes": 1201,
+      "sha256": "7c32c423a2c3c430b3f3dfd9cd4327d723e271b758b9212aee43c5b5714f43f0"
+    },
+    "EVIntelligenceCore_R11C3_ARMORED_CUBE_CORE.qml": {
+      "bytes": 32644,
+      "sha256": "350717a9d4c126900595403b90751078fa3b5bd8a91012f005e055583bfde5f6"
+    },
+    "README_R11C3.txt": {
+      "bytes": 863,
+      "sha256": "6e6e655dd411184455c77e1f0c370927218fa7b2b8c70ce8edfd58f5ea0cd8f5"
+    }
+  },
+  "static_checks": {
+    "braces": true,
+    "parentheses": true,
+    "brackets": true,
+    "theme_import": true,
+    "public_contract": true,
+    "theme_energy": true,
+    "theme_color": true,
+    "view3d": true,
+    "camera": true,
+    "particles_40": true,
+    "transmission": true,
+    "no_runtime_loader_usage": true,
+    "no_glb": true
+  }
+}

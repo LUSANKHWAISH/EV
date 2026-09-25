@@ -1,0 +1,55 @@
+E.V. TASK 011C — APPLY R11M1 MISTRAL FLAGSHIP CANDIDATE
+
+PROJECT:
+D:\EV
+
+PURPOSE:
+Test the Mistral design specification as a separate QML candidate.
+
+SOURCE:
+D:\EV\handoff\R11M1\EVIntelligenceCore_R11M1_MISTRAL.qml
+
+TARGET:
+D:\EV\gui\qml\components\EVIntelligenceCore.qml
+
+IMPORTANT:
+The current R11Q-D is the safe baseline.
+R11M1 is only a candidate.
+
+STEP 1 — BACKUP CURRENT LIVE R11Q-D
+
+Create exactly:
+
+D:\EV\gui\qml\components\EVIntelligenceCore.qml.pre-R11M1
+
+STEP 2 — EXACT COPY
+
+Copy SOURCE to TARGET byte-for-byte.
+
+DO NOT:
+- generate code
+- edit supplied QML
+- redesign
+- refactor
+- optimize
+- repair independently
+- touch EVFlagshipStage.qml
+- touch EVWindow.qml
+- touch Theme.qml
+- touch Python files
+- touch tests
+- touch qmldir
+- touch GLB assets
+- delete older backups
+
+REPORT ONLY:
+1. backup created
+2. source size
+3. target size
+4. source SHA-256
+5. target SHA-256
+6. hashes match
+7. no unrelated project files changed
+8. corruption detected or none
+
+Do not claim Windows tests pass.

@@ -1,0 +1,637 @@
+
+import QtQuick 2.15
+import "../theme"
+
+// E.V. Cognitive Chamber.
+// A segmented machine-intelligence instrument, not an orb/reactor/HUD.
+Item {
+    id: root
+
+    property real unit: Math.min(width, height)
+
+    property var state: null
+    property string visualMode: "STANDARD"
+    property string themeProfile: "EV_CORE"
+
+    property real energy: Theme.stateEnergy(state)
+    property color stateTone: Theme.stateColor(state)
+
+    property bool listening: state === "LISTENING"
+    property bool speaking: state === "SPEAKING"
+    property bool planning: state === "PLANNING"
+    property bool executing: state === "EXECUTING"
+    property bool verifying: state === "VERIFYING"
+    property bool awaiting: state === "AWAITING_APPROVAL"
+    property bool successful: state === "SUCCESS"
+    property bool failed: state === "FAILED"
+
+    // ============================================================
+    // REAR ARCHITECTURAL DEPTH
+    // ============================================================
+
+    Item {
+        id: rearPlane
+        anchors.centerIn: parent
+
+        width: root.unit * 0.94
+        height: root.unit * 0.80
+
+        Rectangle {
+            anchors.centerIn: parent
+
+            width: root.unit * 0.61
+            height: width
+
+            rotation: 45
+
+            color: "transparent"
+            border.width: 1
+            border.color: Theme.luminousPrimary
+
+            opacity: 0.07 + root.energy * 0.05
+        }
+
+        Rectangle {
+            anchors.centerIn: parent
+
+            width: root.unit * 0.43
+            height: width
+
+            rotation: 45
+
+            color: "transparent"
+            border.width: 1
+            border.color: root.stateTone
+
+            opacity: 0.09 + root.energy * 0.07
+        }
+
+        Rectangle {
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.verticalCenter: parent.verticalCenter
+
+            width: parent.width
+            height: 1
+
+            color: Theme.luminousPrimary
+            opacity: 0.08 + root.energy * 0.06
+        }
+
+        Rectangle {
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.verticalCenter: parent.verticalCenter
+
+            width: 1
+            height: parent.height * 0.90
+
+            color: Theme.luminousSecondary
+            opacity: 0.07 + root.energy * 0.05
+        }
+
+        Repeater {
+            model: 8
+
+            Rectangle {
+                width: root.unit * (index % 2 === 0 ? 0.070 : 0.045)
+                height: 1
+
+                x:
+                    index < 4
+                    ? root.unit * (0.05 + index * 0.095)
+                    : rearPlane.width
+                      - root.unit * (0.09 + (index - 4) * 0.105)
+
+                y:
+                    index % 2 === 0
+                    ? root.unit * 0.07
+                    : rearPlane.height - root.unit * 0.07
+
+                color: Theme.luminousPrimary
+
+                opacity:
+                    index % 3 === 0
+                    ? 0.25
+                    : 0.12
+            }
+        }
+    }
+
+    // ============================================================
+    // ASYMMETRIC CONTAINMENT BRACES
+    // ============================================================
+
+    Item {
+        anchors.fill: parent
+
+        EVCoreRing {
+            id: leftBrace
+
+            width: root.unit * 0.57
+            height: width
+
+            x: parent.width / 2 - width - root.unit * 0.055
+            y: parent.height / 2 - height / 2 - root.unit * 0.055
+
+            thickness: Theme.coreRingThickness * 1.20
+            gap: 0.73
+            baseOpacity: 0.40
+
+            rotation:
+                root.listening ? -29 :
+                root.planning ? -17 :
+                root.executing ? -3 :
+                root.verifying ? 14 :
+                root.awaiting ? -8 :
+                -21
+
+            Behavior on rotation {
+                NumberAnimation {
+                    duration: Theme.motionStandard
+                    easing: Theme.easingStandard
+                }
+            }
+        }
+
+        EVCoreRing {
+            id: rightBrace
+
+            width: root.unit * 0.49
+            height: width
+
+            x: parent.width / 2 + root.unit * 0.055
+            y: parent.height / 2 - height / 2 + root.unit * 0.070
+
+            thickness: Theme.coreRingThickness
+            gap: 0.79
+            baseOpacity: 0.31
+
+            rotation:
+                root.speaking ? 34 :
+                root.awaiting ? 18 :
+                root.successful ? -14 :
+                root.failed ? 27 :
+                root.verifying ? 8 :
+                16
+
+            Behavior on rotation {
+                NumberAnimation {
+                    duration: Theme.motionStandard
+                    easing: Theme.easingDeliberate
+                }
+            }
+        }
+
+        // Linear containment rails stop the braces reading as rings.
+        Rectangle {
+            x: parent.width / 2 - root.unit * 0.39
+            anchors.verticalCenter: parent.verticalCenter
+
+            width: root.unit * 0.16
+            height: 1
+
+            color: Theme.luminousPrimary
+            opacity: 0.35 + root.energy * 0.12
+        }
+
+        Rectangle {
+            x: parent.width / 2 + root.unit * 0.23
+            anchors.verticalCenter: parent.verticalCenter
+
+            width: root.unit * 0.19
+            height: 1
+
+            color: Theme.luminousSecondary
+            opacity: 0.28 + root.energy * 0.12
+        }
+    }
+
+    // ============================================================
+    // COGNITIVE FIELD
+    // ============================================================
+
+    EVCoreLattice {
+        anchors.centerIn: parent
+
+        width: root.unit * 0.88
+        height: root.unit * 0.75
+
+        energy: root.energy
+        state: root.state
+
+        opacity:
+            root.planning || root.verifying
+            ? 0.82
+            : 0.48 + root.energy * 0.26
+
+        scale:
+            root.listening ? 0.94 :
+            root.speaking ? 1.05 :
+            1.0
+
+        Behavior on opacity {
+            NumberAnimation { duration: Theme.motionStandard }
+        }
+
+        Behavior on scale {
+            NumberAnimation {
+                duration: Theme.motionStandard
+                easing: Theme.easingStandard
+            }
+        }
+    }
+
+    // ============================================================
+    // PRIMARY COGNITIVE NUCLEUS
+    // ============================================================
+
+    Item {
+        id: nucleus
+
+        anchors.centerIn: parent
+
+        width:
+            root.listening ? root.unit * 0.36 :
+            root.speaking ? root.unit * 0.43 :
+            root.executing ? root.unit * 0.35 :
+            root.verifying ? root.unit * 0.39 :
+            root.awaiting ? root.unit * 0.40 :
+            root.unit * 0.38
+
+        height:
+            root.executing ? root.unit * 0.61 :
+            root.verifying ? root.unit * 0.59 :
+            root.speaking ? root.unit * 0.56 :
+            root.unit * 0.58
+
+        Behavior on width {
+            NumberAnimation {
+                duration: Theme.motionStandard
+                easing: Theme.easingStandard
+            }
+        }
+
+        Behavior on height {
+            NumberAnimation {
+                duration: Theme.motionStandard
+                easing: Theme.easingStandard
+            }
+        }
+
+        property var sliceWidths: [
+            0.44,
+            0.66,
+            0.84,
+            0.96,
+            0.79,
+            1.00,
+            0.86,
+            0.70,
+            0.50
+        ]
+
+        // Rear shadow plate.
+        Rectangle {
+            anchors.centerIn: parent
+
+            width: parent.width * 0.78
+            height: parent.height * 0.96
+
+            rotation: -5
+
+            radius: Math.max(3, root.unit * 0.006)
+
+            color: Theme.backgroundDeep
+
+            border.width: 1
+            border.color: Theme.luminousSecondary
+
+            opacity: 0.46
+        }
+
+        // Segmented machine-intelligence body.
+        Item {
+            id: segmentedBody
+            anchors.fill: parent
+
+            Repeater {
+                model: nucleus.sliceWidths.length
+
+                Rectangle {
+                    property real factor: nucleus.sliceWidths[index]
+
+                    width: segmentedBody.width * factor
+
+                    height:
+                        segmentedBody.height / nucleus.sliceWidths.length
+                        - Math.max(1, root.unit * 0.002)
+
+                    x:
+                        (segmentedBody.width - width) / 2
+                        + (
+                            root.failed
+                            ? (index % 2 === 0 ? -1 : 1) * root.unit * 0.010
+                            : root.planning
+                                ? (index % 3 - 1) * root.unit * 0.004
+                                : 0
+                          )
+
+                    y:
+                        index
+                        * (segmentedBody.height / nucleus.sliceWidths.length)
+
+                    radius: Math.max(2, root.unit * 0.004)
+
+                    color: Theme.backgroundDeep
+
+                    border.width:
+                        index === 4 || index === 5
+                        ? 2
+                        : 1
+
+                    border.color:
+                        index === 4 || index === 5
+                        ? root.stateTone
+                        : index % 2 === 0
+                            ? Theme.luminousPrimary
+                            : Theme.luminousSecondary
+
+                    opacity:
+                        index === 4 || index === 5
+                        ? 0.76
+                        : 0.50
+
+                    Behavior on x {
+                        NumberAnimation {
+                            duration: Theme.motionStandard
+                            easing: Theme.easingStandard
+                        }
+                    }
+                }
+            }
+        }
+
+        // Central cognition chamber.
+        Rectangle {
+            anchors.centerIn: parent
+
+            width: parent.width * 0.29
+            height: parent.height * 0.76
+
+            radius: Math.max(3, root.unit * 0.007)
+
+            color: root.stateTone
+            opacity: 0.08 + root.energy * 0.17
+
+            border.width: 1
+            border.color: root.stateTone
+
+            Behavior on opacity {
+                NumberAnimation { duration: Theme.motionStandard }
+            }
+        }
+
+        // Intelligence spine.
+        Rectangle {
+            anchors.centerIn: parent
+
+            width:
+                root.executing
+                ? Math.max(4, root.unit * 0.007)
+                : Math.max(2, root.unit * 0.004)
+
+            height: parent.height * 0.83
+
+            radius: width / 2
+
+            color: root.stateTone
+            opacity: 0.54 + root.energy * 0.28
+
+            Behavior on width {
+                NumberAnimation { duration: Theme.motionStandard }
+            }
+        }
+
+        // LISTENING = inward sensor gates.
+        Rectangle {
+            anchors.verticalCenter: parent.verticalCenter
+
+            x:
+                root.listening
+                ? parent.width * 0.17
+                : parent.width * 0.10
+
+            width: Math.max(2, root.unit * 0.004)
+            height: parent.height * 0.60
+
+            color: Theme.luminousPrimary
+            opacity: root.listening ? 0.72 : 0.30
+
+            Behavior on x {
+                NumberAnimation { duration: Theme.motionStandard }
+            }
+
+            Behavior on opacity {
+                NumberAnimation { duration: Theme.motionStandard }
+            }
+        }
+
+        Rectangle {
+            anchors.verticalCenter: parent.verticalCenter
+
+            x:
+                root.listening
+                ? parent.width * 0.81
+                : parent.width * 0.88
+
+            width: Math.max(2, root.unit * 0.004)
+            height: parent.height * 0.60
+
+            color: Theme.luminousSecondary
+            opacity: root.listening ? 0.72 : 0.30
+
+            Behavior on x {
+                NumberAnimation { duration: Theme.motionStandard }
+            }
+
+            Behavior on opacity {
+                NumberAnimation { duration: Theme.motionStandard }
+            }
+        }
+
+        // VERIFYING = cross-check scan bars.
+        Column {
+            anchors.centerIn: parent
+
+            width: parent.width * 0.72
+            spacing: root.unit * 0.045
+
+            opacity: root.verifying ? 0.72 : 0.08
+
+            Repeater {
+                model: 3
+
+                Rectangle {
+                    width: parent.width
+                    height: Math.max(1, root.unit * 0.0025)
+
+                    color:
+                        index === 1
+                        ? root.stateTone
+                        : Theme.luminousPrimary
+
+                    opacity: index === 1 ? 1.0 : 0.55
+                }
+            }
+
+            Behavior on opacity {
+                NumberAnimation { duration: Theme.motionStandard }
+            }
+        }
+
+        // PLANNING = analytical branch registers.
+        Row {
+            anchors.horizontalCenter: parent.horizontalCenter
+
+            y: parent.height * 0.18
+            spacing: root.unit * 0.014
+
+            opacity: root.planning ? 0.78 : 0.12
+
+            Repeater {
+                model: 5
+
+                Rectangle {
+                    width:
+                        root.unit
+                        * (index % 2 === 0 ? 0.034 : 0.018)
+
+                    height: Math.max(1, root.unit * 0.0025)
+
+                    color:
+                        index === 2
+                        ? root.stateTone
+                        : Theme.luminousPrimary
+                }
+            }
+
+            Behavior on opacity {
+                NumberAnimation { duration: Theme.motionStandard }
+            }
+        }
+
+        // SPEAKING = outward projection rails.
+        Rectangle {
+            anchors.verticalCenter: parent.verticalCenter
+
+            x: parent.width
+            width:
+                root.speaking
+                ? root.unit * 0.12
+                : root.unit * 0.035
+
+            height: Math.max(1, root.unit * 0.003)
+
+            color: root.stateTone
+            opacity: root.speaking ? 0.72 : 0.18
+
+            Behavior on width {
+                NumberAnimation { duration: Theme.motionStandard }
+            }
+        }
+
+        Rectangle {
+            anchors.verticalCenter: parent.verticalCenter
+
+            x:
+                root.speaking
+                ? -root.unit * 0.12
+                : -root.unit * 0.035
+
+            width:
+                root.speaking
+                ? root.unit * 0.12
+                : root.unit * 0.035
+
+            height: Math.max(1, root.unit * 0.003)
+
+            color: root.stateTone
+            opacity: root.speaking ? 0.72 : 0.18
+
+            Behavior on x {
+                NumberAnimation { duration: Theme.motionStandard }
+            }
+
+            Behavior on width {
+                NumberAnimation { duration: Theme.motionStandard }
+            }
+        }
+
+        // AWAITING APPROVAL = visible containment hold.
+        Rectangle {
+            anchors.centerIn: parent
+
+            width: parent.width * 1.10
+            height: parent.height * 0.86
+
+            color: "transparent"
+
+            border.width: root.awaiting ? 2 : 1
+            border.color: root.stateTone
+
+            opacity: root.awaiting ? 0.54 : 0.06
+
+            Behavior on opacity {
+                NumberAnimation { duration: Theme.motionStandard }
+            }
+        }
+
+        // SUCCESS / FAILED structural response.
+        Rectangle {
+            anchors.horizontalCenter: parent.horizontalCenter
+
+            y: parent.height * 0.05
+
+            width:
+                root.successful
+                ? parent.width * 0.72
+                : root.failed
+                    ? parent.width * 0.32
+                    : parent.width * 0.48
+
+            height: Math.max(1, root.unit * 0.003)
+
+            color: root.stateTone
+
+            opacity:
+                root.successful || root.failed
+                ? 0.70
+                : 0.24
+
+            Behavior on width {
+                NumberAnimation { duration: Theme.motionStandard }
+            }
+        }
+
+        Rectangle {
+            anchors.horizontalCenter: parent.horizontalCenter
+
+            y: parent.height * 0.94
+
+            width:
+                root.successful
+                ? parent.width * 0.58
+                : root.failed
+                    ? parent.width * 0.25
+                    : parent.width * 0.40
+
+            height: Math.max(1, root.unit * 0.003)
+
+            color: root.stateTone
+            opacity: 0.44 + root.energy * 0.18
+
+            Behavior on width {
+                NumberAnimation { duration: Theme.motionStandard }
+            }
+        }
+    }
+}

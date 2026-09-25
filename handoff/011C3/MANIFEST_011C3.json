@@ -1,0 +1,90 @@
+{
+  "inspection_baselines": {
+    "EVFlagshipStage.qml": {
+      "bytes": 7644,
+      "sha256": "1f0d9b3637f7d0577520afe090881a4d2ee77ae51f47ff486f33ec2fe4df4695"
+    },
+    "EVTelemetryRail.qml": {
+      "bytes": 3766,
+      "sha256": "81c1f59d3c013813e4147e746ad75a62e3be76e44592a0623615b0c69178cd03"
+    },
+    "EVStatusIndicator.qml": {
+      "bytes": 1091,
+      "sha256": "fd268ab116af19c91273031b4a82d423b88ffbd193cdc68f628911b3cb447a36"
+    },
+    "EVWindow.qml": {
+      "bytes": 5717,
+      "sha256": "883a73a4225dde3227ad53a3056ebef96c0247bab575fa9aa504fd5fb8dd6bae"
+    },
+    "EVTopBar.qml": {
+      "bytes": 8773,
+      "sha256": "b2353a957b7958da3303ea844053fbad24997b104b259248eac6ea6135e3162d"
+    },
+    "Theme.qml": {
+      "bytes": 10069,
+      "sha256": "61a9935297346bc52297d0f2869fda927f2ba23d890ffd30e7072b075afc02cb"
+    },
+    "qmldir": {
+      "bytes": 590,
+      "sha256": "518ff332f6423a0c8968455b6df7d0aac5f33720d1cbfd60f5a6a5faf8082d66"
+    },
+    "test_gui_qml.py": {
+      "bytes": 7901,
+      "sha256": "0a0e8c321e439c8d0b400aef1fdbcdcfe3b081e7ab806eb0298f08e3a0bf1c69"
+    }
+  },
+  "frozen_core": {
+    "bytes": 39081,
+    "sha256": "0a168c0a342b9580b2ce9599d715fe0b59dd9b4bcf3de1efb45aab280b7205bb"
+  },
+  "replacements": {
+    "EVFlagshipStage_011C3.qml": {
+      "bytes": 6851,
+      "sha256": "d475a398bc5571498af16f714379018ae0cf893dcaab8457b56477254e6d051c"
+    },
+    "EVStatusIndicator_011C3.qml": {
+      "bytes": 2459,
+      "sha256": "0c7ff93f43de7be48902ed00bb5621ecf5bbce7142d27d85eef0e53a4bb67ef1"
+    },
+    "EVTelemetryRail_011C3.qml": {
+      "bytes": 4410,
+      "sha256": "69978055e4f2a08181dee7588b0db218bc6b970ed8a1a4dc17592dfdf08d3a65"
+    }
+  },
+  "static_checks": {
+    "EVFlagshipStage_011C3.qml": {
+      "braces": true,
+      "parentheses": true,
+      "brackets": true,
+      "theme_import": true,
+      "theme_usage": true
+    },
+    "EVStatusIndicator_011C3.qml": {
+      "braces": true,
+      "parentheses": true,
+      "brackets": true,
+      "theme_import": true,
+      "theme_usage": true
+    },
+    "EVTelemetryRail_011C3.qml": {
+      "braces": true,
+      "parentheses": true,
+      "brackets": true,
+      "theme_import": true,
+      "theme_usage": true
+    }
+  },
+  "changed_files": [
+    "gui/qml/components/EVFlagshipStage.qml",
+    "gui/qml/components/EVStatusIndicator.qml",
+    "gui/qml/components/EVTelemetryRail.qml"
+  ],
+  "unchanged_files": [
+    "gui/qml/components/EVIntelligenceCore.qml",
+    "gui/qml/components/EVWindow.qml",
+    "gui/qml/components/EVTopBar.qml",
+    "gui/qml/theme/Theme.qml",
+    "gui/qml/components/qmldir",
+    "tests/test_gui_qml.py"
+  ]
+}

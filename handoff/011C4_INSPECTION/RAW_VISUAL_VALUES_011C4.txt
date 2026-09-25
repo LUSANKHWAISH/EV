@@ -1,0 +1,64 @@
+﻿EV TASK 011C.4 - RAW VISUAL VALUES
+
+==================================================
+FILE: EVCoreLattice.qml
+==================================================
+(no obvious raw visual literals detected)
+
+==================================================
+FILE: EVCoreRing.qml
+==================================================
+(no obvious raw visual literals detected)
+
+==================================================
+FILE: EVFlagshipStage.qml
+==================================================
+LINE 184: opacity: 0.88
+LINE 253: opacity: 0.50
+LINE 15: width: 1280
+LINE 16: height: 720
+
+==================================================
+FILE: EVStatusIndicator.qml
+==================================================
+LINE 50: opacity: 0.88
+
+==================================================
+FILE: EVTelemetryRail.qml
+==================================================
+LINE 55: opacity: 0.86
+LINE 108: opacity: 0.86
+LINE 177: opacity: 0.86
+
+==================================================
+FILE: EVTopBar.qml
+==================================================
+LINE 89: opacity: 0.72
+
+==================================================
+FILE: EVWindow.qml
+==================================================
+LINE 15: width: 1280
+LINE 106: width: 6
+LINE 120: width: 6
+LINE 133: width: 10
+LINE 147: width: 10
+LINE 161: width: 10
+LINE 175: width: 10
+LINE 16: height: 720
+LINE 78: height: 6
+LINE 92: height: 6
+LINE 134: height: 10
+LINE 148: height: 10
+LINE 162: height: 10
+LINE 176: height: 10
+
+==================================================
+FILE: Main.qml
+==================================================
+(no obvious raw visual literals detected)
+
+==================================================
+FILE: Theme.qml
+==================================================
+(no obvious raw visual literals detected)

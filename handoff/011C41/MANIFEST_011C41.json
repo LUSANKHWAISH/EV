@@ -1,0 +1,21 @@
+{
+  "task": "011C.4.1 Transparent Top Bar",
+  "baseline": {
+    "file": "EVTopBar.qml",
+    "bytes": 8827,
+    "sha256": "8cec7dff4d7f83230abbf510339f1759a22ed1eaae4d34e13c785519a2cafe76"
+  },
+  "replacement": {
+    "file": "EVTopBar_011C41_TRANSPARENT.qml",
+    "bytes": 8821,
+    "sha256": "ec94d34504962ef034a6bd9475ee78338d03833e05a5faaf8247d1648dc54693"
+  },
+  "frozen_core": {
+    "bytes": 39081,
+    "sha256": "0a168c0a342b9580b2ce9599d715fe0b59dd9b4bcf3de1efb45aab280b7205bb"
+  },
+  "changed_files": [
+    "gui/qml/components/EVTopBar.qml"
+  ],
+  "exact_scope": "top-level background fill only"
+}

@@ -1,0 +1,58 @@
+{
+  "task": "012B Persistent Task History Foundation",
+  "inspection_source": {
+    "file": "EV_012A_LIVE_INSPECTION.zip",
+    "bytes": 41342,
+    "sha256": "3f33aae5195832efbc5d4c01ca267805191a1ca4da83d130d98eab82de616acb"
+  },
+  "baseline_guards": {
+    "core/models.py": {
+      "bytes": 7897,
+      "sha256": "13e6431599a2bcbf115981c1664d9a7dabb677a8e3a53cd2fea30dd822967763"
+    },
+    ".gitignore": {
+      "bytes": 222,
+      "sha256": "90b631169cb92bd15db0cfe9265aea13311033520af50b550bb721b1614b010e"
+    }
+  },
+  "replacement_files": {
+    "models_012B.py": {
+      "bytes": 8901,
+      "sha256": "6e72d978c1a90aa2985ddf1f24fa2f5a588472e961d9a18ba7e5e820317856f0"
+    },
+    "history_012B.py": {
+      "bytes": 22990,
+      "sha256": "84a68ada4a410a149469dbecf2c8df2b003d566abbf41a9e4fcb95c7288cc8e9"
+    },
+    "test_history_012B.py": {
+      "bytes": 10976,
+      "sha256": "e5a043dfc39f0c1406d409b7d8674ba988fd016d103e2a40ee3b925fbeeb6ac3"
+    },
+    "gitignore_012B.txt": {
+      "bytes": 333,
+      "sha256": "57b443a57d77df2dc7997923655950cd7ed5b1728218188e5e428282d8536da0"
+    }
+  },
+  "new_live_files": [
+    "core/history.py",
+    "tests/test_history.py"
+  ],
+  "modified_live_files": [
+    "core/models.py",
+    ".gitignore"
+  ],
+  "intentionally_unchanged": [
+    "core/agent.py",
+    "core/verifier.py",
+    "core/backup.py",
+    "core/risk.py",
+    "core/events.py",
+    "config/settings.py",
+    "requirements.txt",
+    "all GUI/QML files"
+  ],
+  "isolated_validation": {
+    "returncode": 0,
+    "stdout": "\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m                                                          [100%]\u001b[0m\n\u001b[32m\u001b[32m\u001b[1m15 passed\u001b[0m\u001b[32m in 0.86s\u001b[0m\u001b[0m"
+  }
+}

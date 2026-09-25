@@ -1,0 +1,22 @@
+{
+  "files": {
+    "APPLY_R11C1.txt": {
+      "bytes": 892,
+      "sha256": "175b08dfbaa09b22945331b86d7f080f2d8e3cf5d499f4c0cf49ea7bf01710a2"
+    },
+    "EVIntelligenceCore_R11C1_COPILOT.qml": {
+      "bytes": 2118,
+      "sha256": "81b64d8e34bdf114e911606ce7e745a2018aa7932b0750591988e372cc1d99eb"
+    },
+    "README_R11C1.txt": {
+      "bytes": 589,
+      "sha256": "ad07e282f8e7ec8e425354e076d788365bc0a47e600e52539a9a9bc63521c1cc"
+    }
+  },
+  "checks": {
+    "syntax_balance": true,
+    "public_contract": true,
+    "single_sphere": true,
+    "no_extra_geometry": true
+  }
+}

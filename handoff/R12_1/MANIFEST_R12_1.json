@@ -1,0 +1,21 @@
+{
+  "qml_bytes": 39033,
+  "qml_sha256": "025f6d4ac5649a96bce56683f10edfd4184cd301b3156aada3648bd09688d262",
+  "static_checks": {
+    "balanced_braces": true,
+    "balanced_parentheses": true,
+    "balanced_brackets": true,
+    "public_contract": true,
+    "theme_energy": true,
+    "theme_color": true,
+    "procedural_meshes": 4,
+    "custom_shell_builder": true,
+    "custom_membrane_builder": true,
+    "custom_lens_builder": true,
+    "custom_nucleus_builder": true,
+    "particle_count": true,
+    "no_glb": true,
+    "no_runtime_loader": true,
+    "no_worldScale": true
+  }
+}

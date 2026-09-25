@@ -1,0 +1,6 @@
+# Optional local voice, ASR, and wake-word dependencies for E.V.
+-r requirements.txt
+sounddevice>=0.5.0
+faster-whisper>=1.0.0
+onnxruntime>=1.16.0
+openwakeword>=0.6.0

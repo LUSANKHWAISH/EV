@@ -1,0 +1,121 @@
+E.V. TASK 011C.4.1 — APPLY TRANSPARENT TOP BAR
+
+PROJECT:
+D:\EV
+
+PURPOSE:
+Apply exactly one visual micro-patch:
+make only the top-level EVTopBar background transparent.
+
+============================================================
+1 — VERIFY FROZEN CORE
+============================================================
+
+D:\EV\gui\qml\components\EVIntelligenceCore.qml
+
+Expected size:
+39081 bytes
+
+Expected SHA-256:
+0a168c0a342b9580b2ce9599d715fe0b59dd9b4bcf3de1efb45aab280b7205bb
+
+If either differs:
+STOP. Modify nothing.
+
+============================================================
+2 — VERIFY CURRENT EVTOPBAR
+============================================================
+
+D:\EV\gui\qml\components\EVTopBar.qml
+
+Expected current size:
+8827 bytes
+
+Expected SHA-256:
+8cec7dff4d7f83230abbf510339f1759a22ed1eaae4d34e13c785519a2cafe76
+
+If either differs:
+STOP. Modify nothing.
+
+============================================================
+3 — VERIFY SUPPLIED REPLACEMENT
+============================================================
+
+D:\EV\handoff\011C41\EVTopBar_011C41_TRANSPARENT.qml
+
+Expected size:
+8821 bytes
+
+Expected SHA-256:
+ec94d34504962ef034a6bd9475ee78338d03833e05a5faaf8247d1648dc54693
+
+If either differs:
+STOP. Modify nothing.
+
+============================================================
+4 — BACKUP
+============================================================
+
+Create exactly:
+
+D:\EV\gui\qml\components\EVTopBar.qml.pre-011C41
+
+If this exact backup already exists:
+STOP. Do not overwrite it.
+
+============================================================
+5 — EXACT BYTE-FOR-BYTE COPY
+============================================================
+
+Copy:
+
+D:\EV\handoff\011C41\EVTopBar_011C41_TRANSPARENT.qml
+
+to:
+
+D:\EV\gui\qml\components\EVTopBar.qml
+
+DO NOT:
+- generate code
+- edit supplied QML
+- redesign
+- refactor
+- optimize
+- repair independently
+- change EVWindow.qml
+- change EVFlagshipStage.qml
+- change EVStatusIndicator.qml
+- change EVTelemetryRail.qml
+- change Theme.qml
+- change EVIntelligenceCore.qml
+- change qmldir
+- change Python
+- change tests
+- remove the bottom divider
+- alter window-control hover states
+- alter dragging
+- alter maximize/restore behavior
+- alter resize behavior
+- delete earlier backups
+
+============================================================
+6 — POST-COPY VERIFICATION
+============================================================
+
+Recalculate EVTopBar.qml size/hash.
+It MUST match the supplied replacement.
+
+Reverify frozen EVIntelligenceCore.qml size/hash.
+
+RETURN ONLY:
+
+1. frozen R11Q-D2.3 core verified before apply: YES/NO
+2. current EVTopBar baseline verified: YES/NO
+3. supplied transparent EVTopBar verified: YES/NO
+4. backup created: YES/NO
+5. EVTopBar target size
+6. EVTopBar target SHA-256
+7. target hash matches supplied replacement: YES/NO
+8. frozen core unchanged after apply: YES/NO
+9. unrelated project files changed: YES/NO
+10. corruption detected or none

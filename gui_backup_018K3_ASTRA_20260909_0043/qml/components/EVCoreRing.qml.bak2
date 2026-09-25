@@ -1,0 +1,59 @@
+import QtQuick 2.15
+import "../theme" as Theme
+
+// EVCoreRing - A ring with optional gaps, used in the intelligence core.
+// Parameters:
+//   thickness: width of the ring
+//   gap: fraction of the circle to leave empty (0.0 to 1.0)
+//   opacity: base opacity
+Item {
+    id: root
+    // Size is set by parent via width/height
+    property real thickness: Theme.coreRingThickness   // default from theme
+    property real gap: 0.0                            // no gap by default
+    property real opacity: 0.5
+
+    // We'll render the ring as a series of rectangles to allow gaps.
+    // For simplicity, we use a ShaderEffectSource? Instead, we can use a Canvas or a Repeater.
+    // Given performance constraints, we'll use a Repeater with a limited number of segments.
+    // We'll divide the circle into N segments, and skip those in the gap.
+    property int segmentCount: 360   // 1-degree segments
+    property real startAngle: 0
+    property real endAngle: 360 * (1 - gap)
+
+    // Background item to hold the segments
+    Item {
+        id: ringContainer
+        anchors.fill: parent
+        // We'll use a Repeater to create segments
+        Repeater {
+            model: segmentCount
+            Rectangle {
+                width: root.thickness
+                height: root.thickness * 0.1  // thin radial segment
+                color: Theme.luminousPrimary
+                opacity: root.opacity
+                // Position each segment along the ring
+                // radius is half of (width or height) minus half thickness?
+                // Since the ringContainer is square, we can use its width/2 as radius.
+                property real radius: Math.min(parent.width, parent.height) / 2 - root.thickness/2
+                property real angle: index * 360 / segmentCount
+                // Only show if angle is within the arc (startAngle to endAngle)
+                visible: angle >= root.startAngle && angle <= root.endAngle
+                // Convert polar to cartesian
+                x: parent.width/2 - width/2 + radius * Math.cos(angle * Math.PI / 180)
+                y: parent.height/2 - height/2 + radius * Math.sin(angle * Math.PI / 180)
+                // Rotate the segment to follow the circle? Not needed for thin rectangle.
+                rotation: angle + 90  // so that the rectangle is tangential? Actually we want radial.
+                // For simplicity, we don't rotate; we keep it radial (pointing outward).
+                // So we set rotation to angle (so that the rectangle points outward from center).
+                // Actually, we want the rectangle to be oriented radially, so its length is along the radius.
+                // We set the rectangle's height as the thickness, and we want it radial.
+                // So we rotate by angle.
+                rotation: angle
+                // Adjust origin to center
+                transformOrigin: Item.Center
+            }
+        }
+    }
+}

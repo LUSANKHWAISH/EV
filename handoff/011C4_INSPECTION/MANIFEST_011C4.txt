@@ -1,0 +1,148 @@
+﻿E.V. TASK 011C.4 - LIVE INSPECTION MANIFEST
+
+FROZEN CORE VERIFIED: YES
+Frozen core size: 39081
+Frozen core SHA-256: 0a168c0a342b9580b2ce9599d715fe0b59dd9b4bcf3de1efb45aab280b7205bb
+
+COPIED FILES
+============
+
+SOURCE:
+D:\EV\gui\qml\Main.qml
+
+COPIED FILE:
+Main.qml
+
+BYTE SIZE:
+172
+
+SHA-256:
+1d252d29e4224914bb195da862c478118e5f241b4d9af0c32eb81c793e92e456
+
+--------------------------------------------------
+
+SOURCE:
+D:\EV\gui\qml\components\EVWindow.qml
+
+COPIED FILE:
+EVWindow.qml
+
+BYTE SIZE:
+5717
+
+SHA-256:
+883a73a4225dde3227ad53a3056ebef96c0247bab575fa9aa504fd5fb8dd6bae
+
+--------------------------------------------------
+
+SOURCE:
+D:\EV\gui\qml\components\EVTopBar.qml
+
+COPIED FILE:
+EVTopBar.qml
+
+BYTE SIZE:
+8773
+
+SHA-256:
+b2353a957b7958da3303ea844053fbad24997b104b259248eac6ea6135e3162d
+
+--------------------------------------------------
+
+SOURCE:
+D:\EV\gui\qml\components\EVFlagshipStage.qml
+
+COPIED FILE:
+EVFlagshipStage.qml
+
+BYTE SIZE:
+6851
+
+SHA-256:
+d475a398bc5571498af16f714379018ae0cf893dcaab8457b56477254e6d051c
+
+--------------------------------------------------
+
+SOURCE:
+D:\EV\gui\qml\components\EVStatusIndicator.qml
+
+COPIED FILE:
+EVStatusIndicator.qml
+
+BYTE SIZE:
+2459
+
+SHA-256:
+0c7ff93f43de7be48902ed00bb5621ecf5bbce7142d27d85eef0e53a4bb67ef1
+
+--------------------------------------------------
+
+SOURCE:
+D:\EV\gui\qml\components\EVTelemetryRail.qml
+
+COPIED FILE:
+EVTelemetryRail.qml
+
+BYTE SIZE:
+4410
+
+SHA-256:
+69978055e4f2a08181dee7588b0db218bc6b970ed8a1a4dc17592dfdf08d3a65
+
+--------------------------------------------------
+
+SOURCE:
+D:\EV\gui\qml\components\EVCoreLattice.qml
+
+COPIED FILE:
+EVCoreLattice.qml
+
+BYTE SIZE:
+4379
+
+SHA-256:
+8221b138e28dd3674f3bb8dbc8f502caaa8c52203bf638ef276fe0babc77ed3c
+
+--------------------------------------------------
+
+SOURCE:
+D:\EV\gui\qml\components\EVCoreRing.qml
+
+COPIED FILE:
+EVCoreRing.qml
+
+BYTE SIZE:
+1355
+
+SHA-256:
+aa9931b509dfd30217cfd35ed75ab687f6122af0cb15b5898298984cd1ba7fcc
+
+--------------------------------------------------
+
+SOURCE:
+D:\EV\gui\qml\theme\Theme.qml
+
+COPIED FILE:
+Theme.qml
+
+BYTE SIZE:
+10069
+
+SHA-256:
+61a9935297346bc52297d0f2869fda927f2ba23d890ffd30e7072b075afc02cb
+
+--------------------------------------------------
+
+SOURCE:
+D:\EV\gui\qml\components\qmldir
+
+COPIED FILE:
+qmldir
+
+BYTE SIZE:
+590
+
+SHA-256:
+518ff332f6423a0c8968455b6df7d0aac5f33720d1cbfd60f5a6a5faf8082d66
+
+--------------------------------------------------

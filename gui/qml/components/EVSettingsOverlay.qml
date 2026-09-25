@@ -90,7 +90,7 @@ Item {
     }
 
     anchors.fill: parent
-    visible: opacity > 0.001
+    visible: ((typeof guiBridge !== "undefined" && guiBridge && guiBridge.settingsVisible) || opacity > 0.001)
     opacity: (typeof guiBridge !== "undefined" && guiBridge && guiBridge.settingsVisible) ? 1.0 : 0.0
 
     Behavior on opacity {
@@ -185,6 +185,9 @@ Item {
         }
         function onActiveProviderChanged() {
             root.refreshProviders();
+        }
+        function onSettingsVisibleChanged(v) {
+            root.opacity = v ? 1.0 : 0.0;
         }
     }
 

@@ -1,0 +1,40 @@
+{
+  "baseline": {
+    "name": "R11Q-D2.2",
+    "bytes": 39073,
+    "sha256": "f01f304468df9df18918fa3910004d0b395c54ff563cc813addb6bc1e13e9b04"
+  },
+  "candidate": {
+    "name": "R11Q-D2.3 Orbital Presence Polish",
+    "bytes": 39081,
+    "sha256": "0a168c0a342b9580b2ce9599d715fe0b59dd9b4bcf3de1efb45aab280b7205bb"
+  },
+  "files": {
+    "APPLY_R11QD23.txt": {
+      "bytes": 2573,
+      "sha256": "35fa6b465a281ed29a13ac543a73aca2f2e1ee54ee01d84633ec40ae4bc421a9"
+    },
+    "EVIntelligenceCore_R11QD23_ORBITAL_PRESENCE.qml": {
+      "bytes": 39081,
+      "sha256": "0a168c0a342b9580b2ce9599d715fe0b59dd9b4bcf3de1efb45aab280b7205bb"
+    },
+    "README_R11QD23.txt": {
+      "bytes": 1116,
+      "sha256": "96bd61b0fd5d824059270c25781329f5d94b4c3a05b715b55290dfcd55876871"
+    }
+  },
+  "static_checks": {
+    "baseline_size_verified": true,
+    "baseline_sha_verified": true,
+    "braces": true,
+    "parentheses": true,
+    "brackets": true,
+    "public_contract": true,
+    "satellite_count_6": true,
+    "existing_particles_24": true,
+    "rear_orbit_canvas": true,
+    "front_orbit_canvas": true,
+    "no_runtime_loader": true,
+    "no_glb": true
+  }
+}

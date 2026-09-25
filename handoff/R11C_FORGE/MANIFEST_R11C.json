@@ -1,0 +1,14 @@
+{
+  "BUILD_R11C_FLAGSHIP_REACTOR.py": {
+    "bytes": 18207,
+    "sha256": "a90d7285686365bd22e716d760ffd97f25195bf7450987ec1e014100e114f48a"
+  },
+  "README_R11C.txt": {
+    "bytes": 895,
+    "sha256": "1de6451dc984171574b04cec7b51eadf6abd0a708b1ca6ead8c96cf94fe195d8"
+  },
+  "RUN_R11C_FORGE.ps1": {
+    "bytes": 668,
+    "sha256": "c457750b8bab33f805bb63fe89cc5e64910d279e02d4c05452b9b31126147150"
+  }
+}

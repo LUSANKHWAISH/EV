@@ -1,0 +1,32 @@
+{
+  "files": {
+    "APPLY_R11M1.txt": {
+      "bytes": 1007,
+      "sha256": "1ccbeb7067683ae19ce2d9998a04448021f1c710501b4cfc68c84c111d6550ee"
+    },
+    "EVIntelligenceCore_R11M1_MISTRAL.qml": {
+      "bytes": 34826,
+      "sha256": "4c06efad1c5d7f05e734815a9d43fd8b85189e9271464f4c29c3c052687909d5"
+    },
+    "README_R11M1.txt": {
+      "bytes": 915,
+      "sha256": "bb3303ca8b10dc8e082f51bb3b984e87eefe9d938572f3645850d04b2af75b38"
+    }
+  },
+  "static_checks": {
+    "braces": true,
+    "parentheses": true,
+    "brackets": true,
+    "theme_import": true,
+    "public_contract": true,
+    "theme_energy": true,
+    "theme_color": true,
+    "voice_hooks": true,
+    "view3d": true,
+    "particles_40": true,
+    "lens_transmission": true,
+    "no_external_assets": true,
+    "no_worldscale": true,
+    "view_presence": true
+  }
+}

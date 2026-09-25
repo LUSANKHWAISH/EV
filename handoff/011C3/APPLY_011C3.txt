@@ -1,0 +1,109 @@
+E.V. TASK 011C.3 — APPLY INFORMATION SYSTEM REFINEMENT
+
+PROJECT:
+D:\EV
+
+FROZEN CORE GUARD:
+D:\EV\gui\qml\components\EVIntelligenceCore.qml
+Expected size: 39081
+Expected SHA-256:
+0a168c0a342b9580b2ce9599d715fe0b59dd9b4bcf3de1efb45aab280b7205bb
+
+CURRENT BASELINE GUARDS:
+
+EVFlagshipStage.qml
+size: 7644
+SHA-256:
+1f0d9b3637f7d0577520afe090881a4d2ee77ae51f47ff486f33ec2fe4df4695
+
+EVStatusIndicator.qml
+size: 1091
+SHA-256:
+fd268ab116af19c91273031b4a82d423b88ffbd193cdc68f628911b3cb447a36
+
+EVTelemetryRail.qml
+size: 3766
+SHA-256:
+81c1f59d3c013813e4147e746ad75a62e3be76e44592a0623615b0c69178cd03
+
+SUPPLIED REPLACEMENTS:
+
+D:\EV\handoff\011C3\EVFlagshipStage_011C3.qml
+size: 6851
+SHA-256:
+d475a398bc5571498af16f714379018ae0cf893dcaab8457b56477254e6d051c
+
+D:\EV\handoff\011C3\EVStatusIndicator_011C3.qml
+size: 2459
+SHA-256:
+0c7ff93f43de7be48902ed00bb5621ecf5bbce7142d27d85eef0e53a4bb67ef1
+
+D:\EV\handoff\011C3\EVTelemetryRail_011C3.qml
+size: 4410
+SHA-256:
+69978055e4f2a08181dee7588b0db218bc6b970ed8a1a4dc17592dfdf08d3a65
+
+STEP 1 — VERIFY FROZEN CORE
+Verify live EVIntelligenceCore.qml against the frozen core guard.
+If it differs: STOP. Modify nothing.
+
+STEP 2 — VERIFY CURRENT BASELINES
+Verify the 3 current target files against their baseline guards.
+If any differs: STOP. Modify nothing.
+
+STEP 3 — VERIFY SUPPLIED REPLACEMENTS
+Verify all 3 supplied files against the supplied size/hash values.
+If any differs: STOP. Modify nothing.
+
+STEP 4 — BACKUP
+Create exactly:
+D:\EV\gui\qml\components\EVFlagshipStage.qml.pre-011C3
+D:\EV\gui\qml\components\EVStatusIndicator.qml.pre-011C3
+D:\EV\gui\qml\components\EVTelemetryRail.qml.pre-011C3
+
+If ANY already exists: STOP. Do not overwrite.
+
+STEP 5 — EXACT COPY
+Copy byte-for-byte:
+
+EVFlagshipStage_011C3.qml
+-> D:\EV\gui\qml\components\EVFlagshipStage.qml
+
+EVStatusIndicator_011C3.qml
+-> D:\EV\gui\qml\components\EVStatusIndicator.qml
+
+EVTelemetryRail_011C3.qml
+-> D:\EV\gui\qml\components\EVTelemetryRail.qml
+
+DO NOT:
+- generate code
+- edit supplied QML
+- redesign
+- refactor other files
+- optimize
+- repair independently
+- touch EVIntelligenceCore.qml
+- touch EVWindow.qml
+- touch EVTopBar.qml
+- touch Theme.qml
+- touch qmldir
+- touch Python
+- touch tests
+- add/remove registered components
+- delete previous backups
+
+STEP 6 — VERIFY
+Recalculate all 3 target sizes/hashes and the frozen core size/hash.
+
+RETURN ONLY:
+1. frozen R11Q-D2.3 core verified before apply: YES/NO
+2. all 3 current baselines verified: YES/NO
+3. all 3 supplied replacements verified: YES/NO
+4. all 3 backups created: YES/NO
+5. EVFlagshipStage target size + SHA-256
+6. EVStatusIndicator target size + SHA-256
+7. EVTelemetryRail target size + SHA-256
+8. all 3 target hashes match supplied files: YES/NO
+9. frozen core unchanged after apply: YES/NO
+10. unrelated project files changed: YES/NO
+11. corruption detected or none

@@ -16,7 +16,12 @@ from PySide6.QtCore import QUrl, QTimer, qInstallMessageHandler, Qt
 from PySide6.QtGui import QGuiApplication, QImage
 from PySide6.QtQml import QQmlApplicationEngine, qmlRegisterType
 from PySide6.QtQuick import QQuickWindow
-from geometry import LabGeometry, ParticleInstances, OrbitalParticleInstances
+from geometry import (
+    LabGeometry,
+    ParticleInstances,
+    OrbitalParticleInstances,
+)
+from cosmic_geometry import CosmicDepthInstances
 from presentation import PresentationModel
 
 ROOT=Path(__file__).resolve().parent
@@ -48,6 +53,8 @@ def main():
     parser.add_argument('--view-yaw',type=float,default=0)
     parser.add_argument('--hide-aura',action='store_true')
     parser.add_argument('--depth-layer',type=int,default=0,choices=[0,1,2,3],help='Diagnostic depth layer: 0=all, 1=rear, 2=middle, 3=front')
+    parser.add_argument('--hide-cosmic',action='store_true')
+    parser.add_argument('--cosmic-theme',type=int,default=0,choices=[0,1,2],help='Cosmic depth theme: 0=cyan blue, 1=solar gold, 2=hybrid')
     args=parser.parse_args()
     if args.reference_dpi:
         os.environ['QT_ENABLE_HIGHDPI_SCALING']='0'
@@ -71,6 +78,13 @@ def main():
         1,
         0,
         'OrbitalParticleInstances',
+    )
+    qmlRegisterType(
+        CosmicDepthInstances,
+        'EVLab',
+        1,
+        0,
+        'CosmicDepthInstances',
     )
     lab=PresentationModel();lab.setQuality(args.quality);lab.setState(args.state)
     engine=QQmlApplicationEngine()
@@ -105,6 +119,12 @@ def main():
                 'depthLayerMode',
                 args.depth_layer,
             )
+    stage = window.findChild(QQuickItem, 'cinematicStage')
+    if stage:
+        if args.hide_cosmic:
+            stage.setProperty('cosmicDepthEnabled', False)
+        if args.cosmic_theme != 0:
+            stage.setProperty('cosmicTheme', args.cosmic_theme)
     from frame_pacing import FramePacer
     pacer=FramePacer(window.screen().refreshRate())
     pacer.quality=args.quality

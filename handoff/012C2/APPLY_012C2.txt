@@ -1,0 +1,21 @@
+1. Verify both live baselines:
+   - EVFlagshipStage.qml size 7644, SHA-256 b0b9e43b24c2b503a5df19e447c9afceb44f3a60e280f592f20427dce88ee86d
+   - test_gui_qml.py size 7901, SHA-256 0a0e8c321e439c8d0b400aef1fdbcdcfe3b081e7ab806eb0298f08e3a0bf1c69
+2. Verify both supplied replacements:
+   - EVFlagshipStage_012C2.qml size 7501, SHA-256 a9853fae0768607e1931ba7491e45b5dbd138834bad0217fe238b5fb34ff6557
+   - test_gui_qml_012C2.py size 7966, SHA-256 74457c9119a78b15fd4fcd3522f76559cb6528a82a3198814571f3478ea5d46a
+3. Verify core\agent.py and core\history.py remain at accepted 012C.1 hashes:
+   - core\agent.py: 9267 bytes, SHA-256 a4ac88a0abe6ec043e50929e17f4b55568a58c91a656751b68ce141974a38593
+   - core\history.py: 23093 bytes, SHA-256 238697d1aebe468f7bb3578dcbafaef5e9a3e0b691c8060ece31e8ebc9c09739
+4. Create backups:
+   D:\EV\gui\qml\components\EVFlagshipStage.qml.pre-012C2
+   D:\EV\tests\test_gui_qml.py.pre-012C2
+   Never overwrite an existing backup.
+5. Copy the two supplied replacements byte-for-byte:
+   copy D:\EV\handoff\012C2\EVFlagshipStage_012C2.qml D:\EV\gui\qml\components\EVFlagshipStage.qml
+   copy D:\EV\handoff\012C2\test_gui_qml_012C2.py D:\EV\tests\test_gui_qml.py
+6. Verify target hashes match the supplied replacement hashes.
+7. Verify qmldir unchanged (should still contain EVIntelligenceTaskRail line).
+8. Verify agent.py unchanged (hash matches).
+9. Verify history.py unchanged (hash matches).
+10. Verify no unrelated files changed (run git status and ensure only the two files show as modified).

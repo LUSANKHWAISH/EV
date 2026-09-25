@@ -16,6 +16,7 @@ Verifies:
 """
 
 import os
+from pathlib import Path
 import queue
 import threading
 import time
@@ -1033,7 +1034,22 @@ class TestSoundDeviceAudioCaptureProvider:
 class TestPrivacyInvariants:
     """Verifies that voice processing never writes raw audio to disk."""
 
-    def test_privacy_no_audio_files_created_on_disk(self, tmp_path):
+    def test_privacy_no_audio_files_created_on_disk(self, tmp_path, monkeypatch):
+        # Isolate user runtime directories to temporary test directory
+        runtime_dir = tmp_path / "runtime"
+        runtime_dir.mkdir(parents=True, exist_ok=True)
+        monkeypatch.setenv("EV_USER_DATA_DIR", str(runtime_dir))
+
+        # Snapshot pre-existing audio files in the workspace (e.g. bundled startup audio)
+        workspace_root = Path(__file__).resolve().parent.parent
+        pre_existing_audio = set()
+        for root, dirs, files in os.walk(str(workspace_root)):
+            if any(p in root for p in [".git", ".venv"]):
+                continue
+            for f in files:
+                if f.endswith((".wav", ".pcm")):
+                    pre_existing_audio.add(os.path.join(root, f))
+
         capture = MockAudioCaptureProvider()
         wake = MockWakeWordProvider()
         vad = ScriptedVADProvider()
@@ -1066,11 +1082,20 @@ class TestPrivacyInvariants:
         # Verify utterance frames were completely wiped from memory
         assert len(mgr._active_utterance_frames) == 0
 
-        # Verify no .wav, .pcm, or .tmp files were created in workspace
-        for root, dirs, files in os.walk(r"D:\EV"):
-            # Exclude tests and build artifacts
-            if any(p in root for p in [".git", ".venv", "models", "data", "gui"]):
+        # Verify no NEW .wav, .pcm files were created anywhere in workspace or runtime
+        leaked_files = []
+        for root, dirs, files in os.walk(str(workspace_root)):
+            if any(p in root for p in [".git", ".venv"]):
                 continue
             for f in files:
-                assert not f.endswith(".wav"), f"Found leaked WAV: {f}"
-                assert not f.endswith(".pcm"), f"Found leaked PCM: {f}"
+                if f.endswith((".wav", ".pcm")):
+                    full_p = os.path.join(root, f)
+                    if full_p not in pre_existing_audio:
+                        leaked_files.append(full_p)
+
+        for root, dirs, files in os.walk(str(runtime_dir)):
+            for f in files:
+                if f.endswith((".wav", ".pcm")):
+                    leaked_files.append(os.path.join(root, f))
+
+        assert not leaked_files, f"Voice operation leaked audio files on disk: {leaked_files}"

@@ -1,0 +1,53 @@
+E.V. TASK 011C — APPLY CHATGPT R11Q.2 EV CRYSTAL CORE
+
+PROJECT:
+D:\EV
+
+IMPORTANT:
+R11Q.2 is based on the R11Q direction the user liked.
+It is NOT based on the rejected R11Q.1 visual redesign.
+
+SOURCE:
+D:\EV\handoff\R11Q2\EVIntelligenceCore_R11Q2_EV_CRYSTAL.qml
+
+TARGET:
+D:\EV\gui\qml\components\EVIntelligenceCore.qml
+
+STEP 1 — BACKUP CURRENT LIVE CORE
+
+Create exactly:
+D:\EV\gui\qml\components\EVIntelligenceCore.qml.pre-R11Q2
+
+STEP 2 — EXACT COPY
+
+Copy SOURCE to TARGET byte-for-byte.
+
+DO NOT:
+- generate or invent code
+- edit the supplied QML
+- redesign
+- refactor
+- optimize
+- modify EVFlagshipStage.qml
+- modify EVWindow.qml
+- modify Theme.qml
+- modify Python files
+- modify tests
+- modify qmldir
+- modify GLB assets
+- delete any previous core backup
+
+R11Q.2 is QML-only.
+There are no new asset files.
+
+REPORT ONLY:
+1. backup created
+2. source size
+3. target size
+4. source SHA-256
+5. target SHA-256
+6. hashes match
+7. no unrelated files changed
+8. any corruption detected
+
+Do not claim Windows tests pass unless the user separately runs them.

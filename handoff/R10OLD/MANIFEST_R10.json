@@ -1,0 +1,132 @@
+{
+  "EVIntelligenceCore_R10.qml": {
+    "bytes": 20772,
+    "sha256": "6ae837a86a9d80a2098b65d7a419fb89f3ab83df3e315a8ada7bda626d2935d7"
+  },
+  "assets/ev_core_r10_a.glb": {
+    "bytes": 5384,
+    "sha256": "5d7628e58772b296a1af8eb257a3df9056a341166184b4a0bd60e3627d8a5543",
+    "geometry_count": 2,
+    "bounds": [
+      [
+        -160.0,
+        22.0,
+        -22.009
+      ],
+      [
+        -31.0,
+        121.0,
+        10.0
+      ]
+    ],
+    "all_geometry_watertight": true
+  },
+  "assets/ev_core_r10_b.glb": {
+    "bytes": 4736,
+    "sha256": "fae861b90dc21610c856f5bd994c7478bf846e10656342a11ce3b11b0913b793",
+    "geometry_count": 2,
+    "bounds": [
+      [
+        37.0,
+        14.0,
+        -11.617
+      ],
+      [
+        158.0,
+        121.0,
+        21.897
+      ]
+    ],
+    "all_geometry_watertight": true
+  },
+  "assets/ev_core_r10_c.glb": {
+    "bytes": 5960,
+    "sha256": "e507abf9051639f6330032d097484c0c4d555cb4cb80bd918e8d7cc1d66b6a3c",
+    "geometry_count": 2,
+    "bounds": [
+      [
+        -151.0,
+        -116.0,
+        -15.579
+      ],
+      [
+        -31.0,
+        32.0,
+        16.0
+      ]
+    ],
+    "all_geometry_watertight": true
+  },
+  "assets/ev_core_r10_d.glb": {
+    "bytes": 5168,
+    "sha256": "b3d2991f7cbd8186abb03e89aaa37f7c96c0baea06ce953be4c243c8d6961be2",
+    "geometry_count": 1,
+    "bounds": [
+      [
+        42.0,
+        -113.0,
+        -6.025
+      ],
+      [
+        160.0,
+        33.0,
+        26.787
+      ]
+    ],
+    "all_geometry_watertight": true
+  },
+  "assets/ev_core_r10_e.glb": {
+    "bytes": 3436,
+    "sha256": "23171da8a4c9fe15fe582f5a1005fec2b69224beca7e4315e25c633c7ca88714",
+    "geometry_count": 2,
+    "bounds": [
+      [
+        -129.0,
+        57.0,
+        13.291
+      ],
+      [
+        -48.0,
+        102.0,
+        27.0
+      ]
+    ],
+    "all_geometry_watertight": true
+  },
+  "assets/ev_core_r10_f.glb": {
+    "bytes": 2360,
+    "sha256": "cc6dc8c9d6c32554116585d85a8fbded33c88602ae78ca70dc9d49baf4a9b616",
+    "geometry_count": 1,
+    "bounds": [
+      [
+        65.0,
+        -89.0,
+        21.914
+      ],
+      [
+        136.0,
+        -18.0,
+        37.121
+      ]
+    ],
+    "all_geometry_watertight": true
+  },
+  "assets/ev_core_r10_shard.glb": {
+    "bytes": 1152,
+    "sha256": "837779d2666ddbae11bfc51411a66b9e3d9127cfb15588b88ceb0c3d12ffb287",
+    "geometry_count": 1,
+    "bounds": [
+      [
+        -12.0,
+        -17.0,
+        -6.0
+      ],
+      [
+        11.0,
+        18.0,
+        24.0
+      ]
+    ],
+    "all_geometry_watertight": true
+  }
+}

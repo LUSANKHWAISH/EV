@@ -1,0 +1,22 @@
+E.V. R11C FLAGSHIP REACTOR BUILD REPORT
+=====================================
+
+Blender: 5.2.0 LTS
+Evaluated triangles: 61132
+Live E.V. GUI modified: NO
+Major design: 3 interlocking sculpted masses, deep chamber, 4 power spines.
+
+Renders:
+- D:\EV\handoff\R11C_FORGE\output\renders\R11C_FRONT.png
+- D:\EV\handoff\R11C_FORGE\output\renders\R11C_PRIMARY_3Q.png
+- D:\EV\handoff\R11C_FORGE\output\renders\R11C_OPPOSITE_3Q.png
+- D:\EV\handoff\R11C_FORGE\output\renders\R11C_SIDE_DEPTH.png
+- D:\EV\handoff\R11C_FORGE\output\renders\R11C_DARK_ENERGY.png
+
+Assets:
+- D:\EV\handoff\R11C_FORGE\output\assets\ev_core_r11c_shell.glb (209764 bytes)
+- D:\EV\handoff\R11C_FORGE\output\assets\ev_core_r11c_stator.glb (169472 bytes)
+- D:\EV\handoff\R11C_FORGE\output\assets\ev_core_r11c_chamber.glb (356016 bytes)
+- D:\EV\handoff\R11C_FORGE\output\assets\ev_core_r11c_iris.glb (157776 bytes)
+- D:\EV\handoff\R11C_FORGE\output\assets\ev_core_r11c_energy.glb (257840 bytes)
+- D:\EV\handoff\R11C_FORGE\output\assets\ev_core_r11c_detail.glb (308844 bytes)

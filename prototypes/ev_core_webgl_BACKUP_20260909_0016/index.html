@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>E.V. Intelligence Core Prototype</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Load Three.js locally -->
+    <script src="three.min.js"></script>
+</head>
+<body>
+    <div id="canvas-container"></div>
+    <div id="debug-overlay">
+        <div class="state-label" id="current-state-label">STATE: IDLE</div>
+        <div class="controls-hint">
+            1:IDLE 2:LISTENING 3:THINKING 4:PLANNING 5:APPROVAL 
+            <br>6:EXECUTING 7:VERIFYING 8:SPEAKING 9:SUCCESS 0:FAILED S:SLEEP
+        </div>
+        <div class="interaction-hint">
+            DRAG: Free 3D Orbit &bull; HOVER: Particle Displacement &bull; DBL-CLICK: Reset View
+        </div>
+    </div>
+    
+    <div id="mic-panel">
+        <button id="mic-toggle-btn" class="mic-button" type="button">
+            <span class="mic-icon">🎙</span>
+            <span id="mic-btn-label">ENABLE MIC</span>
+        </button>
+        <div id="mic-vu-meter" class="vu-container">
+            <div id="mic-vu-bar" class="vu-bar"></div>
+        </div>
+        <div id="mic-status-note" class="mic-note">Voice reactivity: Standby</div>
+    </div>
+    
+    <script src="main.js"></script>
+</body>
+</html>

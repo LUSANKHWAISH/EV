@@ -1,0 +1,104 @@
+ISOLATION RESULT: Core Layer Analysis for Rectangular Silhouette
+=================================================================
+
+ANALYZED BY: Visual Convergence Task
+DATE: 2026-09-21
+
+LAYER BREAKDOWN:
+----------------
+
+1. CORE ASSEMBLY (shell_0, shell_1, shell_2)
+   - Rotation: [6,-31,48]/[9,47,-23]/[-6,19,31] + orbitTime[1.2,-1.8,.7]
+   - Coverage: 2.40/1.05/.85
+   - Gain: energy*1.55
+   - Texture: circuit.png
+   - Shape: Spherical patches
+
+2. CIRCUIT ROUTES
+   - Rotation: (-3, orbitTime*0.85, 9)
+   - Coverage: 0.95
+   - Gain: energy*2.0
+
+3. NEURAL PATHS (energyPaths)
+   - Rotation: (8, orbitTime*0.65, -8)
+   - Coverage: 1.1
+   - Gain: energy*2.0
+
+4. GOLD DISCHARGES
+   - Rotation: (0, orbitTime*0.65, 0)
+   - Coverage: 1.45
+   - Gain: energy*2.4
+
+5. PERIPHERAL SCHEMATICS
+   - Rotation: (3, 8+orbitTime*0.45, -7)
+   - Coverage: 1.15
+   - Gain: energy*1.75
+
+6. PLATES
+   - Rotation: (-8, orbitTime*0.6, 8)
+   - Coverage: 1.05
+   - Gain: energy*1.15
+   - Texture: circuit.png
+   - Shape: Planar elements
+
+7. ORBITAL BANDS (flow_band_outer, flow_band_mid)
+   - Rotation: motion.arcRotation(index)
+   - Coverage: 1.75/1.60/1.55
+   - Gain: energy*1.9
+   - Shape: Curved bands
+
+8. INNER HUB (coreFilaments)
+   - Rotation: motion.hubRotation (constant rotation)
+   - Coverage: 1.65
+   - Gain: energy*1.8
+   - Shape: Radial filaments
+
+9. STREAMS
+   - Rotation: (18+sin(orbitTime*0.3)*8, 13, orbitTime*8-19)
+   - Coverage: 0.64
+   - Gain: energy*1.6
+   - Shape: Volumetric streams
+
+10. INNER ENERGY FILAMENTS
+    - Rotation: (5, -10+sin(orbitTime*0.27)*10, -orbitTime*5)
+    - Coverage: 1.8
+    - Gain: energy*2.3
+
+RECTANGULAR SILHOUETTE DIAGNOSIS:
+----------------------------------
+Based on layer analysis:
+
+The rectangular silhouette is NOT caused by any individual layer.
+The core geometry (shell patches, circuit_routes, neural_paths) is spherical.
+
+The rectangle visible in renders comes from:
+- The "#Rectangle" primitive in launch_trail (deployment phase)
+- The peripheral_schematics geometry (designed as planar UI elements)
+- The plates geometry (planar elements covering back/sides)
+
+ALL CORE ELEMENTS ARE ROUND WHEN VIEWED HEAD-ON.
+
+The rectangular appearance at yaw angles -15/0/+15 is caused by:
+1. Perspective projection at FOV 27.5
+2. The peripheral_schematics planar geometry
+3. The plates planar geometry
+
+PROTECTED ITEMS (UNCHANGED):
+-----------------------------
+- coreAssembly rotation: scene.t*.65 ✓
+- camera position: 382/Math.min(scene.zoom,1.10) ✓
+- FOV: 27.5 ✓
+- surface shaders: unchanged ✓
+- HoloMaterial: unchanged ✓
+- particle counts: 1024/3072 internal, 520/1400 orbital ✓
+
+CONCLUSION:
+-----------
+The core is geometrically spherical. The rectangular silhouette is a
+perspective effect from planar peripheral elements. No mask, guide
+sphere, replacement sphere, or post-processing effect is needed.
+
+Baseline captures completed at:
+- t0, t20, t40 (frozen orbit)
+- yaw -15, 0, +15 (at t0)
+- Isolation: core-only (aura hidden)

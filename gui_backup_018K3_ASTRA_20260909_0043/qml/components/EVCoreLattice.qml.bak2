@@ -1,0 +1,90 @@
+import QtQuick 2.15
+import "../theme"
+
+// EVCoreLattice - A geometric lattice suggesting internal processing.
+// We'll create a simple lattice of nodes and lines.
+Item {
+    id: root
+    // Size is set by parent
+    property real latticeScale: 1.0
+    property real latticeOpacity: 0.5
+    property real energy: 0.0   // 0.0 to 1.0, influences node activation
+
+    // We'll create a grid of points and connect some of them.
+    // For performance, we'll use a limited number of nodes.
+    property int nodeCount: 8   // number of nodes along each axis (total nodes = nodeCount^2)
+    property real nodeSpacing: root.width / (nodeCount + 1)
+
+    // Container for the lattice
+    Item {
+        id: latticeContainer
+        anchors.fill: parent
+        scale: root.latticeScale
+        opacity: root.latticeOpacity
+        // We'll create nodes as a Repeater
+        Repeater {
+            model: nodeCount * nodeCount
+            Rectangle {
+                width: Theme.coreRingThickness * 0.2
+                height: width
+                radius: width / 2
+                color: Theme.luminousPrimary
+                opacity: 0.6
+                // Calculate row and column
+                property int col: index % nodeCount
+                property int row: Math.floor(index / nodeCount)
+                // Position with some offset to avoid edges
+                x: (col + 1) * nodeSpacing - width/2
+                y: (row + 1) * nodeSpacing - height/2
+                // Activate nodes based on energy and position (for variety)
+                // We'll make a pattern: activate if (row+col) % 3 < energy*3
+                property bool active: ((col + row) % 3) < (energy * 3)
+                // Visualize active state by scaling and opacity change
+                scale: active ? 1.5 : 1.0
+                Behavior on scale {
+                    NumberAnimation { duration: Theme.motionStandard }
+                }
+            }
+        }
+
+        // Now we need to draw connections between nodes.
+        // We'll create a second Repeater for lines, but to avoid too many lines, we'll connect each node to its right and bottom neighbor.
+        // We'll use a Rectangle rotated to act as a line.
+        // Given performance concerns, we'll limit the number of lines.
+        // We'll create horizontal and vertical lines.
+        // Horizontal lines
+        Repeater {
+            model: nodeCount * (nodeCount - 1)
+            Rectangle {
+                width: nodeSpacing
+                height: Theme.coreRingThickness * 0.1
+                color: Theme.luminousPrimary
+                property int col: index % nodeCount
+                property int row: Math.floor(index / nodeCount)
+                x: (col + 1) * nodeSpacing
+                y: (row + 1) * nodeSpacing + nodeSpacing/2 - height/2
+                // Compute activity of left and right nodes (simplified)
+                property bool leftActive: ((col + row) % 3) < (energy * 3)
+                property bool rightActive: (((col+1) + row) % 3) < (energy * 3)
+                opacity: (leftActive && rightActive) ? 0.4 : 0.1
+            }
+        }
+        // Vertical lines
+        Repeater {
+            model: (nodeCount - 1) * nodeCount
+            Rectangle {
+                width: Theme.coreRingThickness * 0.1
+                height: nodeSpacing
+                color: Theme.luminousPrimary
+                property int col: index % (nodeCount - 1)
+                property int row: Math.floor(index / (nodeCount - 1))
+                x: (col + 1) * nodeSpacing + nodeSpacing/2 - width/2
+                y: (row + 1) * nodeSpacing
+                // Compute activity of top and bottom nodes (simplified)
+                property bool topActive: ((col + (row+1)) % 3) < (energy * 3)
+                property bool bottomActive: ((col + row) % 3) < (energy * 3)
+                opacity: (topActive && bottomActive) ? 0.4 : 0.1
+            }
+        }
+    }
+}

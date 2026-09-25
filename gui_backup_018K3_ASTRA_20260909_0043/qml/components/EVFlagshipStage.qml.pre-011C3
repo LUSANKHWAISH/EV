@@ -1,0 +1,315 @@
+import QtQuick 2.15
+import "../theme"
+
+// E.V. flagship workspace.
+//
+// The intelligence core owns the visual hierarchy. Persistent duplicate
+// telemetry is intentionally absent from the primary composition.
+Item {
+    id: root
+
+    width: 1280
+    height: 720
+
+    property string visualMode: "STANDARD"
+    property string themeProfile: "EV_CORE"
+    property var state: null
+
+    property string stateText:
+        state === null ||
+        state === undefined ||
+        String(state).length === 0
+        ? "IDLE"
+        : String(state)
+
+    property string stateDescription:
+        typeof guiBridge !== "undefined" &&
+        guiBridge !== null
+        ? guiBridge.getStateDescription(root.stateText)
+        : ""
+
+    property color stateTone: Theme.stateColor(root.stateText)
+    property real stateEnergy: Theme.stateEnergy(root.stateText)
+
+    property bool compact: width < 900 || height < 620
+
+    // ============================================================
+    // SPATIAL FOUNDATION
+    // ============================================================
+
+    Rectangle {
+        anchors.fill: parent
+        color: Theme.backgroundDeep
+    }
+
+    // Radial environmental luminance.
+    //
+    // This replaces the previous large rounded rectangle so the central
+    // atmosphere no longer reads as a visible pill/card behind E.V.
+    Canvas {
+        id: ambientField
+
+        anchors.fill: parent
+
+        function rgba(colorValue, alphaValue) {
+            return "rgba("
+                + Math.round(colorValue.r * 255) + ","
+                + Math.round(colorValue.g * 255) + ","
+                + Math.round(colorValue.b * 255) + ","
+                + alphaValue + ")"
+        }
+
+        onPaint: {
+            var ctx = getContext("2d")
+
+            ctx.reset()
+            ctx.clearRect(0, 0, width, height)
+
+            var cx = width * 0.5
+            var cy = height * 0.47
+            var radius = Math.min(width, height) * 0.56
+
+            var gradient = ctx.createRadialGradient(
+                cx,
+                cy,
+                0,
+                cx,
+                cy,
+                radius
+            )
+
+            gradient.addColorStop(
+                0.0,
+                rgba(
+                    root.stateTone,
+                    0.075 + root.stateEnergy * 0.035
+                )
+            )
+
+            gradient.addColorStop(
+                0.32,
+                rgba(
+                    root.stateTone,
+                    0.030 + root.stateEnergy * 0.016
+                )
+            )
+
+            gradient.addColorStop(
+                0.68,
+                rgba(
+                    root.stateTone,
+                    0.006
+                )
+            )
+
+            gradient.addColorStop(
+                1.0,
+                rgba(
+                    root.stateTone,
+                    0.0
+                )
+            )
+
+            ctx.fillStyle = gradient
+            ctx.fillRect(0, 0, width, height)
+        }
+
+        onWidthChanged: requestPaint()
+        onHeightChanged: requestPaint()
+
+        Connections {
+            target: root
+
+            function onStateToneChanged() {
+                ambientField.requestPaint()
+            }
+
+            function onStateEnergyChanged() {
+                ambientField.requestPaint()
+            }
+        }
+    }
+
+    // ============================================================
+    // PRIMARY INTELLIGENCE PRESENCE
+    // ============================================================
+
+    EVIntelligenceCore {
+        id: intelligenceCore
+
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.verticalCenter: parent.verticalCenter
+
+        anchors.verticalCenterOffset:
+            root.compact
+            ? -Theme.spacingXXS
+            : -Theme.spacingXS
+
+        width:
+            root.compact
+            ? parent.width * 0.90
+            : parent.width * 0.86
+
+        height:
+            root.compact
+            ? parent.height * 0.74
+            : parent.height * 0.80
+
+        scale: 1.0
+
+        visualMode: root.visualMode
+        themeProfile: root.themeProfile
+        state: root.state
+
+        Behavior on scale {
+            NumberAnimation {
+                duration: Theme.motionDeliberate
+                easing.type: Theme.easingDeliberate
+            }
+        }
+    }
+
+    // ============================================================
+    // ACTIVE STATE CONTEXT
+    // ============================================================
+
+    Column {
+        id: stateContext
+
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.bottom: parent.bottom
+
+        anchors.bottomMargin:
+            root.compact
+            ? Theme.spacingXS
+            : Theme.spacingL
+
+        spacing: Theme.spacingXXXS
+
+        width: Math.min(parent.width * 0.72, 620)
+
+        Text {
+            anchors.horizontalCenter: parent.horizontalCenter
+
+            text: root.stateText
+
+            color: root.stateTone
+
+            font.pointSize:
+                root.compact
+                ? Theme.fontSizeLabel
+                : Theme.fontSizeBody
+
+            font.weight: Theme.fontWeightSemibold
+
+            horizontalAlignment: Text.AlignHCenter
+
+            Behavior on color {
+                ColorAnimation {
+                    duration: Theme.motionStandard
+                }
+            }
+        }
+
+        Text {
+            visible: !root.compact
+
+            width: parent.width
+
+            text: root.stateDescription
+
+            color: Theme.textSecondary
+
+            font.pointSize: Theme.fontSizeLabel
+
+            horizontalAlignment: Text.AlignHCenter
+
+            elide: Text.ElideRight
+        }
+    }
+
+    // ============================================================
+    // MINIMAL SYSTEM CONTEXT
+    // ============================================================
+
+    Row {
+        id: systemContext
+
+        anchors.left: parent.left
+        anchors.bottom: parent.bottom
+
+        anchors.leftMargin: Theme.spacingSM
+        anchors.bottomMargin: Theme.spacingSM
+
+        spacing: Theme.spacingXXS
+
+        opacity: 0.62
+
+        Rectangle {
+            anchors.verticalCenter: parent.verticalCenter
+
+            width: Math.max(6, Theme.spacingXXXS)
+            height: width
+            radius: width / 2
+
+            color: root.stateTone
+            opacity: 0.85
+
+            Behavior on color {
+                ColorAnimation {
+                    duration: Theme.motionStandard
+                }
+            }
+        }
+
+        Text {
+            text: "SYSTEM READY"
+
+            color: Theme.textTertiary
+
+            font.pointSize: Theme.fontSizeLabelSmall
+            font.weight: Theme.fontWeightMedium
+        }
+    }
+
+    Row {
+        id: profileContext
+
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+
+        anchors.rightMargin: Theme.spacingSM
+        anchors.bottomMargin: Theme.spacingSM
+
+        spacing: Theme.spacingXXS
+
+        opacity: root.compact ? 0.48 : 0.62
+
+        Text {
+            text: root.visualMode
+
+            color: Theme.textTertiary
+
+            font.pointSize: Theme.fontSizeLabelSmall
+            font.weight: Theme.fontWeightMedium
+        }
+
+        Rectangle {
+            anchors.verticalCenter: parent.verticalCenter
+
+            width: 1
+            height: Theme.spacingXS
+
+            color: Theme.edgeSubtle
+        }
+
+        Text {
+            text: root.themeProfile.replace("_", " ")
+
+            color: Theme.textTertiary
+
+            font.pointSize: Theme.fontSizeLabelSmall
+            font.weight: Theme.fontWeightMedium
+        }
+    }
+}

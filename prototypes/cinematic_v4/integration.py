@@ -3,7 +3,12 @@ from pathlib import Path
 from datetime import datetime
 from PySide6.QtCore import QObject,Property,Signal,Slot,Qt
 from PySide6.QtQml import qmlRegisterType
-from .geometry import LabGeometry, ParticleInstances, OrbitalParticleInstances
+from .geometry import (
+    LabGeometry,
+    ParticleInstances,
+    OrbitalParticleInstances,
+)
+from .cosmic_geometry import CosmicDepthInstances
 from .presentation import PresentationModel
 from .frame_pacing import FramePacer
 from .startup_audio import StartupAudio
@@ -138,6 +143,13 @@ def configure_cinematic(engine,bridge):
         1,
         0,
         'OrbitalParticleInstances',
+    )
+    qmlRegisterType(
+        CosmicDepthInstances,
+        'EVLab',
+        1,
+        0,
+        'CosmicDepthInstances',
     )
     model=BridgePresentationModel(bridge)
     engine._cinematic_model=model

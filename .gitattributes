@@ -1,0 +1,2 @@
+# Ensure geometry.py preserves LF line endings so SHA-256 integrity hash contract is deterministic across OS platforms
+prototypes/cinematic_v4/geometry.py text eol=lf

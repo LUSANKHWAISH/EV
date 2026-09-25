@@ -1,0 +1,50 @@
+E.V. TASK 011C — APPLY CHATGPT R11Q QML LIVING CORE
+
+PROJECT:
+D:\EV
+
+ChatGPT has already written the complete replacement QML.
+
+SOURCE:
+D:\EV\handoff\R11Q\EVIntelligenceCore_R11Q_LIVING_CORE.qml
+
+TARGET:
+D:\EV\gui\qml\components\EVIntelligenceCore.qml
+
+STEP 1 — BACKUP CURRENT CORE
+
+Create:
+D:\EV\gui\qml\components\EVIntelligenceCore.qml.pre-R11Q
+
+STEP 2 — EXACT COPY
+
+Copy the source file above to the target path exactly.
+
+DO NOT:
+- generate code
+- redesign
+- refactor
+- alter EVFlagshipStage.qml
+- alter Theme.qml
+- alter EVWindow.qml
+- alter Python files
+- alter tests
+- alter qmldir
+- alter GLB assets
+- modify any other project file
+
+IMPORTANT:
+R11Q is intentionally QML-only and requires no new GLB assets.
+
+REPORT ONLY:
+1. backup created
+2. QML copied
+3. source size
+4. target size
+5. source SHA-256
+6. target SHA-256
+7. hashes match
+8. confirmation no other project files changed
+9. any copy corruption detected
+
+Do not claim Windows tests pass.

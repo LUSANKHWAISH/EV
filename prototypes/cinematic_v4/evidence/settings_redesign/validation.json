@@ -1,5 +1,5 @@
 {
-  "passed": true,
+  "passed": false,
   "checks": [
     {
       "name": "modal_uses_cinematic_style",
@@ -145,7 +145,7 @@
     },
     {
       "name": "close_restores_main_interface",
-      "passed": true,
+      "passed": false,
       "detail": null
     },
     {

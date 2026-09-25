@@ -1,0 +1,84 @@
+{
+  "task": "011C.4 Design Tokens / Visual Consistency",
+  "frozen_core": {
+    "bytes": 39081,
+    "sha256": "0a168c0a342b9580b2ce9599d715fe0b59dd9b4bcf3de1efb45aab280b7205bb"
+  },
+  "live_inspection_zip": {
+    "bytes": 14126,
+    "sha256": "86efb015fc91b6d7dd5187359e837861cdc5b339c9f31cf8c5dfe9bf769b7fe8"
+  },
+  "baseline_files": {
+    "Theme.qml": {
+      "bytes": 10069,
+      "sha256": "61a9935297346bc52297d0f2869fda927f2ba23d890ffd30e7072b075afc02cb"
+    },
+    "EVWindow.qml": {
+      "bytes": 5717,
+      "sha256": "883a73a4225dde3227ad53a3056ebef96c0247bab575fa9aa504fd5fb8dd6bae"
+    },
+    "EVTopBar.qml": {
+      "bytes": 8773,
+      "sha256": "b2353a957b7958da3303ea844053fbad24997b104b259248eac6ea6135e3162d"
+    },
+    "EVFlagshipStage.qml": {
+      "bytes": 6851,
+      "sha256": "d475a398bc5571498af16f714379018ae0cf893dcaab8457b56477254e6d051c"
+    },
+    "EVStatusIndicator.qml": {
+      "bytes": 2459,
+      "sha256": "0c7ff93f43de7be48902ed00bb5621ecf5bbce7142d27d85eef0e53a4bb67ef1"
+    },
+    "EVTelemetryRail.qml": {
+      "bytes": 4410,
+      "sha256": "69978055e4f2a08181dee7588b0db218bc6b970ed8a1a4dc17592dfdf08d3a65"
+    }
+  },
+  "replacement_files": {
+    "Theme_011C4.qml": {
+      "target": "Theme.qml",
+      "bytes": 10940,
+      "sha256": "46feca5b83bc9a11b9c123d1020d9a54564f8f75b97d03570c5ef31f1f750c83"
+    },
+    "EVWindow_011C4.qml": {
+      "target": "EVWindow.qml",
+      "bytes": 6110,
+      "sha256": "95469de2c7fad3fc9d0bf5bf478f1686edfa9eecaa03b3d9e37aac16b0c69aac"
+    },
+    "EVTopBar_011C4.qml": {
+      "target": "EVTopBar.qml",
+      "bytes": 8827,
+      "sha256": "8cec7dff4d7f83230abbf510339f1759a22ed1eaae4d34e13c785519a2cafe76"
+    },
+    "EVFlagshipStage_011C4.qml": {
+      "target": "EVFlagshipStage.qml",
+      "bytes": 6981,
+      "sha256": "cdaf5b838a7ea26ce0faab256a0bee3345f6d144a53d76ce97f1cef8381dd793"
+    },
+    "EVStatusIndicator_011C4.qml": {
+      "target": "EVStatusIndicator.qml",
+      "bytes": 2474,
+      "sha256": "a4dab76df9678812da00fe14c294dde9c13491a3d9aebab442a74bb8a4c78b74"
+    },
+    "EVTelemetryRail_011C4.qml": {
+      "target": "EVTelemetryRail.qml",
+      "bytes": 4468,
+      "sha256": "f388219fc46af99d58988f9f4b5fbf9cde45266307dc60bd75940aa23c13192f"
+    }
+  },
+  "files_changed": [
+    "Theme.qml",
+    "EVWindow.qml",
+    "EVTopBar.qml",
+    "EVFlagshipStage.qml",
+    "EVStatusIndicator.qml",
+    "EVTelemetryRail.qml"
+  ],
+  "files_intentionally_unchanged": [
+    "EVIntelligenceCore.qml",
+    "EVCoreLattice.qml",
+    "EVCoreRing.qml",
+    "Main.qml",
+    "qmldir"
+  ]
+}

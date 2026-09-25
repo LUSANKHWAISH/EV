@@ -1,0 +1,118 @@
+E.V. TASK 012B.2 — APPLY WINDOWS TEST SQLITE CLOSE FIX
+
+PROJECT:
+D:\EV
+
+THIS IS A TEST-ONLY EXACT-COPY REPAIR.
+
+DO NOT generate, edit, redesign, refactor, optimize, or repair independently.
+
+============================================================
+1 — VERIFY CURRENT TEST BASELINE
+============================================================
+
+D:\EV\tests\test_history.py
+
+Expected size:
+10976 bytes
+
+Expected SHA-256:
+e5a043dfc39f0c1406d409b7d8674ba988fd016d103e2a40ee3b925fbeeb6ac3
+
+If either differs:
+STOP.
+Modify nothing.
+
+============================================================
+2 — VERIFY SUPPLIED TEST REPAIR
+============================================================
+
+D:\EV\handoff\012B2\test_history_012B2.py
+
+Expected size:
+11016 bytes
+
+Expected SHA-256:
+fac7f4cc87c2ce1e7f89a3c2e7df7271f10d907acd9730cb9e0bb945771de4df
+
+If either differs:
+STOP.
+Modify nothing.
+
+============================================================
+3 — VERIFY PRODUCTION 012B.1 HISTORY REMAINS
+============================================================
+
+D:\EV\core\history.py
+
+Expected size:
+23093 bytes
+
+Expected SHA-256:
+238697d1aebe468f7bb3578dcbafaef5e9a3e0b691c8060ece31e8ebc9c09739
+
+If either differs:
+STOP.
+Modify nothing.
+
+============================================================
+4 — BACKUP
+============================================================
+
+Create exactly:
+
+D:\EV\tests\test_history.py.pre-012B2
+
+If this exact backup already exists:
+STOP.
+Do not overwrite it.
+
+============================================================
+5 — EXACT BYTE-FOR-BYTE COPY
+============================================================
+
+Copy:
+
+D:\EV\handoff\012B2\test_history_012B2.py
+
+to:
+
+D:\EV\tests\test_history.py
+
+byte-for-byte.
+
+DO NOT TOUCH:
+- core\history.py
+- core\models.py
+- .gitignore
+- core\agent.py
+- core\verifier.py
+- core\backup.py
+- core\risk.py
+- core\events.py
+- config\settings.py
+- requirements.txt
+- GUI/QML
+- any other test
+- previous backups
+
+============================================================
+6 — POST-COPY VERIFY
+============================================================
+
+Verify tests\test_history.py size/hash matches supplied repair.
+Reverify core\history.py remains exactly the accepted 012B.1 file.
+
+RETURN ONLY:
+
+1. current test_history.py baseline verified: YES/NO
+2. supplied 012B.2 test repair verified: YES/NO
+3. production 012B.1 history.py verified: YES/NO
+4. backup created: YES/NO
+5. test_history.py target size
+6. test_history.py target SHA-256
+7. target hash matches supplied repair: YES/NO
+8. production history.py unchanged: YES/NO
+9. unrelated project files changed: YES/NO
+10. GUI/QML files touched: YES/NO
+11. corruption detected or none

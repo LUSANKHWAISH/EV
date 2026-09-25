@@ -1,0 +1,49 @@
+E.V. TASK 011C — APPLY CHATGPT R11Q.1 TRUE DEPTH ENGINE
+
+PROJECT:
+D:\EV
+
+SOURCE:
+D:\EV\handoff\R11Q1\EVIntelligenceCore_R11Q1_TRUE_DEPTH.qml
+
+TARGET:
+D:\EV\gui\qml\components\EVIntelligenceCore.qml
+
+PURPOSE:
+Replace R11Q only. R11Q.1 fixes the missing 3D depth seen in the runtime video.
+
+STEP 1 — BACKUP CURRENT R11Q
+
+Create exactly:
+D:\EV\gui\qml\components\EVIntelligenceCore.qml.pre-R11Q1
+
+STEP 2 — EXACT COPY
+
+Copy SOURCE to TARGET byte-for-byte.
+
+DO NOT:
+- generate code
+- edit the supplied QML
+- redesign
+- refactor
+- optimize
+- touch EVFlagshipStage.qml
+- touch EVWindow.qml
+- touch Theme.qml
+- touch Python files
+- touch tests
+- touch qmldir
+- touch any GLB
+- delete the existing pre-R11Q backup
+
+REPORT ONLY:
+1. backup created
+2. source size
+3. target size
+4. source SHA-256
+5. target SHA-256
+6. hashes match
+7. no other project files changed
+8. any corruption detected
+
+Do not run or claim Windows tests unless the user separately asks the agent to do so.

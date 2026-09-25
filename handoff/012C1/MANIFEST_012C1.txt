@@ -1,0 +1,5 @@
+Package: E.V. TASK 012C.1
+Source baseline: current live files inspected.
+Replacement files: agent_012C1.py, test_agent_012C1.py
+Permitted targets: core/agent.py, tests/test_agent.py
+No live files modified during preparation.

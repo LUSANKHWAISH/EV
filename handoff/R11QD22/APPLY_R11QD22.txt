@@ -1,0 +1,113 @@
+E.V. TASK 011C — APPLY R11Q-D2.2 ORBITAL TRACERS + SATELLITE NODES
+
+PROJECT:
+D:\EV
+
+BASELINE:
+R11Q-D2 is the approved safe orb checkpoint.
+
+THIS REVISION:
+Adds ONLY the orbital motion layer:
+- 6 larger true-3D satellite nodes
+- 3 faint rear orbital paths
+- 3 short moving foreground tracer arcs
+- state-aware orbit speed / opacity
+
+SOURCE:
+D:\EV\handoff\R11QD22\EVIntelligenceCore_R11QD22_ORBITAL_TRACERS.qml
+
+TARGET:
+D:\EV\gui\qml\components\EVIntelligenceCore.qml
+
+EXPECTED SOURCE SHA-256:
+f01f304468df9df18918fa3910004d0b395c54ff563cc813addb6bc1e13e9b04
+
+EXPECTED SOURCE SIZE:
+39073 bytes
+
+
+STEP 1 — VERIFY CURRENT LIVE BASELINE
+
+Before modifying anything, calculate SHA-256 and byte size of:
+
+D:\EV\gui\qml\components\EVIntelligenceCore.qml
+
+The current live core is expected to be the restored R11Q-D2 baseline:
+
+Size:
+28958 bytes
+
+SHA-256:
+d1efd95f239dfb5bbb72710238db226923ee452e36b885ec4af92b5be1dc7c2d
+
+If the live target does NOT match this exact baseline:
+STOP.
+Do not modify anything.
+Report the mismatch.
+
+
+STEP 2 — VERIFY SUPPLIED R11Q-D2.2 SOURCE
+
+Calculate byte size and SHA-256 of:
+
+D:\EV\handoff\R11QD22\EVIntelligenceCore_R11QD22_ORBITAL_TRACERS.qml
+
+It MUST match the expected size/hash written above.
+
+If either differs:
+STOP.
+Do not modify anything.
+
+
+STEP 3 — BACKUP R11Q-D2
+
+Create exactly:
+
+D:\EV\gui\qml\components\EVIntelligenceCore.qml.pre-R11QD22
+
+If this backup already exists:
+STOP.
+Do not overwrite it.
+
+
+STEP 4 — EXACT COPY
+
+Copy SOURCE to TARGET byte-for-byte.
+
+DO NOT:
+- generate code
+- edit supplied QML
+- redesign R11Q-D2
+- refactor
+- optimize
+- repair independently
+- change camera
+- change core geometry
+- change existing particle system
+- add more orbit nodes
+- change EVFlagshipStage.qml
+- change EVWindow.qml
+- change Theme.qml
+- change Python
+- change tests
+- change qmldir
+- add GLB/Blender assets
+- delete any older backups
+
+
+STEP 5 — VERIFY TARGET
+
+Recalculate target byte size and SHA-256.
+
+Return ONLY:
+
+1. live R11Q-D2 baseline verified: YES/NO
+2. source verified: YES/NO
+3. backup created
+4. source size
+5. target size
+6. source SHA-256
+7. target SHA-256
+8. hashes match: YES/NO
+9. no unrelated project files changed: YES/NO
+10. corruption detected or none

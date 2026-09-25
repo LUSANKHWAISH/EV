@@ -1,0 +1,29 @@
+{
+  "files": {
+    "APPLY_R11C2.txt": {
+      "bytes": 1046,
+      "sha256": "5ac3e128e34d314d74f9df1c56c2d696d38a03dcef157faea719c8791bf290eb"
+    },
+    "EVIntelligenceCore_R11C2_COPILOT_MECHANICAL_ORB.qml": {
+      "bytes": 22002,
+      "sha256": "4d6e9ae557500dda0b0033e8551fc85c833de8a4d27ec06d07ba3a01deaeacc3"
+    },
+    "README_R11C2.txt": {
+      "bytes": 757,
+      "sha256": "b33dd981c742cfb1f16b1ee774f937cc8b6f64729c307fd82050b22b263b3c40"
+    }
+  },
+  "checks": {
+    "braces": true,
+    "parentheses": true,
+    "brackets": true,
+    "public_contract": true,
+    "theme_energy": true,
+    "theme_color": true,
+    "view3d": true,
+    "particles_42": true,
+    "radial_24": true,
+    "no_runtime_loader": false,
+    "no_glb": true
+  }
+}

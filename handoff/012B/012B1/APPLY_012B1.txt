@@ -1,0 +1,100 @@
+E.V. TASK 012B.1 — APPLY WINDOWS SQLITE CONNECTION-CLOSE FIX
+
+PROJECT:
+D:\EV
+
+THIS IS A ONE-FILE EXACT-COPY REPAIR.
+
+DO NOT generate, edit, redesign, refactor, optimize, or repair independently.
+
+============================================================
+1 — VERIFY CURRENT 012B HISTORY BASELINE
+============================================================
+
+D:\EV\core\history.py
+
+Expected size:
+22990 bytes
+
+Expected SHA-256:
+84a68ada4a410a149469dbecf2c8df2b003d566abbf41a9e4fcb95c7288cc8e9
+
+If either differs:
+STOP.
+Modify nothing.
+
+============================================================
+2 — VERIFY SUPPLIED REPAIR
+============================================================
+
+D:\EV\handoff\012B1\history_012B1.py
+
+Expected size:
+23093 bytes
+
+Expected SHA-256:
+238697d1aebe468f7bb3578dcbafaef5e9a3e0b691c8060ece31e8ebc9c09739
+
+If either differs:
+STOP.
+Modify nothing.
+
+============================================================
+3 — BACKUP
+============================================================
+
+Create exactly:
+
+D:\EV\core\history.py.pre-012B1
+
+If this exact backup already exists:
+STOP.
+Do not overwrite it.
+
+============================================================
+4 — EXACT BYTE-FOR-BYTE COPY
+============================================================
+
+Copy:
+
+D:\EV\handoff\012B1\history_012B1.py
+
+to:
+
+D:\EV\core\history.py
+
+byte-for-byte.
+
+DO NOT TOUCH:
+- core\models.py
+- .gitignore
+- tests\test_history.py
+- core\agent.py
+- core\verifier.py
+- core\backup.py
+- core\risk.py
+- core\events.py
+- config\settings.py
+- requirements.txt
+- GUI/QML
+- any other test
+- previous backups
+
+============================================================
+5 — POST-COPY VERIFY
+============================================================
+
+Recalculate D:\EV\core\history.py size/hash.
+It MUST match the supplied repair.
+
+RETURN ONLY:
+
+1. current history.py baseline verified: YES/NO
+2. supplied 012B.1 repair verified: YES/NO
+3. backup created: YES/NO
+4. history.py target size
+5. history.py target SHA-256
+6. target hash matches supplied repair: YES/NO
+7. unrelated project files changed: YES/NO
+8. GUI/QML files touched: YES/NO
+9. corruption detected or none
