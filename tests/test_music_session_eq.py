@@ -428,3 +428,42 @@ def test_session_analyzer_and_interactive_eq_nodes(mock_session):
     assert all(abs(g) < 1e-4 for g in session._eq_player.dsp.get_all_gains())
 
 
+def test_off_bin_frequency_behavior_and_resolution_limits():
+    """Verify physical frequency resolution limits (Δf ≈ 23.44 Hz) and off-bin Hann scalloping loss."""
+    from music.analysis import analyze
+    rate = 48000
+    n = 2048
+    delta_f = rate / float(n)  # 23.4375 Hz
+    t = np.arange(n) / float(rate)
+
+    # 1. Exactly on-bin tone (bin k = 43 -> 1007.8125 Hz)
+    k_on = 43
+    f_on = k_on * delta_f
+    pcm_on = 1.0 * np.sin(2.0 * np.pi * f_on * t).astype(np.float32)
+    frame_on = analyze(pcm_on, rate)
+
+    # On-bin tone peak matches bin center exactly
+    assert abs(frame_on.peakHz - f_on) < 0.01
+    assert len(frame_on.spectrum) == 256
+
+    # 2. Exactly off-bin tone (midpoint between bins 43 and 44: k = 43.5 -> 1019.53125 Hz)
+    k_off = 43.5
+    f_off = k_off * delta_f
+    pcm_off = 1.0 * np.sin(2.0 * np.pi * f_off * t).astype(np.float32)
+    frame_off = analyze(pcm_off, rate)
+
+    # Peak bin index must be either 43 or 44; peakHz is bounded within ±Δf/2
+    assert abs(frame_off.peakHz - f_off) <= (delta_f / 2.0) + 1e-4
+
+    # Calculate scalloping loss: ratio of off-bin peak to on-bin peak
+    # Hann window worst-case scalloping loss is ~1.42 dB (amplitude ratio ~0.849)
+    # Using the raw FFT amplitudes before log display
+    window = np.hanning(n)
+    amp_on = np.max(np.abs(np.fft.rfft(pcm_on * window)) * (2.0 / window.sum()))
+    amp_off = np.max(np.abs(np.fft.rfft(pcm_off * window)) * (2.0 / window.sum()))
+    scalloping_loss_db = 20.0 * np.log10(amp_off / amp_on)
+
+    # Scalloping loss must be between -1.0 dB and -1.8 dB for mid-bin tone
+    assert -1.8 < scalloping_loss_db < -1.0, f"Expected Hann scalloping loss ~ -1.42 dB, got {scalloping_loss_db:.2f} dB"
+
+

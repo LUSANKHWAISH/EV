@@ -53,10 +53,22 @@ def _hz_to_note(hz: float) -> str:
 
 
 def analyze(pcm, rate, count=64, *, source_id='audio', generation=0, sequence=0, presentation_time=None):
-    """Sample peak and Hann-window spectrum, taking channel energy before mixing.
-    
-    FFT size: len(pcm) (typically 2048 samples).
-    Window: Hann window with coherent gain normalization (2 / sum(window)).
+    """Compute real-time audio analysis metrics including 2,048-point FFT displayed across 256 logarithmic points.
+
+    Technical Specifications:
+    - Transform: 2,048-point FFT (N = len(pcm), typically 2,048 samples).
+    - Physical Frequency Resolution: Δf = rate / N (≈ 21.53 Hz at 44.1 kHz, ≈ 23.44 Hz at 48 kHz).
+    - Windowing: Periodic Hann window with coherent gain normalization (2.0 / sum(window)).
+    - Display Mapping: 256 log-spaced frequency points geometrically distributed from 20 Hz to min(20 kHz, rate/2).
+    - Resolution Qualification: Logarithmic interpolation maps discrete FFT bins onto the display grid for smooth
+      visualization, but interpolation does NOT increase the underlying physical frequency resolution (Δf ≈ 21.5-23.4 Hz).
+    - Off-Bin Behavior: Arbitrary tones that do not fall precisely on integer FFT bin centers experience standard
+      Hann window scalloping loss (up to ~1.42 dB) and spectral leakage into adjacent bins. Peak frequency (peakHz)
+      and musical note tracking (peakNote) are quantized to discrete FFT bin centers; claiming exact amplitude or
+      sub-cent accuracy for arbitrary off-bin tones requires dedicated multi-bin interpolation, and is subject to
+      inherent bin quantization limits (up to ±Δf/2 ≈ ±11.7 Hz).
+    - Multi-Channel Energy: Stereo energy is combined quadratically per frequency bin (sqrt(mean(amp^2))) to preserve
+      full signal energy without cancellation on antiphase signals.
     """
     pcm = np.nan_to_num(np.asarray(pcm, dtype=np.float32), nan=0., posinf=0., neginf=0.)
     if pcm.ndim == 1:
