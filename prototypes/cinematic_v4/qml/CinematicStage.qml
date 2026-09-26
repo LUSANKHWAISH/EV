@@ -237,17 +237,18 @@ Item {
     NucleusScene {
         id:nucleus;telemetry:stage.model;expanded:stage.expanded
         visualTheme: stage.visualTheme
-        z:stage.musicActive?12:0
-        width:stage.musicActive?170:Math.min(stage.expanded?820:540,stage.height-(stage.shortView?340:220));height:width
-        x:stage.musicActive?stage.width-stage.margin-(stage.width-stage.contentLeft-stage.margin<1100?220:270)/2-width/2:stage.centerX-width/2
-        y:stage.musicActive?stage.height-385:stage.height*(stage.shortView?.40:.415)-height/2
-        showNodes:!stage.musicActive
+        z: 0
+        width: Math.max(120, Math.min(stage.expanded ? 820 : 540, (stage.height > 0 ? stage.height : 1080) - (stage.shortView ? 340 : 220)))
+        height: width
+        x: stage.centerX - width / 2
+        y: (stage.height > 0 ? stage.height : 1080) * (stage.shortView ? .36 : .415) - height / 2
+        showNodes: !stage.musicActive
         musicBeat:stage.musicReactionActive?stage.musicSession.beat*stage.musicSession.reactionGain:0
         scale:1+musicBeat*.025
         reactionOverride:stage.musicReactionActive?Math.min(1,stage.musicSession.level*.2*stage.musicSession.reactionGain+musicBeat):!stage.model.animationEnabled?0:-1
-        Behavior on x { enabled:stage.geometryInitialized;NumberAnimation { duration:600;easing.type:Easing.InOutCubic } }
-        Behavior on y { enabled:stage.geometryInitialized;NumberAnimation { duration:600;easing.type:Easing.InOutCubic } }
-        Behavior on width { enabled:stage.geometryInitialized;NumberAnimation { duration:600;easing.type:Easing.InOutCubic } }
+        Behavior on x { enabled: stage.geometryInitialized && !stage.musicActive; NumberAnimation { duration: 600; easing.type: Easing.InOutCubic } }
+        Behavior on y { enabled: stage.geometryInitialized && !stage.musicActive; NumberAnimation { duration: 600; easing.type: Easing.InOutCubic } }
+        Behavior on width { enabled: stage.geometryInitialized && !stage.musicActive; NumberAnimation { duration: 600; easing.type: Easing.InOutCubic } }
     }
     CosmicDepthField {
         id: cosmicDepthFrontLayer
@@ -373,17 +374,14 @@ Item {
         active: stage.musicActive
         z: 10
         x: stage.contentLeft
-        y: 145
+        y: 135
         width: stage.width - x - stage.margin
-        height: stage.height - 190
+        height: stage.height - 165
 
-        onLoaded: {
-            if (item)
-                item.color = "transparent"
-        }
 
         sourceComponent: Component {
             MusicWorkspace {
+                stage: stage
                 music: stage.model.music
                 reactionAllowed: stage.musicReactionActive
             }

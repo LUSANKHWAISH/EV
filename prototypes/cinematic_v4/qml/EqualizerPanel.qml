@@ -6,6 +6,7 @@ Rectangle {
     objectName: 'musicEqualizerPanel'
     required property var music
     property bool compact: height < 200
+    signal closeRequested()
     readonly property color gold: '#e1b463'
     readonly property color cyan: '#53e6d2'
     readonly property color muted: '#78939f'
@@ -192,7 +193,7 @@ Rectangle {
         // Action Buttons
         Row {
             anchors.right: parent.right
-            anchors.rightMargin: 12
+            anchors.rightMargin: 10
             anchors.verticalCenter: parent.verticalCenter
             spacing: 6
 
@@ -214,6 +215,15 @@ Rectangle {
                 height: 22
                 font.pixelSize: 10
                 onClicked: if (eqRoot.music) eqRoot.music.setBypass(!eqRoot.music.eqBypass)
+            }
+
+            HudButton {
+                text: '✕'
+                implicitWidth: 24
+                height: 22
+                font.pixelSize: 11
+                quiet: true
+                onClicked: eqRoot.closeRequested()
             }
         }
     }

@@ -2,23 +2,45 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Dialogs
 
-Rectangle {
+Item {
     id: musicPage
     objectName: 'musicWorkspace'
     required property var music
+    property var stage: null
     property bool reactionAllowed: true
-    property bool showEQ: true
+    property string viewMode: 'cinematic' // 'cinematic' | 'orange' | 'studio'
+    property bool showEQEditor: false
     property bool showQueue: false
-    color: '#071119'
 
     readonly property real queueWidth: width < 1200 ? 210 : 250
     readonly property real mainWidth: showQueue ? (width - queueWidth - 18) : (width - 16)
     readonly property color gold: '#e1b463'
+    readonly property color cyan: '#53e6d2'
+    readonly property color darkBg: '#0c1822'
+    readonly property color borderColor: '#2c414d'
+    readonly property bool hasTrack: music !== null && music.currentIndex >= 0 && music.queue && music.queue.length > 0
 
     onEnabledChanged: if (!enabled) files.close()
     function clock(ms) {
         let s = Math.floor((ms || 0) / 1000);
         return Math.floor(s / 60) + ':' + ('0' + s % 60).slice(-2)
+    }
+
+    // Synchronize viewMode with stage.visualTheme
+    onViewModeChanged: {
+        if (viewMode === 'orange') {
+            if (stage) stage.visualTheme = 'stark_reactor'
+        } else if (viewMode === 'cinematic') {
+            if (stage && stage.visualTheme === 'stark_reactor') stage.visualTheme = 'cosmic_orbit'
+        } else if (viewMode === 'studio') {
+            if (stage && stage.visualTheme === 'stark_reactor') stage.visualTheme = 'cosmic_orbit'
+        }
+    }
+
+    Component.onCompleted: {
+        if (stage && stage.visualTheme === 'stark_reactor') {
+            viewMode = 'orange'
+        }
     }
 
     component Caption: Text {
@@ -94,14 +116,13 @@ Rectangle {
         }
     }
 
-    // 1. Sleek Compact Header Bar (height: ~44px)
-    Rectangle {
+    // 1. Sleek Compact Header Bar (height: 42px)
+    Item {
         id: headerBar
         x: 8
         y: 6
         width: musicPage.mainWidth
-        height: 44
-        color: 'transparent'
+        height: 42
 
         Row {
             anchors.left: parent.left
@@ -117,14 +138,14 @@ Rectangle {
                     font.pixelSize: 8
                 }
                 Text {
-                    text: musicPage.music && musicPage.music.title ? musicPage.music.title : 'No Track Loaded'
+                    text: musicPage.hasTrack ? musicPage.music.title : 'No Track Loaded'
                     textFormat: Text.PlainText
                     color: '#f0e8d8'
                     font.family: 'Segoe UI'
-                    font.pixelSize: 15
+                    font.pixelSize: 14
                     font.weight: Font.DemiBold
                     elide: Text.ElideRight
-                    width: Math.min(220, musicPage.mainWidth * 0.28)
+                    width: Math.min(200, musicPage.mainWidth * 0.24)
                 }
             }
 
@@ -147,145 +168,198 @@ Rectangle {
                     text: 'PLAYER'
                     selected: musicPage.music.inputSource === 'player'
                     height: 26
-                    implicitWidth: 56
+                    implicitWidth: 54
                     font.pixelSize: 10
-                    onClicked: musicPage.music.setInput('player')
+                    onClicked: musicPage.music.setInputSource('player')
                 }
                 HudButton {
                     objectName: 'musicInputSystem'
                     text: musicPage.width < 1300 ? 'SYSTEM' : 'WINDOWS AUDIO'
                     selected: musicPage.music.inputSource === 'system'
                     height: 26
-                    implicitWidth: musicPage.width < 1300 ? 60 : 108
+                    implicitWidth: musicPage.width < 1300 ? 56 : 94
                     font.pixelSize: 10
-                    onClicked: musicPage.music.setInput('system')
+                    onClicked: musicPage.music.setInputSource('system')
                 }
                 Picker {
-                    objectName: 'musicDevice'
-                    width: Math.min(150, Math.max(100, musicPage.mainWidth * 0.12))
-                    visible: musicPage.music.inputSource === 'system'
-                    model: musicPage.music.captureDevices
-                    textRole: 'label'
-                    valueRole: 'id'
-                    onActivated: musicPage.music.setCaptureDevice(currentValue)
-                    Accessible.name: 'Windows output to visualize'
-                }
-                HudButton {
-                    objectName: 'musicCaptureToggle'
-                    visible: musicPage.music.inputSource === 'system'
-                    implicitWidth: 68
-                    height: 26
-                    font.pixelSize: 10
-                    text: musicPage.music.captureState === 'active' || musicPage.music.captureState === 'starting' ? 'STOP' : 'CONNECT'
-                    onClicked: {
-                        if (musicPage.music.captureState === 'active' || musicPage.music.captureState === 'starting')
-                            musicPage.music.stopCapture()
-                        else
-                            musicPage.music.startCapture()
+                    objectName: 'musicOutputPicker'
+                    visible: musicPage.music.availableOutputs.length > 1
+                    model: musicPage.music.availableOutputs
+                    textRole: 'name'
+                    implicitWidth: Math.min(130, Math.max(90, musicPage.mainWidth * 0.14))
+                    currentIndex: Math.max(0, musicPage.music.availableOutputs.findIndex(function(o){ return o.id === musicPage.music.selectedOutputId }))
+                    onActivated: function(index) {
+                        let row = model[index];
+                        if (row) musicPage.music.selectOutput(row.id)
                     }
-                }
-                Picker {
-                    objectName: 'musicOutput'
-                    visible: musicPage.music.inputSource === 'player'
-                    width: Math.min(150, Math.max(100, musicPage.mainWidth * 0.12))
-                    model: musicPage.music.outputDevices
-                    onActivated: musicPage.music.setOutputDevice(currentIndex)
-                    Accessible.name: 'E.V. playback output'
                 }
             }
         }
 
-        // Right side: Layout Switcher & Panel Toggles
+        // Right side: View Modes, DSP Status, EQ & Queue
         Row {
-            id: layoutControls
-            objectName: 'musicLayoutControls'
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
-            spacing: 4
+            spacing: 6
 
-            HudButton {
-                objectName: 'layoutStudioBtn'
-                text: 'STUDIO'
-                height: 24
-                implicitWidth: 54
-                font.pixelSize: 10
-                font.letterSpacing: 0.3
-                selected: musicPage.music && musicPage.music.currentLayout === 'studio-span'
-                onClicked: if (musicPage.music) musicPage.music.setLayout('studio-span')
+            // Separate Viewing Modes
+            Row {
+                spacing: 4
+                anchors.verticalCenter: parent.verticalCenter
+
+                HudButton {
+                    id: viewCinematicBtn
+                    objectName: 'viewCinematicBtn'
+                    text: 'CINEMATIC'
+                    height: 24
+                    implicitWidth: 72
+                    font.pixelSize: 10
+                    font.letterSpacing: 0.3
+                    selected: musicPage.viewMode === 'cinematic'
+                    onClicked: musicPage.viewMode = 'cinematic'
+                }
+
+                HudButton {
+                    id: viewOrangeBtn
+                    objectName: 'viewOrangeBtn'
+                    text: 'ORANGE'
+                    height: 24
+                    implicitWidth: 64
+                    font.pixelSize: 10
+                    font.letterSpacing: 0.3
+                    selected: musicPage.viewMode === 'orange'
+                    onClicked: musicPage.viewMode = 'orange'
+                }
+
+                HudButton {
+                    id: layoutStudioBtn
+                    objectName: 'layoutStudioBtn'
+                    text: 'STUDIO'
+                    height: 24
+                    implicitWidth: 62
+                    font.pixelSize: 10
+                    font.letterSpacing: 0.3
+                    selected: musicPage.viewMode === 'studio'
+                    onClicked: {
+                        musicPage.viewMode = 'studio'
+                        if (musicPage.music) musicPage.music.setLayout('studio-span')
+                    }
+                }
             }
-            HudButton {
-                objectName: 'layoutTrioBtn'
-                text: 'TRIO'
-                height: 24
-                implicitWidth: 44
-                font.pixelSize: 10
-                font.letterSpacing: 0.3
-                selected: !musicPage.music || !musicPage.music.currentLayout || musicPage.music.currentLayout === 'reference-trio'
-                onClicked: if (musicPage.music) musicPage.music.setLayout('reference-trio')
-            }
-            HudButton {
-                objectName: 'layoutTraceBtn'
-                text: 'TRACE'
-                height: 24
-                implicitWidth: 50
-                font.pixelSize: 10
-                font.letterSpacing: 0.3
-                selected: musicPage.music && musicPage.music.currentLayout === 'single-trace'
-                onClicked: if (musicPage.music) musicPage.music.setLayout('single-trace')
-            }
-            HudButton {
-                objectName: 'layoutNeedlesBtn'
-                text: 'NEEDLES'
-                height: 24
-                implicitWidth: 62
-                font.pixelSize: 10
-                font.letterSpacing: 0.3
-                selected: musicPage.music && musicPage.music.currentLayout === 'single-rain'
-                onClicked: if (musicPage.music) musicPage.music.setLayout('single-rain')
-            }
-            HudButton {
-                objectName: 'layoutSplitBtn'
-                text: 'SPLIT'
-                height: 24
-                implicitWidth: 46
-                font.pixelSize: 10
-                font.letterSpacing: 0.3
-                selected: musicPage.music && musicPage.music.currentLayout === 'split-duo'
-                onClicked: if (musicPage.music) musicPage.music.setLayout('split-duo')
-            }
-            HudButton {
-                objectName: 'layoutSegmentsBtn'
-                text: 'SEGMENTS'
-                height: 24
-                implicitWidth: 74
-                font.pixelSize: 10
-                font.letterSpacing: 0.2
-                selected: musicPage.music && musicPage.music.currentLayout === 'single-stack'
-                onClicked: if (musicPage.music) musicPage.music.setLayout('single-stack')
+
+            // Studio Layout Switches (Visible in Studio mode, but always preserved in hierarchy for test detection)
+            Row {
+                id: studioSubLayouts
+                visible: musicPage.viewMode === 'studio'
+                spacing: 4
+                anchors.verticalCenter: parent.verticalCenter
+
+                Rectangle { width: 1; height: 16; color: '#253a47'; anchors.verticalCenter: parent.verticalCenter }
+
+                HudButton {
+                    id: layoutTrioBtn
+                    objectName: 'layoutTrioBtn'
+                    text: 'TRIO'
+                    height: 24
+                    implicitWidth: 46
+                    font.pixelSize: 10
+                    font.letterSpacing: 0.3
+                    selected: musicPage.music && musicPage.music.currentLayout === 'reference-trio'
+                    onClicked: if (musicPage.music) musicPage.music.setLayout('reference-trio')
+                }
+                HudButton {
+                    id: layoutTraceBtn
+                    objectName: 'layoutTraceBtn'
+                    text: 'TRACE'
+                    height: 24
+                    implicitWidth: 50
+                    font.pixelSize: 10
+                    font.letterSpacing: 0.3
+                    selected: musicPage.music && musicPage.music.currentLayout === 'single-trace'
+                    onClicked: if (musicPage.music) musicPage.music.setLayout('single-trace')
+                }
+                HudButton {
+                    id: layoutSplitBtn
+                    objectName: 'layoutSplitBtn'
+                    text: 'SPLIT'
+                    height: 24
+                    implicitWidth: 46
+                    font.pixelSize: 10
+                    font.letterSpacing: 0.3
+                    selected: musicPage.music && musicPage.music.currentLayout === 'split-duo'
+                    onClicked: if (musicPage.music) musicPage.music.setLayout('split-duo')
+                }
+                HudButton {
+                    id: layoutSegmentsBtn
+                    objectName: 'layoutSegmentsBtn'
+                    text: 'SEGMENTS'
+                    height: 24
+                    implicitWidth: 70
+                    font.pixelSize: 10
+                    font.letterSpacing: 0.2
+                    selected: musicPage.music && musicPage.music.currentLayout === 'single-stack'
+                    onClicked: if (musicPage.music) musicPage.music.setLayout('single-stack')
+                }
             }
 
             Rectangle { width: 1; height: 16; color: '#253a47'; anchors.verticalCenter: parent.verticalCenter }
 
-            // Collapsible panel toggles
+            // Dedicated Processing Status Badge (Separate from whether EQ editor is open)
+            Rectangle {
+                id: dspBadge
+                height: 22
+                width: dspRow.implicitWidth + 12
+                radius: 3
+                color: musicPage.music && !musicPage.music.eqBypass ? '#12251f' : '#192025'
+                border.color: musicPage.music && !musicPage.music.eqBypass ? '#2d6852' : '#2b3b44'
+                anchors.verticalCenter: parent.verticalCenter
+
+                Row {
+                    id: dspRow
+                    anchors.centerIn: parent
+                    spacing: 5
+                    Rectangle {
+                        width: 6
+                        height: 6
+                        radius: 3
+                        color: musicPage.music && !musicPage.music.eqBypass ? '#2ed573' : '#657e8a'
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
+                    Text {
+                        text: musicPage.music && !musicPage.music.eqBypass ? 'DSP ACTIVE' : 'DSP BYPASS'
+                        font.family: 'Segoe UI'
+                        font.pixelSize: 9
+                        font.weight: Font.DemiBold
+                        font.letterSpacing: 0.8
+                        color: musicPage.music && !musicPage.music.eqBypass ? '#6fe6ac' : '#7f95a1'
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
+                }
+            }
+
+            // On-Demand EQ Editor Toggle Button
             HudButton {
                 id: layoutEQBtn
                 objectName: 'layoutEQBtn'
-                text: musicPage.showEQ ? 'EQ ACTIVE' : '10-BAND EQ'
+                text: musicPage.showEQEditor ? 'EQ [OPEN]' : 'EQ'
                 height: 24
-                implicitWidth: 74
+                implicitWidth: 62
                 font.pixelSize: 10
                 font.letterSpacing: 0.3
-                selected: musicPage.showEQ
-                accent: musicPage.showEQ
-                onClicked: musicPage.showEQ = !musicPage.showEQ
+                selected: musicPage.showEQEditor
+                accent: musicPage.showEQEditor
+                onClicked: musicPage.showEQEditor = !musicPage.showEQEditor
             }
+
             HudButton {
                 id: musicEQToggle
                 objectName: 'musicEQToggle'
                 visible: false
-                selected: musicPage.showEQ
-                onClicked: musicPage.showEQ = !musicPage.showEQ
+                selected: musicPage.showEQEditor
+                onClicked: musicPage.showEQEditor = !musicPage.showEQEditor
             }
+
+            // Playlist Queue Toggle Button
             HudButton {
                 objectName: 'musicQueueToggle'
                 text: musicPage.showQueue ? 'QUEUE [ON]' : 'QUEUE'
@@ -299,16 +373,50 @@ Rectangle {
         }
     }
 
-    // 2. High-prominence Visualizer Area
+    // 2. Useful Empty-State Message (When no track loaded in Cinematic/Orange view)
+    Rectangle {
+        id: emptyStatePill
+        visible: musicPage.viewMode !== 'studio' && !musicPage.hasTrack
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.bottom: musicPage.showEQEditor ? eqPanel.top : transport.top
+        anchors.bottomMargin: 14
+        height: 28
+        width: emptyRow.implicitWidth + 24
+        color: '#b00b1720'
+        border.color: '#344c58'
+        radius: 14
+
+        Row {
+            id: emptyRow
+            anchors.centerIn: parent
+            spacing: 8
+            Text {
+                text: '♪'
+                color: musicPage.gold
+                font.pixelSize: 11
+                anchors.verticalCenter: parent.verticalCenter
+            }
+            Text {
+                text: 'No audio track loaded · Drop audio file or click ＋ OPEN to begin playback'
+                color: '#8da4ad'
+                font.family: 'Segoe UI'
+                font.pixelSize: 11
+                anchors.verticalCenter: parent.verticalCenter
+            }
+        }
+    }
+
+    // 3. Technical Studio Visualizer Area (ONLY visible in STUDIO mode)
     Rectangle {
         id: analyzer
         objectName: 'musicAnalyzer'
+        visible: musicPage.viewMode === 'studio'
         x: 8
-        y: 54
+        y: 50
         width: musicPage.mainWidth
-        readonly property real availH: Math.max(160, musicPage.height - 54 - 60 - 12)
-        readonly property real eqH: musicPage.showEQ ? Math.min(180, Math.max(135, availH * 0.28)) : 0
-        height: musicPage.showEQ ? Math.max(120, availH - eqH - 6) : availH
+        readonly property real availH: Math.max(160, musicPage.height - 50 - 58 - 8)
+        readonly property real eqH: musicPage.showEQEditor ? Math.min(180, Math.max(140, availH * 0.32)) : 0
+        height: musicPage.showEQEditor ? Math.max(120, availH - eqH - 6) : availH
         color: '#0a1821'
         border.color: '#263b45'
         radius: 5
@@ -322,19 +430,21 @@ Rectangle {
         }
     }
 
-    // 3. Collapsible 10-Band EQ Panel
+    // 4. Compact On-Demand 10-Band EQ Editor (Anchored outside the core's bounds)
     EqualizerPanel {
         id: eqPanel
         objectName: 'musicEqualizerPanel'
-        visible: musicPage.showEQ
-        x: 8
-        y: analyzer.y + analyzer.height + 6
-        width: musicPage.mainWidth
-        height: analyzer.eqH
+        visible: musicPage.showEQEditor
+        width: Math.min(760, musicPage.mainWidth)
+        height: musicPage.stage && musicPage.stage.shortView ? 142 : 165
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.bottom: transport.top
+        anchors.bottomMargin: 6
         music: musicPage.music
+        onCloseRequested: musicPage.showEQEditor = false
     }
 
-    // 4. Collapsible Playlist Queue Sidebar
+    // 5. Collapsible Playlist Queue Sidebar
     Column {
         id: queueSidebar
         visible: musicPage.showQueue
@@ -352,7 +462,7 @@ Rectangle {
                 color: musicPage.gold
             }
             Text {
-                text: musicPage.music.queue.length + (musicPage.music.queue.length === 1 ? ' track' : ' tracks')
+                text: musicPage.music ? musicPage.music.queue.length + (musicPage.music.queue.length === 1 ? ' track' : ' tracks') : '0 tracks'
                 color: '#91a7b0'
                 font.family: 'Consolas'
                 font.pixelSize: 10
@@ -367,7 +477,7 @@ Rectangle {
             height: Math.max(120, musicPage.height - 180)
             clip: true
             spacing: 4
-            model: musicPage.music.queue
+            model: musicPage.music ? musicPage.music.queue : []
             ScrollBar.vertical: ScrollBar {}
             delegate: HudButton {
                 required property var modelData
@@ -378,7 +488,7 @@ Rectangle {
                 onClicked: musicPage.music.playIndex(modelData.index)
             }
             Text {
-                visible: musicPage.music.queue.length === 0
+                visible: !musicPage.music || musicPage.music.queue.length === 0
                 anchors.centerIn: parent
                 text: 'Drop local audio files\nor click ＋ OPEN'
                 color: '#6f8a98'
@@ -393,7 +503,7 @@ Rectangle {
             width: parent.width
             spacing: 6
             Repeater {
-                model: [{ label: 'BASS', value: musicPage.music.bass }, { label: 'MID', value: musicPage.music.mid }, { label: 'HIGH', value: musicPage.music.treble }]
+                model: [{ label: 'BASS', value: musicPage.music ? musicPage.music.bass : 0 }, { label: 'MID', value: musicPage.music ? musicPage.music.mid : 0 }, { label: 'HIGH', value: musicPage.music ? musicPage.music.treble : 0 }]
                 Column {
                     required property var modelData
                     width: (musicPage.queueWidth - 12) / 3
@@ -410,17 +520,18 @@ Rectangle {
         }
     }
 
-    // 5. Sleek Professional DAW-style Transport Bar (height: 54px)
+    // 6. Sleek Compact DAW-style Transport Bar (height: 48px)
     Rectangle {
         id: transport
         objectName: 'musicTransport'
         x: 8
-        y: parent.height - 54
-        width: parent.width - 16
-        height: 50
-        color: '#0e1a22'
+        anchors.bottom: parent.bottom
+        anchors.bottomMargin: 4
+        width: musicPage.mainWidth
+        height: 48
+        color: '#e60c1822'
         border.color: '#263b46'
-        radius: 4
+        radius: 5
 
         // Seek Bar at top edge of transport
         MusicSlider {
@@ -430,11 +541,11 @@ Rectangle {
             width: parent.width - 8
             height: 16
             from: 0
-            to: Math.max(1, musicPage.music.duration)
+            to: Math.max(1, musicPage.music ? musicPage.music.duration : 1)
             stepSize: 1000
-            value: musicPage.music.position
-            enabled: musicPage.music.seekable
-            onMoved: musicPage.music.seek(value)
+            value: musicPage.music ? musicPage.music.position : 0
+            enabled: musicPage.music && musicPage.music.seekable
+            onMoved: if (musicPage.music) musicPage.music.seek(value)
             Accessible.name: 'Track position'
         }
 
@@ -442,52 +553,52 @@ Rectangle {
         Row {
             x: 10
             anchors.bottom: parent.bottom
-            anchors.bottomMargin: 8
+            anchors.bottomMargin: 7
             spacing: 6
 
             HudButton {
                 objectName: 'musicPrevious'
                 text: 'PREV'
-                implicitWidth: 50
-                height: 26
+                implicitWidth: 48
+                height: 24
                 font.pixelSize: 10
-                enabled: musicPage.music.hasTrack
+                enabled: musicPage.music && musicPage.music.hasTrack
                 onClicked: musicPage.music.previous()
             }
             HudButton {
                 objectName: 'musicPlay'
-                text: musicPage.music.playing ? 'PAUSE' : 'PLAY'
-                implicitWidth: 62
-                height: 26
+                text: musicPage.music && musicPage.music.playing ? 'PAUSE' : 'PLAY'
+                implicitWidth: 58
+                height: 24
                 accent: true
                 font.pixelSize: 10
-                enabled: musicPage.music.hasTrack
+                enabled: musicPage.music && musicPage.music.hasTrack
                 onClicked: musicPage.music.togglePlayback()
             }
             HudButton {
                 objectName: 'musicNext'
                 text: 'NEXT'
-                implicitWidth: 50
-                height: 26
+                implicitWidth: 48
+                height: 24
                 font.pixelSize: 10
-                enabled: musicPage.music.currentIndex + 1 < musicPage.music.queue.length
+                enabled: musicPage.music && (musicPage.music.currentIndex + 1 < musicPage.music.queue.length)
                 onClicked: musicPage.music.next()
             }
             HudButton {
                 objectName: 'musicStop'
                 text: 'STOP'
-                implicitWidth: 50
-                height: 26
+                implicitWidth: 48
+                height: 24
                 font.pixelSize: 10
-                enabled: musicPage.music.hasTrack
+                enabled: musicPage.music && musicPage.music.hasTrack
                 onClicked: musicPage.music.stop()
             }
 
             Text {
                 anchors.verticalCenter: parent.verticalCenter
-                text: musicPage.clock(musicPage.music.position) + ' / ' + musicPage.clock(musicPage.music.duration)
+                text: musicPage.clock(musicPage.music ? musicPage.music.position : 0) + ' / ' + musicPage.clock(musicPage.music ? musicPage.music.duration : 0)
                 font.family: 'Consolas'
-                font.pixelSize: 11
+                font.pixelSize: 10
                 color: '#c8d3d1'
             }
         }
@@ -495,14 +606,14 @@ Rectangle {
         // Center Status Text
         Text {
             anchors.centerIn: parent
-            anchors.verticalCenterOffset: 4
-            text: musicPage.music.status
+            anchors.verticalCenterOffset: 3
+            text: musicPage.music ? musicPage.music.status : ''
             textFormat: Text.PlainText
-            color: musicPage.music.captureState === 'error' ? '#e5a06c' : '#7e96a2'
+            color: musicPage.music && musicPage.music.captureState === 'error' ? '#e5a06c' : '#7e96a2'
             font.family: 'Segoe UI'
             font.pixelSize: 10
             elide: Text.ElideRight
-            width: Math.min(400, parent.width * 0.35)
+            width: Math.min(360, parent.width * 0.32)
             horizontalAlignment: Text.AlignHCenter
         }
 
@@ -511,26 +622,26 @@ Rectangle {
             anchors.right: parent.right
             anchors.rightMargin: 10
             anchors.bottom: parent.bottom
-            anchors.bottomMargin: 8
+            anchors.bottomMargin: 7
             spacing: 6
 
             HudButton {
                 objectName: 'musicMute'
-                text: musicPage.music.muted ? 'UNMUTE' : 'MUTE'
-                implicitWidth: 58
-                height: 26
+                text: musicPage.music && musicPage.music.muted ? 'UNMUTE' : 'MUTE'
+                implicitWidth: 54
+                height: 24
                 font.pixelSize: 10
-                onClicked: musicPage.music.setMuted(!musicPage.music.muted)
+                onClicked: if (musicPage.music) musicPage.music.setMuted(!musicPage.music.muted)
             }
             MusicSlider {
                 objectName: 'musicVolume'
-                width: 90
-                height: 26
+                width: 84
+                height: 24
                 anchors.verticalCenter: parent.verticalCenter
                 from: 0
                 to: 1
-                value: musicPage.music.volume
-                onMoved: musicPage.music.setVolume(value)
+                value: musicPage.music ? musicPage.music.volume : 0.55
+                onMoved: if (musicPage.music) musicPage.music.setVolume(value)
                 Accessible.name: 'Music volume'
             }
         }
