@@ -12,6 +12,7 @@ from PySide6.QtCore import QCoreApplication
 from PySide6.QtMultimedia import QAudio, QAudioFormat, QAudioSink, QMediaDevices
 
 from music.dsp import EqualizerDSP
+from music.resampler import StreamingResampler
 from .wav_reader import WavReader
 
 
@@ -63,6 +64,7 @@ class EQPlaybackEngine:
         # Resampling state
         self._resample_up: int = 1
         self._resample_down: int = 1
+        self._resampler: Optional[StreamingResampler] = None
         self.resampled_frames_in: int = 0
         self.resampled_frames_out: int = 0
 
@@ -235,14 +237,16 @@ class EQPlaybackEngine:
         self._sink = QAudioSink(self._device, fmt)
         self._sink.stateChanged.connect(self._on_sink_state_changed)
 
-        # Calculate rational resampling factors if sink rate != source rate
+        # Configure stateful continuous streaming resampler if sink rate != source rate
         if self._sink_sample_rate != self._sample_rate and self._sink_sample_rate > 0 and self._sample_rate > 0:
             gcd = math.gcd(int(self._sample_rate), int(self._sink_sample_rate))
             self._resample_up = int(self._sink_sample_rate // gcd)
             self._resample_down = int(self._sample_rate // gcd)
+            self._resampler = StreamingResampler(self._sample_rate, self._sink_sample_rate, self._channels)
         else:
             self._resample_up = 1
             self._resample_down = 1
+            self._resampler = None
 
         # Bounded device buffer: ~250ms of audio at sink rate
         buffer_bytes = int(self._sink_sample_rate * self._channels * self._bytes_per_sample * 0.25)
@@ -289,6 +293,9 @@ class EQPlaybackEngine:
         self.state_transitions.clear()
         self.error_transitions.clear()
 
+        if self._resampler is not None:
+            self._resampler.reset()
+
         self._stop_event.clear()
         self._pause_event.clear()
         self._is_playing = True
@@ -332,6 +339,8 @@ class EQPlaybackEngine:
             self._is_playing = False
             self._is_paused = False
             self.dsp.reset_state()
+            if self._resampler is not None:
+                self._resampler.reset()
 
         self._notify_state("stopped")
 
@@ -346,6 +355,8 @@ class EQPlaybackEngine:
             self._reader.seek(target_frame)
             self._position_frames = target_frame
             self.dsp.reset_state()
+            if self._resampler is not None:
+                self._resampler.reset()
 
     def _feeder_worker(self) -> None:
         """Background streaming worker thread feeding PCM through DSP to QAudioSink."""
@@ -379,7 +390,23 @@ class EQPlaybackEngine:
                 pcm_raw = self._reader.read_frames(self.chunk_frames, upmix_mono=True)
 
             if len(pcm_raw) == 0:
-                # End of file reached
+                # End of file reached: drain resampler tail if active
+                if self._resampler is not None:
+                    tail = self._resampler.drain()
+                    if len(tail) > 0:
+                        self.resampled_frames_out += len(tail)
+                        if self._sample_format == QAudioFormat.SampleFormat.Float:
+                            tail_bytes = tail.astype(np.float32).tobytes()
+                        else:
+                            tail_bytes = (np.clip(tail, -1.0, 1.0) * 32767.0).astype(np.int16).tobytes()
+                        try:
+                            written_tail = self._io_device.write(tail_bytes)
+                            if written_tail > 0:
+                                self.total_bytes_accepted += written_tail
+                                self.total_frames_accepted += (written_tail // bytes_per_frame)
+                        except (RuntimeError, AttributeError):
+                            pass
+
                 try:
                     if self._sink:
                         self.last_processed_usecs = max(self.last_processed_usecs, self._sink.processedUSecs())
@@ -402,10 +429,10 @@ class EQPlaybackEngine:
                 except Exception:
                     pass
 
-            # Rational polyphase resampling if sink sample rate differs from source
-            if self._resample_up != self._resample_down:
+            # Continuous stateful streaming resampler if sink sample rate differs from source
+            if self._resampler is not None:
                 self.resampled_frames_in += len(pcm_dsp)
-                pcm_out = signal.resample_poly(pcm_dsp, self._resample_up, self._resample_down, axis=0).astype(np.float32)
+                pcm_out = self._resampler.process(pcm_dsp)
                 self.resampled_frames_out += len(pcm_out)
             else:
                 pcm_out = pcm_dsp
@@ -417,7 +444,7 @@ class EQPlaybackEngine:
                 out_int16 = (np.clip(pcm_out, -1.0, 1.0) * 32767.0).astype(np.int16)
                 out_bytes = out_int16.tobytes()
 
-            # Push audio to hardware with complete write guarantee
+            # Push audio frames into QIODevice buffer (accepted bytes)
             bytes_to_write = out_bytes
             while len(bytes_to_write) > 0 and not self._stop_event.is_set():
                 try:
