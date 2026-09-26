@@ -356,3 +356,75 @@ def test_muted_or_stopped_ev_playback_clears_beat_reactions_and_preserves_extern
     gain = 1.0 if session._input == "system" else (0 if session.muted else session.volume)
     assert gain == 1.0, "External audio capture must not be suppressed by EV player mute"
 
+
+def test_analyzer_metrics_calculations():
+    """Verify exact calculation formulas for genuine 256-pt FFT, note/cents, crest factor, correlation, and balance."""
+    from music.analysis import analyze, _hz_to_note
+    rate = 48000
+    n = 2048
+    t = np.arange(n) / float(rate)
+
+    # 1. 440 Hz tone note and cents verification
+    assert "A4" in _hz_to_note(440.0)
+    assert "A5" in _hz_to_note(880.0)
+    assert "C4" in _hz_to_note(261.63)
+
+    # 2. In-phase sine wave analysis
+    sine_440 = 0.5 * np.sin(2.0 * np.pi * 440.0 * t).astype(np.float32)
+    stereo_inphase = np.column_stack([sine_440, sine_440])
+    frame = analyze(stereo_inphase, rate)
+
+    # Genuine 256-point log-spaced FFT spectrum
+    assert len(frame.spectrum) == 256, f"Detailed analyzer requires 256 points, got {len(frame.spectrum)}"
+    assert all(0.0 <= v <= 1.1 for v in frame.spectrum)
+    assert abs(frame.peakHz - 440.0) < 15.0  # within FFT bin resolution (48000/2048 = 23.4 Hz)
+    assert "A4" in frame.peakNote
+
+    # Theoretical crest factor of a pure sinusoid: peak / RMS = sqrt(2) -> 20*log10(sqrt(2)) = 3.01 dB
+    assert abs(frame.crestFactor - 3.01) < 0.5, f"Expected ~3.01 dB crest factor for sine wave, got {frame.crestFactor}"
+
+    # In-phase correlation must be +1.0
+    assert abs(frame.correlation - 1.0) < 1e-4
+
+    # Balanced stereo must have balance == 0.0 dB
+    assert abs(frame.balance) < 0.1
+
+    # 3. Antiphase stereo analysis
+    stereo_antiphase = np.column_stack([sine_440, -sine_440])
+    frame_anti = analyze(stereo_antiphase, rate)
+    assert abs(frame_anti.correlation - (-1.0)) < 1e-4, f"Antiphase correlation must be -1.0, got {frame_anti.correlation}"
+    assert frame_anti.samplePeakL > 0.49
+    assert frame_anti.samplePeakR > 0.49
+
+    # 4. Asymmetric stereo balance test (Right 6 dB hotter: R = 2 * L)
+    stereo_imbalance = np.column_stack([sine_440 * 0.5, sine_440 * 1.0])
+    frame_bal = analyze(stereo_imbalance, rate)
+    # 20 * log10(1.0 / 0.5) = +6.02 dB
+    assert abs(frame_bal.balance - 6.02) < 0.3, f"Expected balance ~+6.02 dB, got {frame_bal.balance}"
+
+
+def test_session_analyzer_and_interactive_eq_nodes(mock_session):
+    """Verify session properties for analyzer metrics and real-time DSP interactive EQ band modification."""
+    session, _ = mock_session
+    assert len(session.spectrum) == 256
+    assert session.peakNote == "--"
+    assert session.peakHz == 0.0
+    assert session.eqClippingCount == 0
+
+    # Test interactive EQ node adjustment
+    # Band 5 = 1000 Hz. Adjust from 0.0 to +4.5 dB
+    session.setBandGain(5, 4.5)
+    assert abs(session.eqGains[5] - 4.5) < 1e-4
+    assert abs(session._eq_player.dsp.bands[5].gain_db - 4.5) < 1e-4
+
+    # Adjust Band 0 = 31 Hz to -6.0 dB
+    session.setBandGain(0, -6.0)
+    assert abs(session.eqGains[0] - (-6.0)) < 1e-4
+    assert abs(session._eq_player.dsp.bands[0].gain_db - (-6.0)) < 1e-4
+
+    # Reset flat
+    session.resetFlat()
+    assert all(abs(g) < 1e-4 for g in session.eqGains)
+    assert all(abs(g) < 1e-4 for g in session._eq_player.dsp.get_all_gains())
+
+

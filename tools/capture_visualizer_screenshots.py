@@ -28,6 +28,7 @@ from PySide6.QtQuickControls2 import QQuickStyle
 
 os.environ["EV_STARTUP_AUDIO"] = "false"
 os.environ["QSG_RENDER_LOOP"] = "basic"
+os.environ["QT_QPA_FONTDIR"] = r"C:\Windows\Fonts"
 
 from core.events import EVEventBus
 from core.experience import EVExperienceManager
@@ -111,12 +112,20 @@ def capture_visualizers() -> int:
     music.playIndex(0)
     wait(400)
 
+    def ensure_playing_peak():
+        if not music.playing or music.position > 2400:
+            music.playIndex(0)
+            music.seek(700)
+            wait(250)
+        else:
+            wait(200)
+
     saved_shots = []
 
     # 1. Capture STUDIO SPAN (Precision Spectrum) at 1920x1080
     music.setLayout("studio-span")
     window.resize(QSize(1920, 1080))
-    wait(300)
+    ensure_playing_peak()
     shot_span_1080 = out_dir / "visualizer_studio_span_1920x1080.png"
     img1 = window.grabWindow()
     img1.save(str(shot_span_1080))
@@ -125,7 +134,7 @@ def capture_visualizers() -> int:
 
     # 2. Capture STUDIO SPAN at compact 1100x760
     window.resize(QSize(1100, 760))
-    wait(300)
+    ensure_playing_peak()
     shot_span_1100 = out_dir / "visualizer_studio_span_1100x760.png"
     img2 = window.grabWindow()
     img2.save(str(shot_span_1100))
@@ -135,7 +144,7 @@ def capture_visualizers() -> int:
     # 3. Capture REFERENCE TRIO at 1920x1080 (Ceiling Rain needles + Flow Trace glowing curve + Segment Stack)
     music.setLayout("reference-trio")
     window.resize(QSize(1920, 1080))
-    wait(300)
+    ensure_playing_peak()
     shot_trio_1080 = out_dir / "visualizer_reference_trio_1920x1080.png"
     img3 = window.grabWindow()
     img3.save(str(shot_trio_1080))
@@ -145,7 +154,7 @@ def capture_visualizers() -> int:
     # 4. Capture SINGLE TRACE (Luminous Organic Flow Trace) at 1920x1080
     music.setLayout("single-trace")
     window.resize(QSize(1920, 1080))
-    wait(300)
+    ensure_playing_peak()
     shot_trace_1080 = out_dir / "visualizer_single_trace_1920x1080.png"
     img4 = window.grabWindow()
     img4.save(str(shot_trace_1080))
@@ -155,12 +164,22 @@ def capture_visualizers() -> int:
     # 5. Capture SINGLE RAIN (High-Density Needle Spectrum) at 1920x1080
     music.setLayout("single-rain")
     window.resize(QSize(1920, 1080))
-    wait(300)
+    ensure_playing_peak()
     shot_rain_1080 = out_dir / "visualizer_single_needles_1920x1080.png"
     img5 = window.grabWindow()
     img5.save(str(shot_rain_1080))
     saved_shots.append(shot_rain_1080)
     print(f"[PASS] Saved Single Needles (1920x1080) to {shot_rain_1080}")
+
+    # 6. Capture SINGLE STACK (Segment Stack Horizontal LED Ladder) at 1920x1080
+    music.setLayout("single-stack")
+    window.resize(QSize(1920, 1080))
+    ensure_playing_peak()
+    shot_stack_1080 = out_dir / "visualizer_single_stack_1920x1080.png"
+    img6 = window.grabWindow()
+    img6.save(str(shot_stack_1080))
+    saved_shots.append(shot_stack_1080)
+    print(f"[PASS] Saved Single Stack (1920x1080) to {shot_stack_1080}")
 
     # Copy all to artifact directory for embedding
     if artifact_dir.exists():

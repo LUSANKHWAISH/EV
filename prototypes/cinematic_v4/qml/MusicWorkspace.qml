@@ -111,13 +111,21 @@ Rectangle {
         VisualizerBoard {
             id:visualizerBoard
             objectName:'musicVisualizerBoard'
-            x:42;y:48;width:parent.width-64;height:parent.height-88
+            readonly property bool isStudio: musicPage.music && musicPage.music.currentLayout === 'studio-span'
+            x: isStudio ? 4 : 42
+            y: isStudio ? 40 : 48
+            width: isStudio ? parent.width - 8 : parent.width - 64
+            height: isStudio ? parent.height - 46 : parent.height - 88
             music:musicPage.music
         }
-        Column { x:8;y:45;spacing:Math.max(1,(analyzer.height-125)/4-10)
+        Column {
+            x:8;y:45;spacing:Math.max(1,(analyzer.height-125)/4-10)
+            visible: !musicPage.music || musicPage.music.currentLayout !== 'studio-span'
             Repeater { model:['0','−20','−40','−60','−80'];Text { required property string modelData;text:modelData;color:'#617f8e';font.family:'Consolas';font.pixelSize:9 } }
         }
-        Item { x:42;y:parent.height-25;width:parent.width-64
+        Item {
+            x:42;y:parent.height-25;width:parent.width-64
+            visible: !musicPage.music || musicPage.music.currentLayout !== 'studio-span'
             Repeater { model:['25 Hz','95','360','1.4k','5.3k','20k'];Text { required property string modelData;required property int index;x:index*(parent.width-width)/5;text:modelData;color:'#617f8e';font.family:'Consolas';font.pixelSize:10 } }
         }
     }

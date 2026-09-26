@@ -53,6 +53,14 @@ class MusicSession(QObject):
         self._bands = [0.]*64
         self._wave = [0.]*160
         self._values = dict(rms=0.,peak=0.,bass=0.,mid=0.,treble=0.)
+        self._spectrum = [0.]*256
+        self._peak_hz = 0.0
+        self._peak_note = "--"
+        self._crest_factor = 0.0
+        self._correlation = 1.0
+        self._balance = 0.0
+        self._sample_peak_l = 0.0
+        self._sample_peak_r = 0.0
         self._last_tick = time.monotonic()
         self.worker = AnalysisWorker()
         self.capture = None
@@ -218,7 +226,45 @@ class MusicSession(QObject):
     @Property(str, notify=analysisChanged)
     def rmsText(self): return f'{20*math.log10(max(1e-6,self._values["rms"])):.1f} dBFS'
     @Property(str, notify=analysisChanged)
+    def rmsLText(self):
+        l = self._frame.left if self._frame is not None else 0.0
+        return f'{20*math.log10(max(1e-6, l)):.1f} dBFS'
+    @Property(str, notify=analysisChanged)
+    def rmsRText(self):
+        r = self._frame.right if self._frame is not None else 0.0
+        return f'{20*math.log10(max(1e-6, r)):.1f} dBFS'
+    @Property(str, notify=analysisChanged)
     def peakText(self): return f'{20*math.log10(max(1e-6,self._values["peak"])):.1f} dBFS'
+    @Property(str, notify=analysisChanged)
+    def samplePeakText(self):
+        p = max(self._sample_peak_l, self._sample_peak_r, self._values["peak"])
+        return f'{20*math.log10(max(1e-6, p)):.1f} dBFS'
+    @Property(str, notify=analysisChanged)
+    def samplePeakLText(self):
+        p = self._sample_peak_l if self._sample_peak_l > 0 else (self._frame.left if self._frame is not None else 0.0)
+        return f'{20*math.log10(max(1e-6, p)):.1f} dBFS'
+    @Property(str, notify=analysisChanged)
+    def samplePeakRText(self):
+        p = self._sample_peak_r if self._sample_peak_r > 0 else (self._frame.right if self._frame is not None else 0.0)
+        return f'{20*math.log10(max(1e-6, p)):.1f} dBFS'
+    @Property('QVariantList', notify=analysisChanged)
+    def spectrum(self): return self._spectrum
+    @Property(float, notify=analysisChanged)
+    def peakHz(self): return self._peak_hz
+    @Property(str, notify=analysisChanged)
+    def peakNote(self): return self._peak_note
+    @Property(float, notify=analysisChanged)
+    def crestFactor(self): return self._crest_factor
+    @Property(float, notify=analysisChanged)
+    def correlation(self): return self._correlation
+    @Property(float, notify=analysisChanged)
+    def balance(self): return self._balance
+    @Property(float, notify=analysisChanged)
+    def samplePeakL(self): return self._sample_peak_l
+    @Property(float, notify=analysisChanged)
+    def samplePeakR(self): return self._sample_peak_r
+    @Property(int, notify=analysisChanged)
+    def eqClippingCount(self): return getattr(self._eq_player.dsp, 'clipped_samples', 0) if self._backend == 'dsp' else 0
 
     def set_active(self, active):
         """Set Music-page visibility; analysis may continue for ambient reactions."""
@@ -599,35 +645,69 @@ class MusicSession(QObject):
 
     def _clear_analysis(self):
         self._frame = None
-        self._beat.value=0.
-        self._bands = [0.]*64
-        self._wave = [0.]*160
-        self._values = dict(rms=0.,peak=0.,bass=0.,mid=0.,treble=0.)
+        self._beat.value = 0.
+        self._bands = [0.] * 64
+        self._wave = [0.] * 160
+        self._values = dict(rms=0., peak=0., bass=0., mid=0., treble=0.)
+        self._spectrum = [0.] * 256
+        self._peak_hz = 0.0
+        self._peak_note = "--"
+        self._crest_factor = 0.0
+        self._correlation = 1.0
+        self._balance = 0.0
+        self._sample_peak_l = 0.0
+        self._sample_peak_r = 0.0
         self.analysisChanged.emit()
 
     @Slot()
     def _tick(self):
         now = time.monotonic()
-        dt = min(.15,now-self._last_tick)
+        dt = min(.15, now - self._last_tick)
         self._last_tick = now
         frame = self.worker.latest()
         self._frame = frame if frame is not None else None
-        valid = frame is not None and now-frame['timestamp'] < .25
+        valid = frame is not None and now - frame['timestamp'] < .25
         gain = (0 if self.muted else self.volume) if self._input == 'player' else 1.
         if self._input == 'player' and not self.playing: valid = False
-        self._beat.update(dt,self.worker.take_onsets(now),gain,bool(valid))
+        self._beat.update(dt, self.worker.take_onsets(now), gain, bool(valid))
         # Local decode measurements are adjusted by E.V.'s volume, not the Windows master gain.
         targets = np.asarray(frame['bands']) if valid and gain > 0 else np.zeros(64)
         if valid and gain > 0:
-            targets = np.clip(targets+20*math.log10(gain)/80,0,1)
+            targets = np.clip(targets + 20 * math.log10(gain) / 80, 0, 1)
         old = np.asarray(self._bands)
-        tau = np.where(targets>old,.025,.16)
-        self._bands = (old+(targets-old)*(1-np.exp(-dt/tau))).tolist()
-        self._wave = (np.asarray(frame['waveform'])*gain).tolist() if valid else [0.]*160
+        tau = np.where(targets > old, .025, .16)
+        self._bands = (old + (targets - old) * (1 - np.exp(-dt / tau))).tolist()
+        self._wave = (np.asarray(frame['waveform']) * gain).tolist() if valid else [0.] * 160
         for name in self._values:
-            target = frame[name]*gain if valid else 0.
-            tau = .025 if target>self._values[name] else .16
-            self._values[name] += (target-self._values[name])*(1-math.exp(-dt/tau))
+            target = frame[name] * gain if valid else 0.
+            tau = .025 if target > self._values[name] else .16
+            self._values[name] += (target - self._values[name]) * (1 - math.exp(-dt / tau))
+
+        if valid and gain > 0:
+            vol_db = 20.0 * math.log10(max(1e-5, gain))
+            raw_spec = np.asarray(frame.spectrum if hasattr(frame, 'spectrum') and frame.spectrum else [0.] * 256)
+            spec_targets = np.clip(raw_spec + (vol_db / 80.0), 0.0, 1.1)
+            old_spec = np.asarray(self._spectrum)
+            tau_spec = np.where(spec_targets > old_spec, 0.025, 0.16)
+            self._spectrum = (old_spec + (spec_targets - old_spec) * (1.0 - np.exp(-dt / tau_spec))).tolist()
+            self._peak_hz = float(frame.peakHz) if hasattr(frame, 'peakHz') else 0.0
+            self._peak_note = str(frame.peakNote) if hasattr(frame, 'peakNote') else "--"
+            self._crest_factor = float(frame.crestFactor) if hasattr(frame, 'crestFactor') else 0.0
+            self._correlation = float(frame.correlation) if hasattr(frame, 'correlation') else 1.0
+            self._balance = float(frame.balance) if hasattr(frame, 'balance') else 0.0
+            self._sample_peak_l = float(frame.samplePeakL * gain) if hasattr(frame, 'samplePeakL') else 0.0
+            self._sample_peak_r = float(frame.samplePeakR * gain) if hasattr(frame, 'samplePeakR') else 0.0
+        else:
+            old_spec = np.asarray(self._spectrum)
+            self._spectrum = (old_spec * np.exp(-dt / 0.16)).tolist()
+            self._peak_hz = 0.0
+            self._peak_note = "--"
+            self._crest_factor = 0.0
+            self._correlation = 1.0
+            self._balance = 0.0
+            self._sample_peak_l = 0.0
+            self._sample_peak_r = 0.0
+
         if self._backend == 'dsp' and self.playing:
             self.changed.emit()
         self.analysisChanged.emit()
