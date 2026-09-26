@@ -3,183 +3,536 @@ import QtQuick.Controls
 import QtQuick.Dialogs
 
 Rectangle {
-    id:musicPage
-    objectName:'musicWorkspace'
+    id: musicPage
+    objectName: 'musicWorkspace'
     required property var music
-    property bool reactionAllowed:true
-    property bool showEQ:true
-    color:'#071119'
-    readonly property real queueWidth:width<1100?220:270
-    readonly property real mainWidth:width-queueWidth-26
-    readonly property color gold:'#e1b463'
-    onEnabledChanged:if(!enabled)files.close()
-    function clock(ms){let s=Math.floor(ms/1000);return Math.floor(s/60)+':'+('0'+s%60).slice(-2)}
-    component Caption:Text { color:'#78939f';font.pixelSize:10;font.letterSpacing:1.6 }
-    component Picker:ComboBox {
-        id:pick;implicitHeight:36;font.pixelSize:11
-        contentItem:Text { text:pick.displayText;color:'#d3dcd9';font:pick.font;verticalAlignment:Text.AlignVCenter;leftPadding:12;rightPadding:25;elide:Text.ElideRight }
-        background:Rectangle { color:'#11212a';border.color:pick.activeFocus?'#d1ac65':'#31434c';radius:3 }
+    property bool reactionAllowed: true
+    property bool showEQ: true
+    property bool showQueue: false
+    color: '#071119'
+
+    readonly property real queueWidth: width < 1200 ? 210 : 250
+    readonly property real mainWidth: showQueue ? (width - queueWidth - 18) : (width - 16)
+    readonly property color gold: '#e1b463'
+
+    onEnabledChanged: if (!enabled) files.close()
+    function clock(ms) {
+        let s = Math.floor((ms || 0) / 1000);
+        return Math.floor(s / 60) + ':' + ('0' + s % 60).slice(-2)
     }
-    component MusicSlider:Slider {
-        id:slider
-        background:Rectangle { x:slider.leftPadding;y:slider.topPadding+slider.availableHeight/2-2;width:slider.availableWidth;height:4;radius:2;color:'#263b46'
-            Rectangle { width:slider.visualPosition*parent.width;height:4;radius:2;color:musicPage.gold }
+
+    component Caption: Text {
+        color: '#78939f'
+        font.pixelSize: 10
+        font.family: 'Segoe UI'
+        font.letterSpacing: 1.2
+    }
+
+    component Picker: ComboBox {
+        id: pick
+        implicitHeight: 28
+        font.pixelSize: 11
+        font.family: 'Segoe UI'
+        contentItem: Text {
+            text: pick.displayText
+            color: '#d3dcd9'
+            font: pick.font
+            verticalAlignment: Text.AlignVCenter
+            leftPadding: 8
+            rightPadding: 20
+            elide: Text.ElideRight
         }
-        handle:Rectangle { x:slider.leftPadding+slider.visualPosition*(slider.availableWidth-width);y:slider.topPadding+slider.availableHeight/2-6;width:12;height:12;radius:6;color:slider.pressed?'#ffecb5':musicPage.gold }
+        background: Rectangle {
+            color: '#11212a'
+            border.color: pick.activeFocus ? '#d1ac65' : '#31434c'
+            radius: 3
+        }
     }
+
+    component MusicSlider: Slider {
+        id: slider
+        background: Rectangle {
+            x: slider.leftPadding
+            y: slider.topPadding + slider.availableHeight / 2 - 2
+            width: slider.availableWidth
+            height: 4
+            radius: 2
+            color: '#263b46'
+            Rectangle {
+                width: slider.visualPosition * parent.width
+                height: 4
+                radius: 2
+                color: musicPage.gold
+            }
+        }
+        handle: Rectangle {
+            x: slider.leftPadding + slider.visualPosition * (slider.availableWidth - width)
+            y: slider.topPadding + slider.availableHeight / 2 - 6
+            width: 12
+            height: 12
+            radius: 6
+            color: slider.pressed ? '#ffecb5' : musicPage.gold
+        }
+    }
+
     FileDialog {
-        id:files;objectName:'musicFileDialog';title:'Add local music';fileMode:FileDialog.OpenFiles
-        nameFilters:['Audio files (*.mp3 *.wav *.flac *.m4a *.aac *.ogg *.opus *.aif *.aiff *.wma)']
-        onAccepted:if(musicPage.enabled)musicPage.music.addFiles(selectedFiles)
+        id: files
+        objectName: 'musicFileDialog'
+        title: 'Add local music'
+        fileMode: FileDialog.OpenFiles
+        nameFilters: ['Audio files (*.mp3 *.wav *.flac *.m4a *.aac *.ogg *.opus *.aif *.aiff *.wma)']
+        onAccepted: if (musicPage.enabled) musicPage.music.addFiles(selectedFiles)
     }
-    DropArea { anchors.fill:parent;onDropped:function(drop){if(drop.hasUrls){musicPage.music.addFiles(drop.urls);drop.acceptProposedAction()}} }
-    Column {
-        width:musicPage.mainWidth;spacing:12
-        Caption { text:'MUSIC  /  AUDIO WORKSPACE';color:musicPage.gold }
-        Text { width:parent.width;text:musicPage.music.title;textFormat:Text.PlainText;color:'#f0e8d8';font.family:'Segoe UI';font.pixelSize:musicPage.width<1100?25:33;font.weight:Font.Light;elide:Text.ElideRight }
-        Text { width:parent.width;text:'Open or drop local tracks. Choose Windows audio to follow VLC, a browser or another player.';wrapMode:Text.WordWrap;font.pixelSize:12;color:'#91a7b0' }
-        Row { spacing:8
-            HudButton { objectName:'musicOpen';text:'＋  OPEN TRACKS';accent:true;width:150;onClicked:files.open() }
-            HudButton { objectName:'musicInputPlayer';text:'E.V. PLAYER';selected:musicPage.music.inputSource==='player';onClicked:musicPage.music.setInput('player') }
-            HudButton { objectName:'musicInputSystem';text:'WINDOWS AUDIO';width:150;selected:musicPage.music.inputSource==='system';onClicked:musicPage.music.setInput('system') }
-            HudButton { objectName:'musicEQToggle';text:musicPage.showEQ?'EQ  ACTIVE':'10-BAND EQ';width:115;selected:musicPage.showEQ;accent:musicPage.showEQ;onClicked:musicPage.showEQ=!musicPage.showEQ }
-        }
-        Row { spacing:10
-            Picker {
-                objectName:'musicDevice';width:Math.min(300,musicPage.mainWidth-160)
-                visible:musicPage.music.inputSource==='system'
-                model:musicPage.music.captureDevices;textRole:'label';valueRole:'id'
-                onActivated:musicPage.music.setCaptureDevice(currentValue)
-                Accessible.name:'Windows output to visualize'
+
+    DropArea {
+        anchors.fill: parent
+        onDropped: function(drop) {
+            if (drop.hasUrls) {
+                musicPage.music.addFiles(drop.urls)
+                drop.acceptProposedAction()
             }
-            HudButton {
-                objectName:'musicCaptureToggle';visible:musicPage.music.inputSource==='system';width:130
-                text:musicPage.music.captureState==='active'||musicPage.music.captureState==='starting'?'STOP CAPTURE':'CONNECT'
-                onClicked:{if(musicPage.music.captureState==='active'||musicPage.music.captureState==='starting')musicPage.music.stopCapture();else musicPage.music.startCapture()}
-            }
-            Picker { objectName:'musicOutput';visible:musicPage.music.inputSource==='player';width:Math.min(300,musicPage.mainWidth-160);model:musicPage.music.outputDevices;onActivated:musicPage.music.setOutputDevice(currentIndex);Accessible.name:'E.V. playback output' }
         }
     }
+
+    // 1. Sleek Compact Header Bar (height: ~44px)
     Rectangle {
-        id:analyzer;objectName:'musicAnalyzer';y:205;width:musicPage.mainWidth
-        readonly property real fullHeight: Math.max(160, musicPage.height-355)
-        height: musicPage.showEQ ? Math.max(110, fullHeight - eqPanel.height - 8) : fullHeight
-        color:'#0a1821';border.color:'#263b45';radius:5;clip:true
-        Caption { x:20;y:17;text:'LIVE SPECTRUM';color:musicPage.gold }
+        id: headerBar
+        x: 8
+        y: 6
+        width: musicPage.mainWidth
+        height: 44
+        color: 'transparent'
+
+        Row {
+            anchors.left: parent.left
+            anchors.verticalCenter: parent.verticalCenter
+            spacing: 10
+
+            // Track info block
+            Column {
+                spacing: 1
+                Caption {
+                    text: 'MUSIC  /  AUDIO WORKSPACE'
+                    color: musicPage.gold
+                    font.pixelSize: 8
+                }
+                Text {
+                    text: musicPage.music && musicPage.music.title ? musicPage.music.title : 'No Track Loaded'
+                    textFormat: Text.PlainText
+                    color: '#f0e8d8'
+                    font.family: 'Segoe UI'
+                    font.pixelSize: 15
+                    font.weight: Font.DemiBold
+                    elide: Text.ElideRight
+                    width: Math.min(220, musicPage.mainWidth * 0.28)
+                }
+            }
+
+            // Quick source & device controls
+            Row {
+                spacing: 5
+                anchors.verticalCenter: parent.verticalCenter
+
+                HudButton {
+                    objectName: 'musicOpen'
+                    text: '＋ OPEN'
+                    accent: true
+                    height: 26
+                    implicitWidth: 64
+                    font.pixelSize: 10
+                    onClicked: files.open()
+                }
+                HudButton {
+                    objectName: 'musicInputPlayer'
+                    text: 'PLAYER'
+                    selected: musicPage.music.inputSource === 'player'
+                    height: 26
+                    implicitWidth: 56
+                    font.pixelSize: 10
+                    onClicked: musicPage.music.setInput('player')
+                }
+                HudButton {
+                    objectName: 'musicInputSystem'
+                    text: musicPage.width < 1300 ? 'SYSTEM' : 'WINDOWS AUDIO'
+                    selected: musicPage.music.inputSource === 'system'
+                    height: 26
+                    implicitWidth: musicPage.width < 1300 ? 60 : 108
+                    font.pixelSize: 10
+                    onClicked: musicPage.music.setInput('system')
+                }
+                Picker {
+                    objectName: 'musicDevice'
+                    width: Math.min(150, Math.max(100, musicPage.mainWidth * 0.12))
+                    visible: musicPage.music.inputSource === 'system'
+                    model: musicPage.music.captureDevices
+                    textRole: 'label'
+                    valueRole: 'id'
+                    onActivated: musicPage.music.setCaptureDevice(currentValue)
+                    Accessible.name: 'Windows output to visualize'
+                }
+                HudButton {
+                    objectName: 'musicCaptureToggle'
+                    visible: musicPage.music.inputSource === 'system'
+                    implicitWidth: 68
+                    height: 26
+                    font.pixelSize: 10
+                    text: musicPage.music.captureState === 'active' || musicPage.music.captureState === 'starting' ? 'STOP' : 'CONNECT'
+                    onClicked: {
+                        if (musicPage.music.captureState === 'active' || musicPage.music.captureState === 'starting')
+                            musicPage.music.stopCapture()
+                        else
+                            musicPage.music.startCapture()
+                    }
+                }
+                Picker {
+                    objectName: 'musicOutput'
+                    visible: musicPage.music.inputSource === 'player'
+                    width: Math.min(150, Math.max(100, musicPage.mainWidth * 0.12))
+                    model: musicPage.music.outputDevices
+                    onActivated: musicPage.music.setOutputDevice(currentIndex)
+                    Accessible.name: 'E.V. playback output'
+                }
+            }
+        }
+
+        // Right side: Layout Switcher & Panel Toggles
         Row {
             id: layoutControls
             objectName: 'musicLayoutControls'
-            x: 130; y: 13; spacing: 6
-            HudButton {
-                objectName: 'layoutTrioBtn'
-                text: 'TRIO'
-                height: 22; width: 50
-                selected: !musicPage.music || !musicPage.music.currentLayout || musicPage.music.currentLayout === 'reference-trio'
-                onClicked: if (musicPage.music) musicPage.music.setLayout('reference-trio')
-            }
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
+            spacing: 4
+
             HudButton {
                 objectName: 'layoutStudioBtn'
                 text: 'STUDIO'
-                height: 22; width: 62
+                height: 24
+                implicitWidth: 54
+                font.pixelSize: 10
+                font.letterSpacing: 0.3
                 selected: musicPage.music && musicPage.music.currentLayout === 'studio-span'
                 onClicked: if (musicPage.music) musicPage.music.setLayout('studio-span')
             }
             HudButton {
+                objectName: 'layoutTrioBtn'
+                text: 'TRIO'
+                height: 24
+                implicitWidth: 44
+                font.pixelSize: 10
+                font.letterSpacing: 0.3
+                selected: !musicPage.music || !musicPage.music.currentLayout || musicPage.music.currentLayout === 'reference-trio'
+                onClicked: if (musicPage.music) musicPage.music.setLayout('reference-trio')
+            }
+            HudButton {
                 objectName: 'layoutTraceBtn'
                 text: 'TRACE'
-                height: 22; width: 55
+                height: 24
+                implicitWidth: 50
+                font.pixelSize: 10
+                font.letterSpacing: 0.3
                 selected: musicPage.music && musicPage.music.currentLayout === 'single-trace'
                 onClicked: if (musicPage.music) musicPage.music.setLayout('single-trace')
             }
             HudButton {
+                objectName: 'layoutNeedlesBtn'
+                text: 'NEEDLES'
+                height: 24
+                implicitWidth: 62
+                font.pixelSize: 10
+                font.letterSpacing: 0.3
+                selected: musicPage.music && musicPage.music.currentLayout === 'single-rain'
+                onClicked: if (musicPage.music) musicPage.music.setLayout('single-rain')
+            }
+            HudButton {
                 objectName: 'layoutSplitBtn'
                 text: 'SPLIT'
-                height: 22; width: 50
+                height: 24
+                implicitWidth: 46
+                font.pixelSize: 10
+                font.letterSpacing: 0.3
                 selected: musicPage.music && musicPage.music.currentLayout === 'split-duo'
                 onClicked: if (musicPage.music) musicPage.music.setLayout('split-duo')
             }
             HudButton {
+                objectName: 'layoutSegmentsBtn'
+                text: 'SEGMENTS'
+                height: 24
+                implicitWidth: 74
+                font.pixelSize: 10
+                font.letterSpacing: 0.2
+                selected: musicPage.music && musicPage.music.currentLayout === 'single-stack'
+                onClicked: if (musicPage.music) musicPage.music.setLayout('single-stack')
+            }
+
+            Rectangle { width: 1; height: 16; color: '#253a47'; anchors.verticalCenter: parent.verticalCenter }
+
+            // Collapsible panel toggles
+            HudButton {
+                id: layoutEQBtn
                 objectName: 'layoutEQBtn'
-                text: 'EQ'
-                height: 22; width: 45
+                text: musicPage.showEQ ? 'EQ ACTIVE' : '10-BAND EQ'
+                height: 24
+                implicitWidth: 74
+                font.pixelSize: 10
+                font.letterSpacing: 0.3
                 selected: musicPage.showEQ
                 accent: musicPage.showEQ
                 onClicked: musicPage.showEQ = !musicPage.showEQ
             }
-        }
-        Text { anchors.right:parent.right;anchors.rightMargin:20;y:17;text:musicPage.music.rmsText+' RMS    '+musicPage.music.peakText+' PEAK';color:'#9cb0b8';font.family:'Consolas';font.pixelSize:11 }
-        VisualizerBoard {
-            id:visualizerBoard
-            objectName:'musicVisualizerBoard'
-            readonly property bool isStudio: musicPage.music && musicPage.music.currentLayout === 'studio-span'
-            x: isStudio ? 4 : 42
-            y: isStudio ? 40 : 48
-            width: isStudio ? parent.width - 8 : parent.width - 64
-            height: isStudio ? parent.height - 46 : parent.height - 88
-            music:musicPage.music
-        }
-        Column {
-            x:8;y:45;spacing:Math.max(1,(analyzer.height-125)/4-10)
-            visible: !musicPage.music || musicPage.music.currentLayout !== 'studio-span'
-            Repeater { model:['0','−20','−40','−60','−80'];Text { required property string modelData;text:modelData;color:'#617f8e';font.family:'Consolas';font.pixelSize:9 } }
-        }
-        Item {
-            x:42;y:parent.height-25;width:parent.width-64
-            visible: !musicPage.music || musicPage.music.currentLayout !== 'studio-span'
-            Repeater { model:['25 Hz','95','360','1.4k','5.3k','20k'];Text { required property string modelData;required property int index;x:index*(parent.width-width)/5;text:modelData;color:'#617f8e';font.family:'Consolas';font.pixelSize:10 } }
+            HudButton {
+                id: musicEQToggle
+                objectName: 'musicEQToggle'
+                visible: false
+                selected: musicPage.showEQ
+                onClicked: musicPage.showEQ = !musicPage.showEQ
+            }
+            HudButton {
+                objectName: 'musicQueueToggle'
+                text: musicPage.showQueue ? 'QUEUE [ON]' : 'QUEUE'
+                height: 24
+                implicitWidth: 66
+                font.pixelSize: 10
+                font.letterSpacing: 0.3
+                selected: musicPage.showQueue
+                onClicked: musicPage.showQueue = !musicPage.showQueue
+            }
         }
     }
+
+    // 2. High-prominence Visualizer Area
+    Rectangle {
+        id: analyzer
+        objectName: 'musicAnalyzer'
+        x: 8
+        y: 54
+        width: musicPage.mainWidth
+        readonly property real availH: Math.max(160, musicPage.height - 54 - 60 - 12)
+        readonly property real eqH: musicPage.showEQ ? Math.min(180, Math.max(135, availH * 0.28)) : 0
+        height: musicPage.showEQ ? Math.max(120, availH - eqH - 6) : availH
+        color: '#0a1821'
+        border.color: '#263b45'
+        radius: 5
+        clip: true
+
+        VisualizerBoard {
+            id: visualizerBoard
+            objectName: 'musicVisualizerBoard'
+            anchors.fill: parent
+            music: musicPage.music
+        }
+    }
+
+    // 3. Collapsible 10-Band EQ Panel
     EqualizerPanel {
         id: eqPanel
         objectName: 'musicEqualizerPanel'
         visible: musicPage.showEQ
-        x: 0
-        y: analyzer.y + analyzer.height + 8
+        x: 8
+        y: analyzer.y + analyzer.height + 6
         width: musicPage.mainWidth
-        height: musicPage.showEQ ? Math.min(215, Math.max(160, (musicPage.height - 355) * 0.48)) : 0
+        height: analyzer.eqH
         music: musicPage.music
     }
+
+    // 4. Collapsible Playlist Queue Sidebar
     Column {
-        x:musicPage.mainWidth+26;width:musicPage.queueWidth;spacing:12
-        Caption { text:'UP NEXT' }
-        Text { text:musicPage.music.queue.length+(musicPage.music.queue.length===1?' local track':' local tracks');color:'#c5d0d0';font.pixelSize:18;font.weight:Font.Light }
-        ListView {
-            objectName:'musicQueue';width:parent.width;height:Math.max(120,musicPage.height-460);clip:true;spacing:6
-            model:musicPage.music.queue;ScrollBar.vertical:ScrollBar{}
-            delegate:HudButton {
-                required property var modelData
-                width:ListView.view.width;height:44;text:(modelData.index+1)+'   '+modelData.title
-                selected:modelData.index===musicPage.music.currentIndex;onClicked:musicPage.music.playIndex(modelData.index)
+        id: queueSidebar
+        visible: musicPage.showQueue
+        x: musicPage.mainWidth + 14
+        y: 8
+        width: musicPage.queueWidth
+        spacing: 8
+
+        Row {
+            width: parent.width
+            Caption {
+                text: 'PLAYLIST QUEUE'
+                font.family: 'Segoe UI'
+                font.pixelSize: 9
+                color: musicPage.gold
             }
-            Text { visible:musicPage.music.queue.length===0;anchors.fill:parent;text:'Add a few tracks,\nor visualize music\nalready playing.';color:'#6f8a98';font.pixelSize:13;lineHeight:1.6 }
+            Text {
+                text: musicPage.music.queue.length + (musicPage.music.queue.length === 1 ? ' track' : ' tracks')
+                color: '#91a7b0'
+                font.family: 'Consolas'
+                font.pixelSize: 10
+                anchors.right: parent.right
+            }
         }
-        Row { width:parent.width;spacing:8
-            Repeater { model:[{label:'BASS',value:musicPage.music.bass},{label:'MID',value:musicPage.music.mid},{label:'HIGH',value:musicPage.music.treble}]
-                Column { required property var modelData;width:(musicPage.queueWidth-16)/3;spacing:8
-                    Caption { text:modelData.label;font.pixelSize:8 }
-                    Rectangle { width:parent.width;height:3;color:'#253a43';Rectangle { width:parent.width*modelData.value;height:3;color:musicPage.gold } }
+
+        ListView {
+            id: queueList
+            objectName: 'musicQueue'
+            width: parent.width
+            height: Math.max(120, musicPage.height - 180)
+            clip: true
+            spacing: 4
+            model: musicPage.music.queue
+            ScrollBar.vertical: ScrollBar {}
+            delegate: HudButton {
+                required property var modelData
+                width: ListView.view.width
+                height: 34
+                text: (modelData.index + 1) + '   ' + modelData.title
+                selected: modelData.index === musicPage.music.currentIndex
+                onClicked: musicPage.music.playIndex(modelData.index)
+            }
+            Text {
+                visible: musicPage.music.queue.length === 0
+                anchors.centerIn: parent
+                text: 'Drop local audio files\nor click ＋ OPEN'
+                color: '#6f8a98'
+                font.family: 'Segoe UI'
+                font.pixelSize: 12
+                horizontalAlignment: Text.AlignHCenter
+            }
+        }
+
+        // Mini spectrum bands
+        Row {
+            width: parent.width
+            spacing: 6
+            Repeater {
+                model: [{ label: 'BASS', value: musicPage.music.bass }, { label: 'MID', value: musicPage.music.mid }, { label: 'HIGH', value: musicPage.music.treble }]
+                Column {
+                    required property var modelData
+                    width: (musicPage.queueWidth - 12) / 3
+                    spacing: 4
+                    Caption { text: modelData.label; font.pixelSize: 8 }
+                    Rectangle {
+                        width: parent.width
+                        height: 3
+                        color: '#253a43'
+                        Rectangle { width: parent.width * modelData.value; height: 3; color: musicPage.gold }
+                    }
                 }
             }
         }
     }
-    Row { x:musicPage.mainWidth+26;y:musicPage.height-162;width:musicPage.queueWidth;spacing:8
-        Rectangle { width:6;height:6;radius:3;y:2;color:musicPage.gold;opacity:.15+(musicPage.reactionAllowed?musicPage.music.beat*musicPage.music.reactionGain*.85:0) }
-        Text { text:musicPage.music.reactionMode==='off'?'E.V.  /  REACTION OFF':musicPage.reactionAllowed?'E.V.  /  BEAT RESPONSE':'E.V.  /  REACTION PAUSED';color:'#b39762';font.pixelSize:9;font.letterSpacing:1.2 }
-    }
+
+    // 5. Sleek Professional DAW-style Transport Bar (height: 54px)
     Rectangle {
-        id:transport;objectName:'musicTransport';y:parent.height-128;width:parent.width;height:128;color:'#101e27';border.color:'#30454e';radius:5
-        Row { x:18;y:12;spacing:8
-            HudButton { objectName:'musicPrevious';text:'PREV';width:65;enabled:musicPage.music.hasTrack;onClicked:musicPage.music.previous() }
-            HudButton { objectName:'musicPlay';text:musicPage.music.playing?'PAUSE':'PLAY';width:85;accent:true;enabled:musicPage.music.hasTrack;onClicked:musicPage.music.togglePlayback() }
-            HudButton { objectName:'musicNext';text:'NEXT';width:65;enabled:musicPage.music.currentIndex+1<musicPage.music.queue.length;onClicked:musicPage.music.next() }
-            HudButton { objectName:'musicStop';text:'STOP';width:65;enabled:musicPage.music.hasTrack;onClicked:musicPage.music.stop() }
-            Text { y:11;text:musicPage.clock(musicPage.music.position)+' / '+musicPage.clock(musicPage.music.duration);font.family:'Consolas';font.pixelSize:12;color:'#c8d3d1' }
+        id: transport
+        objectName: 'musicTransport'
+        x: 8
+        y: parent.height - 54
+        width: parent.width - 16
+        height: 50
+        color: '#0e1a22'
+        border.color: '#263b46'
+        radius: 4
+
+        // Seek Bar at top edge of transport
+        MusicSlider {
+            objectName: 'musicSeek'
+            x: 4
+            y: -6
+            width: parent.width - 8
+            height: 16
+            from: 0
+            to: Math.max(1, musicPage.music.duration)
+            stepSize: 1000
+            value: musicPage.music.position
+            enabled: musicPage.music.seekable
+            onMoved: musicPage.music.seek(value)
+            Accessible.name: 'Track position'
         }
-        Row { anchors.right:parent.right;anchors.rightMargin:18;y:12;spacing:8
-            HudButton { objectName:'musicMute';text:musicPage.music.muted?'UNMUTE':'MUTE';width:75;onClicked:musicPage.music.setMuted(!musicPage.music.muted) }
-            MusicSlider { objectName:'musicVolume';width:120;from:0;to:1;value:musicPage.music.volume;onMoved:musicPage.music.setVolume(value);Accessible.name:'Music volume' }
+
+        // Transport Controls Row
+        Row {
+            x: 10
+            anchors.bottom: parent.bottom
+            anchors.bottomMargin: 8
+            spacing: 6
+
+            HudButton {
+                objectName: 'musicPrevious'
+                text: 'PREV'
+                implicitWidth: 50
+                height: 26
+                font.pixelSize: 10
+                enabled: musicPage.music.hasTrack
+                onClicked: musicPage.music.previous()
+            }
+            HudButton {
+                objectName: 'musicPlay'
+                text: musicPage.music.playing ? 'PAUSE' : 'PLAY'
+                implicitWidth: 62
+                height: 26
+                accent: true
+                font.pixelSize: 10
+                enabled: musicPage.music.hasTrack
+                onClicked: musicPage.music.togglePlayback()
+            }
+            HudButton {
+                objectName: 'musicNext'
+                text: 'NEXT'
+                implicitWidth: 50
+                height: 26
+                font.pixelSize: 10
+                enabled: musicPage.music.currentIndex + 1 < musicPage.music.queue.length
+                onClicked: musicPage.music.next()
+            }
+            HudButton {
+                objectName: 'musicStop'
+                text: 'STOP'
+                implicitWidth: 50
+                height: 26
+                font.pixelSize: 10
+                enabled: musicPage.music.hasTrack
+                onClicked: musicPage.music.stop()
+            }
+
+            Text {
+                anchors.verticalCenter: parent.verticalCenter
+                text: musicPage.clock(musicPage.music.position) + ' / ' + musicPage.clock(musicPage.music.duration)
+                font.family: 'Consolas'
+                font.pixelSize: 11
+                color: '#c8d3d1'
+            }
         }
-        MusicSlider { objectName:'musicSeek';x:18;y:53;width:parent.width-36;from:0;to:Math.max(1,musicPage.music.duration);stepSize:1000;value:musicPage.music.position;enabled:musicPage.music.seekable;onMoved:musicPage.music.seek(value);Accessible.name:'Track position' }
-        Text { x:20;y:96;width:parent.width-40;text:musicPage.music.status;textFormat:Text.PlainText;color:musicPage.music.captureState==='error'?'#e5a06c':'#839ea9';font.pixelSize:11;elide:Text.ElideRight }
+
+        // Center Status Text
+        Text {
+            anchors.centerIn: parent
+            anchors.verticalCenterOffset: 4
+            text: musicPage.music.status
+            textFormat: Text.PlainText
+            color: musicPage.music.captureState === 'error' ? '#e5a06c' : '#7e96a2'
+            font.family: 'Segoe UI'
+            font.pixelSize: 10
+            elide: Text.ElideRight
+            width: Math.min(400, parent.width * 0.35)
+            horizontalAlignment: Text.AlignHCenter
+        }
+
+        // Right Volume & Mute Controls
+        Row {
+            anchors.right: parent.right
+            anchors.rightMargin: 10
+            anchors.bottom: parent.bottom
+            anchors.bottomMargin: 8
+            spacing: 6
+
+            HudButton {
+                objectName: 'musicMute'
+                text: musicPage.music.muted ? 'UNMUTE' : 'MUTE'
+                implicitWidth: 58
+                height: 26
+                font.pixelSize: 10
+                onClicked: musicPage.music.setMuted(!musicPage.music.muted)
+            }
+            MusicSlider {
+                objectName: 'musicVolume'
+                width: 90
+                height: 26
+                anchors.verticalCenter: parent.verticalCenter
+                from: 0
+                to: 1
+                value: musicPage.music.volume
+                onMoved: musicPage.music.setVolume(value)
+                Accessible.name: 'Music volume'
+            }
+        }
     }
 }

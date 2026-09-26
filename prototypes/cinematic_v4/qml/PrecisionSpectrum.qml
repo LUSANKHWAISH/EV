@@ -5,7 +5,7 @@ Item {
     required property var music
 
     // Styling matching Voxengo SPAN studio reference
-    property color gridColor: '#1a2430'
+    property color gridColor: '#16222d'
     property color textDim: '#6b8294'
     property color textBright: '#dfddd3'
     property color chartreuseFill: '#8ac926'
@@ -33,16 +33,17 @@ Item {
         onTriggered: {
             const raw = root.music ? (root.music.spectrum || []) : []
             if (raw.length === 0) return
+            const count = raw.length
             let p = root.peakSpectrum || []
-            if (p.length !== raw.length) {
-                p = new Array(raw.length).fill(0)
+            if (p.length !== count) {
+                p = new Array(count).fill(0)
             }
-            for (let i = 0; i < raw.length; ++i) {
+            for (let i = 0; i < count; ++i) {
                 const cur = Number(raw[i] || 0)
                 if (cur >= p[i]) {
                     p[i] = cur
                 } else {
-                    p[i] = Math.max(cur, p[i] - 0.007) // smooth ballistic decay
+                    p[i] = Math.max(cur, p[i] - 0.007)
                 }
             }
             root.peakSpectrum = p
@@ -69,10 +70,10 @@ Item {
 
             // Geometry bounds
             const isCompactH = h < 240
-            const leftMargin = 30
-            const rightMargin = 70 // reserved for stereo level meters
-            const topMargin = isCompactH ? 18 : 28   // reserved for top readouts
-            const bottomMargin = isCompactH ? 38 : 56 // reserved for frequency scale + statistics bar
+            const leftMargin = 38
+            const rightMargin = 85 // reserved for separate EQ gain scale & level meters
+            const topMargin = isCompactH ? 20 : 28
+            const bottomMargin = isCompactH ? 44 : 58
             const plotW = Math.max(10, w - leftMargin - rightMargin)
             const plotH = Math.max(10, h - topMargin - bottomMargin)
             const plotB = topMargin + plotH
@@ -105,7 +106,7 @@ Item {
 
             c.strokeStyle = '#141d27'
             c.lineWidth = 1
-            c.font = '9px Consolas, monospace'
+            c.font = '9px Consolas'
             c.textAlign = 'center'
             c.fillStyle = '#5c7385'
 
@@ -117,12 +118,12 @@ Item {
                     c.lineTo(fx, plotB)
                     c.stroke()
 
-                    // Label tick below plot
+                    // Frequency label tick below plot
                     c.fillText(freqGrid[i].l, fx, plotB + 13)
                 }
             }
 
-            // 4. Decibel Grid Lines (-78 dB to +6 dB)
+            // 4. Decibel Grid Lines for Left Y-Axis (Spectrum Level: -78 to +6 dBFS)
             const dbTicks = [
                 { db: 6, l: '+6' }, { db: 0, l: '0' }, { db: -6, l: '-6' },
                 { db: -12, l: '-12' }, { db: -18, l: '-18' }, { db: -24, l: '-24' },
@@ -150,16 +151,23 @@ Item {
                     c.lineTo(leftMargin + plotW, dy)
                     c.stroke()
 
+                    // Left Y-Axis label (Spectrum dBFS)
+                    c.fillStyle = '#6b8294'
                     c.fillText(dbTicks[i].l, leftMargin - 4, dy + 3)
-                    c.fillText(dbTicks[i].l, leftMargin + plotW + 22, dy + 3)
                 }
             }
+
+            // Left Axis Title
+            c.font = '8px Segoe UI'
+            c.fillStyle = '#6b8294'
+            c.textAlign = 'right'
+            c.fillText('dBFS', leftMargin - 4, topMargin - 4)
 
             // Outer plot frame
             c.strokeStyle = '#223242'
             c.strokeRect(leftMargin, topMargin, plotW, plotH)
 
-            // 5. Genuine 256-Point FFT Spectrum Curves
+            // 5. Genuine FFT Spectrum Curves (Chartreuse / Lime Green - Reference 2 & 3)
             const specData = root.music ? (root.music.spectrum || []) : []
             const peakData = root.peakSpectrum || []
 
@@ -175,7 +183,7 @@ Item {
                     const valReal = Number(specData[i] || 0)
                     const valPeak = Number(peakData[i] || valReal)
 
-                    // Normalized 0..1 magnitude maps linearly to plot height
+                    // Normalized 0..1 magnitude maps to plot height
                     const yReal = plotB - Math.max(0, Math.min(plotH, valReal * plotH))
                     const yPeak = plotB - Math.max(0, Math.min(plotH, valPeak * plotH))
 
@@ -183,7 +191,7 @@ Item {
                     peakPts.push({ x: x, y: yPeak })
                 }
 
-                // Curve 1: Real-time Translucent Chartreuse / Yellow-Green Filled Area
+                // Curve 1: Real-time Translucent Chartreuse / Lime Filled Area
                 c.beginPath()
                 c.moveTo(leftMargin, plotB)
                 c.lineTo(realPts[0].x, realPts[0].y)
@@ -197,8 +205,8 @@ Item {
                 c.closePath()
 
                 const areaGrad = c.createLinearGradient(0, topMargin, 0, plotB)
-                areaGrad.addColorStop(0, 'rgba(166, 226, 46, 0.38)')
-                areaGrad.addColorStop(0.5, 'rgba(138, 201, 38, 0.18)')
+                areaGrad.addColorStop(0, 'rgba(166, 226, 46, 0.40)')
+                areaGrad.addColorStop(0.5, 'rgba(138, 201, 38, 0.20)')
                 areaGrad.addColorStop(1, 'rgba(30, 60, 15, 0.02)')
                 c.fillStyle = areaGrad
                 c.fill()
@@ -212,7 +220,7 @@ Item {
                     c.quadraticCurveTo(curr.x, curr.y, (curr.x + next.x) * 0.5, (curr.y + next.y) * 0.5)
                 }
                 c.lineTo(realPts[realPts.length - 1].x, realPts[realPts.length - 1].y)
-                c.strokeStyle = '#9ad824'
+                c.strokeStyle = '#a6e22e'
                 c.lineWidth = 1.6
                 c.stroke()
 
@@ -230,14 +238,41 @@ Item {
                 c.stroke()
             }
 
-            // 6. Active 10-Band EQ Response Curve & Control Nodes
+            // 6. Dedicated Right Y-Axis Scale: Active 10-Band EQ Response (+12 to -12 dB)
             const eqGains = root.music && root.music.eqGains ? root.music.eqGains : [0,0,0,0,0,0,0,0,0,0]
             const eqPreamp = root.music ? (root.music.eqPreamp || 0.0) : 0.0
             const eqBypass = root.music ? Boolean(root.music.eqBypass) : false
 
-            // Center the EQ reference line (0 dB) at upper-mid area: -24 dBFS on grid
+            // Center the EQ reference line (0 dB) at upper-mid area: -24 dBFS
             const eqZeroY = dbToY(-24.0)
             const eqScalePxPerDb = plotH / 50.0 // 12 dB = ~24% of plot height
+
+            // Draw Right Y-Axis EQ Gain Scale Ticks
+            const eqGainTicks = [12, 6, 0, -6, -12]
+            c.textAlign = 'left'
+            c.font = '9px Consolas'
+            for (let i = 0; i < eqGainTicks.length; ++i) {
+                const g = eqGainTicks[i]
+                const gy = eqZeroY - g * eqScalePxPerDb
+                if (gy >= topMargin && gy <= plotB) {
+                    // Small cyan tick mark on right plot edge
+                    c.strokeStyle = eqBypass ? '#2d434f' : 'rgba(0, 229, 255, 0.4)'
+                    c.beginPath()
+                    c.moveTo(leftMargin + plotW, gy)
+                    c.lineTo(leftMargin + plotW + 4, gy)
+                    c.stroke()
+
+                    // Right tick label in cyan
+                    c.fillStyle = eqBypass ? '#577382' : (g === 0 ? '#00e5ff' : 'rgba(0, 229, 255, 0.85)')
+                    const gText = (g > 0 ? '+' : '') + g + ' dB'
+                    c.fillText(gText, leftMargin + plotW + 7, gy + 3)
+                }
+            }
+
+            // Right Axis Title (EQ GAIN)
+            c.font = '8px Segoe UI'
+            c.fillStyle = eqBypass ? '#577382' : '#00e5ff'
+            c.fillText('EQ GAIN', leftMargin + plotW + 7, topMargin - 4)
 
             function calcEqGainAtFreq(f) {
                 if (eqBypass) return 0.0
@@ -254,7 +289,7 @@ Item {
             }
 
             // Draw EQ 0 dB reference dashed line
-            c.strokeStyle = eqBypass ? '#22303c' : 'rgba(0, 229, 255, 0.22)'
+            c.strokeStyle = eqBypass ? '#22303c' : 'rgba(0, 229, 255, 0.25)'
             c.setLineDash([4, 4])
             c.lineWidth = 1
             c.beginPath()
@@ -262,11 +297,6 @@ Item {
             c.lineTo(leftMargin + plotW, eqZeroY)
             c.stroke()
             c.setLineDash([])
-
-            c.font = '8px Consolas, monospace'
-            c.textAlign = 'left'
-            c.fillStyle = eqBypass ? '#4a5b68' : 'rgba(0, 229, 255, 0.45)'
-            c.fillText('EQ 0 dB' + (eqBypass ? ' (BYPASS)' : ''), leftMargin + 8, eqZeroY - 4)
 
             // Plot EQ composite curve across 128 log points
             const eqCurvePts = []
@@ -289,7 +319,7 @@ Item {
             c.lineTo(leftMargin + plotW, eqZeroY)
             c.closePath()
             const eqFillGrad = c.createLinearGradient(0, topMargin, 0, plotB)
-            eqFillGrad.addColorStop(0, eqBypass ? 'rgba(50, 70, 80, 0.06)' : 'rgba(0, 229, 255, 0.14)')
+            eqFillGrad.addColorStop(0, eqBypass ? 'rgba(50, 70, 80, 0.06)' : 'rgba(0, 229, 255, 0.15)')
             eqFillGrad.addColorStop(1, 'rgba(0, 229, 255, 0.01)')
             c.fillStyle = eqFillGrad
             c.fill()
@@ -333,8 +363,8 @@ Item {
                 c.lineWidth = 1.5
                 c.stroke()
 
-                // Band number / frequency label above/below node
-                c.font = '8px Consolas, monospace'
+                // Band frequency / gain label
+                c.font = '8px Consolas'
                 c.textAlign = 'center'
                 c.fillStyle = isDragging ? '#ffffff' : (isHovered ? '#00e5ff' : '#6f8899')
                 const lblY = (ny < eqZeroY) ? (ny - 8) : (ny + 14)
@@ -343,7 +373,7 @@ Item {
             }
 
             // 7. Interactive Crosshair & Cursor / Peak Readouts
-            c.font = 'bold 11px Consolas, monospace'
+            c.font = 'bold 11px Consolas'
             c.textAlign = 'left'
 
             const peakHz = root.music ? (root.music.peakHz || 0) : 0
@@ -353,7 +383,7 @@ Item {
             if (root.mouseHovered && root.mouseXPos >= leftMargin && root.mouseXPos <= leftMargin + plotW &&
                 root.mouseYPos >= topMargin && root.mouseYPos <= plotB) {
                 
-                // Draw crosshair lines
+                // Crosshair lines
                 c.strokeStyle = 'rgba(212, 255, 77, 0.35)'
                 c.lineWidth = 1
                 c.setLineDash([2, 3])
@@ -375,7 +405,6 @@ Item {
                 const curF = xToFreq(root.mouseXPos)
                 const curDb = yToDb(root.mouseYPos)
 
-                // Cursor note
                 function calcNote(hz) {
                     if (hz < 20 || !isFinite(hz)) return "--"
                     const midi = 69.0 + 12.0 * Math.log2(hz / 440.0)
@@ -406,8 +435,8 @@ Item {
             }
 
             // 8. Right Vertical Stereo Level Meters (L & R)
-            const meterX = leftMargin + plotW + 28
-            const meterW = 14
+            const meterX = leftMargin + plotW + 52
+            const meterW = 10
             const meterH = plotH
             const leftRms = root.music ? Math.max(0, Math.min(1, root.music.left * 4.0)) : 0
             const rightRms = root.music ? Math.max(0, Math.min(1, root.music.right * 4.0)) : 0
@@ -425,98 +454,125 @@ Item {
                     c.fillStyle = grad
                     c.fillRect(x, barY, meterW, barH)
                 }
-                // Peak line
                 c.fillStyle = '#ffffff'
-                c.fillRect(x, Math.max(topMargin, barY - 1), meterW, 2)
+                c.fillRect(x, Math.max(topMargin, barY - 1), meterW, 1.5)
             }
 
             drawMeterBar(meterX, leftRms)
-            drawMeterBar(meterX + meterW + 4, rightRms)
+            drawMeterBar(meterX + meterW + 3, rightRms)
 
             c.fillStyle = '#738992'
             c.font = '9px Consolas, monospace'
             c.textAlign = 'center'
             c.fillText('L', meterX + meterW * 0.5, plotB + 12)
-            c.fillText('R', meterX + meterW + 4 + meterW * 0.5, plotB + 12)
+            c.fillText('R', meterX + meterW + 3 + meterW * 0.5, plotB + 12)
 
-            // 9. Bottom Statistics & Correlation Bar (Matching Reference 2)
-            const statY = h - (isCompactH ? 8 : 18)
-            c.textAlign = 'left'
-            c.font = '10px Consolas, monospace'
+            // 9. Bottom Statistics & Correlation Bar (Matching Voxengo SPAN Reference 2)
+            const statY = h - (isCompactH ? 12 : 20)
+            const statBoxH = 22
+            const statBoxY = statY - 15
 
-            const compact = plotW < 800
+            function drawStatCard(x, cardW, title, valText, alert) {
+                c.fillStyle = '#0e1720'
+                c.fillRect(x, statBoxY, cardW, statBoxH)
+                c.strokeStyle = alert ? '#ff3366' : '#1c2d3a'
+                c.lineWidth = 1
+                c.strokeRect(x, statBoxY, cardW, statBoxH)
 
-            // Statistics badge
-            c.fillStyle = '#223444'
-            c.fillRect(leftMargin, statY - 12, 64, 18)
+                c.font = '8px Segoe UI'
+                c.fillStyle = '#6f8899'
+                c.textAlign = 'left'
+                c.fillText(title, x + 5, statBoxY + 9)
+
+                c.font = '10px Consolas'
+                c.fillStyle = alert ? '#ff4d6d' : '#d4e2e6'
+                c.fillText(valText, x + 5, statBoxY + 19)
+            }
+
+            let curX = leftMargin
+
+            // Badge
+            c.fillStyle = '#182b3a'
+            c.fillRect(curX, statBoxY, 68, statBoxH)
+            c.strokeStyle = '#294357'
+            c.strokeRect(curX, statBoxY, 68, statBoxH)
+            c.font = 'bold 9px Segoe UI'
             c.fillStyle = '#d6e6ea'
-            c.fillText('Statistics', leftMargin + 4, statY)
+            c.textAlign = 'center'
+            c.fillText('STATISTICS', curX + 34, statBoxY + 14)
+            curX += 74
 
-            // RMS values (Live L & R dBFS)
-            c.fillStyle = '#8ea1b0'
-            const rmsLStr = root.music ? (root.music.rmsLText || '-inf dBFS') : '-inf dBFS'
-            const rmsRStr = root.music ? (root.music.rmsRText || '-inf dBFS') : '-inf dBFS'
-            const rmsX = leftMargin + 72
-            c.fillText(`RMS ${rmsLStr} ${rmsRStr}`, rmsX, statY)
+            // RMS Card
+            const rmsLStr = root.music ? (root.music.rmsLText || '-inf') : '-inf'
+            const rmsRStr = root.music ? (root.music.rmsRText || '-inf') : '-inf'
+            const rmsCardW = (w < 1150) ? 140 : 165
+            drawStatCard(curX, rmsCardW, 'RMS (L / R)', `${rmsLStr}  ${rmsRStr}`, false)
+            curX += rmsCardW + 6
 
-            // Crest Factor (Live dB)
+            // Crest Factor Card
             const crestVal = root.music ? (Number(root.music.crestFactor) || 0.0) : 0.0
-            const crestX = rmsX + (compact ? 135 : 160)
-            c.fillText(`Crest: ${crestVal.toFixed(1)} dB`, crestX, statY)
+            const crestCardW = (w < 1150) ? 80 : 95
+            drawStatCard(curX, crestCardW, 'CREST FACTOR', `${crestVal.toFixed(1)} dB`, false)
+            curX += crestCardW + 6
 
-            // Sample Peak Clippings count
+            // Sample Peak Card
+            const pkLStr = root.music ? (root.music.samplePeakLText || '-inf') : '-inf'
+            const pkRStr = root.music ? (root.music.samplePeakRText || '-inf') : '-inf'
+            const pkCardW = (w < 1150) ? 135 : 155
+            if (curX + pkCardW < leftMargin + plotW - 140) {
+                drawStatCard(curX, pkCardW, 'SAMPLE PEAK (L / R)', `${pkLStr}  ${pkRStr}`, false)
+                curX += pkCardW + 6
+            }
+
+            // Clip Count Card
             const clipCount = root.music ? (root.music.eqClippingCount || 0) : 0
-            const clipX = crestX + (compact ? 95 : 110)
-            c.fillStyle = clipCount > 0 ? '#ff3366' : '#8ea1b0'
-            c.fillText(`Clip: ${clipCount}`, clipX, statY)
-
-            // Sample Peak L / R
-            c.fillStyle = '#8ea1b0'
-            const pkLStr = root.music ? (root.music.samplePeakLText || '-inf dBFS') : '-inf dBFS'
-            const pkRStr = root.music ? (root.music.samplePeakRText || '-inf dBFS') : '-inf dBFS'
-            const peakX = clipX + (compact ? 65 : 85)
-            if (!compact || plotW > 640) {
-                c.fillText(`Peak: ${pkLStr} ${pkRStr}`, peakX, statY)
+            const clipCardW = 60
+            if (curX + clipCardW < leftMargin + plotW - 130) {
+                drawStatCard(curX, clipCardW, 'CLIPS', `${clipCount}`, clipCount > 0)
+                curX += clipCardW + 6
             }
 
-            // Correlation Phase Meter (-1.00 to +1.00)
-            const corrW = compact ? 70 : 90
-            const corrX = leftMargin + plotW - corrW - 75
-            c.fillStyle = '#8ea1b0'
-            c.fillText('Corr', corrX - 32, statY)
+            // Correlation Meter Card (Right-aligned inside bottom bar)
+            const corrCardW = (w < 1150) ? 140 : 160
+            const corrCardX = leftMargin + plotW - corrCardW
+            c.fillStyle = '#0e1720'
+            c.fillRect(corrCardX, statBoxY, corrCardW, statBoxH)
+            c.strokeStyle = '#1c2d3a'
+            c.strokeRect(corrCardX, statBoxY, corrCardW, statBoxH)
 
-            // Correlation meter background
-            c.fillStyle = '#141d26'
-            c.fillRect(corrX, statY - 9, corrW, 11)
+            c.font = '8px Segoe UI'
+            c.fillStyle = '#6f8899'
+            c.textAlign = 'left'
+            c.fillText('CORRELATION PHASE', corrCardX + 5, statBoxY + 9)
 
-            // Center line (0.00)
-            c.strokeStyle = '#405868'
-            c.beginPath()
-            c.moveTo(corrX + corrW * 0.5, statY - 11)
-            c.lineTo(corrX + corrW * 0.5, statY + 3)
-            c.stroke()
-
-            // Active phase bar
-            const corrVal = root.music ? (Number(root.music.correlation) || 0.0) : 1.0
-            const barLen = Math.max(-corrW * 0.5, Math.min(corrW * 0.5, corrVal * (corrW * 0.5)))
-            c.fillStyle = corrVal >= 0 ? '#4cd964' : '#ff3b30'
-            if (barLen >= 0) {
-                c.fillRect(corrX + corrW * 0.5, statY - 8, barLen, 9)
-            } else {
-                c.fillRect(corrX + corrW * 0.5 + barLen, statY - 8, -barLen, 9)
-            }
-
-            c.font = '8px Consolas, monospace'
-            c.fillStyle = '#5c7385'
-            c.fillText('-1', corrX - 2, statY + 12)
-            c.fillText('+1', corrX + corrW - 10, statY + 12)
-
-            // Balance readout (Live dB)
-            c.font = '10px Consolas, monospace'
-            c.fillStyle = '#8ea1b0'
             const balVal = root.music ? (Number(root.music.balance) || 0.0) : 0.0
-            const balStr = (balVal >= 0 ? '+' : '') + balVal.toFixed(1)
-            c.fillText(`BAL ${balStr}`, corrX + corrW + 12, statY)
+            c.font = '9px Consolas'
+            c.textAlign = 'right'
+            c.fillStyle = '#9cb4c2'
+            c.fillText(`BAL ${(balVal >= 0 ? '+' : '') + balVal.toFixed(1)}`, corrCardX + corrCardW - 5, statBoxY + 9)
+
+            // Correlation Bar (-1.0 to +1.0)
+            const meterInnerX = corrCardX + 5
+            const meterInnerW = corrCardW - 10
+            const meterInnerY = statBoxY + 12
+            const meterInnerH = 6
+
+            c.fillStyle = '#141f2a'
+            c.fillRect(meterInnerX, meterInnerY, meterInnerW, meterInnerH)
+
+            // Center mark (0.0)
+            c.fillStyle = '#3a5366'
+            c.fillRect(meterInnerX + meterInnerW * 0.5 - 0.5, meterInnerY - 1, 1, meterInnerH + 2)
+
+            const corrVal = root.music ? (Number(root.music.correlation) || 0.0) : 1.0
+            const barHalfW = meterInnerW * 0.5
+            const activeBarW = Math.max(-barHalfW, Math.min(barHalfW, corrVal * barHalfW))
+            c.fillStyle = corrVal >= 0 ? '#4cd964' : '#ff3b30'
+            if (activeBarW >= 0) {
+                c.fillRect(meterInnerX + barHalfW, meterInnerY + 1, activeBarW, meterInnerH - 2)
+            } else {
+                c.fillRect(meterInnerX + barHalfW + activeBarW, meterInnerY + 1, -activeBarW, meterInnerH - 2)
+            }
         }
     }
 
@@ -533,8 +589,8 @@ Item {
             // If dragging an EQ node:
             if (root.draggingBand >= 0 && root.music) {
                 const isCompactH = height < 240
-                const topMargin = isCompactH ? 18 : 28
-                const bottomMargin = isCompactH ? 38 : 56
+                const topMargin = isCompactH ? 20 : 28
+                const bottomMargin = isCompactH ? 44 : 58
                 const plotH = Math.max(10, height - topMargin - bottomMargin)
                 const eqZeroY = topMargin + (6.0 - (-24.0)) / 84.0 * plotH
                 const eqScalePxPerDb = plotH / 50.0
@@ -554,10 +610,10 @@ Item {
 
         onPressed: function(mouse) {
             const isCompactH = height < 240
-            const leftMargin = 30
-            const rightMargin = 70
-            const topMargin = isCompactH ? 18 : 28
-            const bottomMargin = isCompactH ? 38 : 56
+            const leftMargin = 38
+            const rightMargin = 85
+            const topMargin = isCompactH ? 20 : 28
+            const bottomMargin = isCompactH ? 44 : 58
             const plotW = Math.max(10, width - leftMargin - rightMargin)
             const plotH = Math.max(10, height - topMargin - bottomMargin)
             const logMin = Math.log10(20)
@@ -569,7 +625,7 @@ Item {
             const eqPreamp = root.music ? (root.music.eqPreamp || 0.0) : 0.0
             const eqBypass = root.music ? Boolean(root.music.eqBypass) : false
 
-            // Check if clicking near any EQ node (within 14 px)
+            // Check if clicking near any EQ node (within 16 px)
             for (let b = 0; b < root.eqFreqs.length; ++b) {
                 const f0 = root.eqFreqs[b]
                 const norm = (Math.log10(f0) - logMin) / (logMax - logMin)
@@ -593,10 +649,10 @@ Item {
         }
 
         onDoubleClicked: function(mouse) {
-            const leftMargin = 30
-            const rightMargin = 70
+            const leftMargin = 38
+            const rightMargin = 85
             const topMargin = 28
-            const bottomMargin = 56
+            const bottomMargin = 58
             const plotW = Math.max(10, width - leftMargin - rightMargin)
             const logMin = Math.log10(20)
             const logMax = Math.log10(20000)

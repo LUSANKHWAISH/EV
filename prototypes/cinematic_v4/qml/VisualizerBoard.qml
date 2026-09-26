@@ -3,7 +3,7 @@ import QtQuick
 Item {
     id: root
     required property var music
-    property real panelGap: 8
+    property real panelGap: 6
 
     readonly property string currentLayout: root.music && root.music.currentLayout ? root.music.currentLayout : 'reference-trio'
     readonly property bool spanVisible: currentLayout === 'studio-span'
@@ -27,7 +27,7 @@ Item {
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.top: parent.top
-        height: root.currentLayout === 'single-rain' ? parent.height : Math.max(48, parent.height * 0.34)
+        height: root.currentLayout === 'single-rain' ? parent.height : Math.max(60, Math.round(parent.height * 0.48))
     }
 
     FlowTrace {
@@ -37,7 +37,6 @@ Item {
         visible: root.traceVisible
         anchors.left: parent.left
         anchors.right: root.stackVisible ? stack.left : parent.right
-        anchors.leftMargin: 0
         anchors.rightMargin: root.stackVisible ? root.panelGap : 0
         anchors.top: root.rainVisible ? rain.bottom : parent.top
         anchors.topMargin: root.rainVisible ? root.panelGap : 0
@@ -54,6 +53,6 @@ Item {
         anchors.top: root.rainVisible ? rain.bottom : parent.top
         anchors.topMargin: root.rainVisible ? root.panelGap : 0
         anchors.bottom: parent.bottom
-        width: root.currentLayout === 'single-stack' ? parent.width : (root.currentLayout === 'split-duo' ? Math.max(120, parent.width * 0.33) : Math.max(110, parent.width * 0.27))
+        width: root.currentLayout === 'single-stack' ? parent.width : (root.currentLayout === 'split-duo' ? Math.max(140, Math.round(parent.width * 0.35)) : Math.max(130, Math.round(parent.width * 0.30)))
     }
 }

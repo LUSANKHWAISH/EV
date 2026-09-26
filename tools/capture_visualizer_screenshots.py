@@ -21,7 +21,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from PySide6.QtCore import QEventLoop, QTimer, QUrl, QSize
-from PySide6.QtGui import QGuiApplication, QImage
+from PySide6.QtGui import QFont, QGuiApplication, QImage
 from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtQuick import QQuickItem, QQuickWindow
 from PySide6.QtQuickControls2 import QQuickStyle
@@ -53,6 +53,7 @@ def capture_visualizers() -> int:
     app = QGuiApplication.instance()
     if app is None:
         app = QGuiApplication([sys.argv[0], "-platform", "offscreen"])
+    app.setFont(QFont("Segoe UI", 10))
 
     QQuickStyle.setStyle("Basic")
     engine = QQmlApplicationEngine()
@@ -150,6 +151,15 @@ def capture_visualizers() -> int:
     img3.save(str(shot_trio_1080))
     saved_shots.append(shot_trio_1080)
     print(f"[PASS] Saved Reference Trio (1920x1080) to {shot_trio_1080}")
+
+    # 4. Capture REFERENCE TRIO at compact 1100x760
+    window.resize(QSize(1100, 760))
+    ensure_playing_peak()
+    shot_trio_1100 = out_dir / "visualizer_reference_trio_1100x760.png"
+    img_trio_1100 = window.grabWindow()
+    img_trio_1100.save(str(shot_trio_1100))
+    saved_shots.append(shot_trio_1100)
+    print(f"[PASS] Saved Reference Trio (1100x760) to {shot_trio_1100}")
 
     # 4. Capture SINGLE TRACE (Luminous Organic Flow Trace) at 1920x1080
     music.setLayout("single-trace")

@@ -5,8 +5,8 @@ Item {
     required property var music
     property color accent: '#00f0ff'
     property color peakColor: '#2de2d0'
-    property color baseColor: '#d6e6ea'
-    property color glowColor: '#00c8e6'
+    property color baseColor: '#e0eff2'
+    property color glowColor: '#00d2ff'
 
     Canvas {
         id: canvas
@@ -23,20 +23,20 @@ Item {
 
             // Dark rich studio background
             const bgGradient = c.createLinearGradient(0, 0, 0, height)
-            bgGradient.addColorStop(0, '#0a1017')
-            bgGradient.addColorStop(1, '#060a0f')
+            bgGradient.addColorStop(0, '#091219')
+            bgGradient.addColorStop(1, '#05090e')
             c.fillStyle = bgGradient
             c.fillRect(0, 0, width, height)
 
-            // Subtle horizontal baseline with fade-out at edges
+            // Baseline with fade-out at edges
+            const baseY = height - 16
             const baseGrad = c.createLinearGradient(0, 0, width, 0)
             baseGrad.addColorStop(0, 'rgba(30, 48, 60, 0)')
-            baseGrad.addColorStop(0.1, 'rgba(30, 48, 60, 0.7)')
-            baseGrad.addColorStop(0.9, 'rgba(30, 48, 60, 0.7)')
+            baseGrad.addColorStop(0.08, 'rgba(35, 55, 70, 0.8)')
+            baseGrad.addColorStop(0.92, 'rgba(35, 55, 70, 0.8)')
             baseGrad.addColorStop(1, 'rgba(30, 48, 60, 0)')
             c.strokeStyle = baseGrad
             c.lineWidth = 1
-            const baseY = height - 12
             c.beginPath()
             c.moveTo(0, baseY)
             c.lineTo(width, baseY)
@@ -45,32 +45,33 @@ Item {
             const rawValues = root.music ? (root.music.bands || []) : []
             if (rawValues.length < 2) return
 
-            // Smooth values with 5-point Gaussian-weighted window for organic fluid curve
-            const n = rawValues.length
+            // Smooth values with Gaussian-weighted window for organic fluid curve (Reference 1)
+            const n = Math.min(64, rawValues.length)
             const pts = []
-            const padX = width * 0.04
+            const padX = width * 0.03
             const plotW = width - padX * 2
-            const maxH = height - 28
+            const maxH = height - 32
 
             for (let i = 0; i < n; ++i) {
                 let sum = 0
                 let wSum = 0
                 for (let k = -2; k <= 2; ++k) {
                     const idx = Math.max(0, Math.min(n - 1, i + k))
-                    const weight = k === 0 ? 0.38 : (Math.abs(k) === 1 ? 0.24 : 0.07)
+                    const weight = k === 0 ? 0.40 : (Math.abs(k) === 1 ? 0.24 : 0.06)
                     sum += Number(rawValues[idx] || 0) * weight
                     wSum += weight
                 }
                 const val = Math.max(0, Math.min(1, sum / wSum))
                 const x = padX + (i / (n - 1)) * plotW
-                const y = baseY - Math.min(maxH, Math.pow(val, 0.85) * maxH)
+                // 0.75 exponent gives dramatic, leaping peaks
+                const y = baseY - Math.min(maxH, Math.pow(val, 0.75) * maxH)
                 pts.push({ x: x, y: y, val: val })
             }
 
             // Build smooth Bezier path
             function buildCurvePath() {
                 c.beginPath()
-                c.moveTo(0, baseY)
+                c.moveTo(padX * 0.5, baseY)
                 c.lineTo(pts[0].x, pts[0].y)
                 for (let i = 0; i < pts.length - 1; ++i) {
                     const curr = pts[i]
@@ -81,45 +82,46 @@ Item {
                 }
                 const last = pts[pts.length - 1]
                 c.lineTo(last.x, last.y)
-                c.lineTo(width, baseY)
+                c.lineTo(width - padX * 0.5, baseY)
             }
 
-            // Pass 1: Translucent underfill (gradient down to baseline)
+            // Pass 1: Translucent underfill gradient (Reference 1)
             buildCurvePath()
             c.lineTo(width, baseY)
             c.lineTo(0, baseY)
             c.closePath()
-            const fillGrad = c.createLinearGradient(0, height * 0.15, 0, baseY)
-            fillGrad.addColorStop(0, 'rgba(0, 240, 255, 0.22)')
-            fillGrad.addColorStop(0.45, 'rgba(45, 226, 208, 0.09)')
+            const fillGrad = c.createLinearGradient(0, height * 0.1, 0, baseY)
+            fillGrad.addColorStop(0, 'rgba(0, 240, 255, 0.25)')
+            fillGrad.addColorStop(0.5, 'rgba(45, 226, 208, 0.08)')
             fillGrad.addColorStop(1, 'rgba(10, 24, 33, 0.0)')
             c.fillStyle = fillGrad
             c.fill()
 
-            // Pass 2: Diffused outer glow stroke
+            // Pass 2: Soft diffused outer glow
             buildCurvePath()
-            c.strokeStyle = 'rgba(0, 220, 255, 0.28)'
-            c.lineWidth = 7.5
+            c.strokeStyle = 'rgba(0, 230, 255, 0.22)'
+            c.lineWidth = 8.0
             c.stroke()
 
             // Pass 3: Intermediate glow stroke
             buildCurvePath()
             c.strokeStyle = 'rgba(45, 226, 208, 0.55)'
-            c.lineWidth = 3.6
+            c.lineWidth = 3.8
             c.stroke()
 
-            // Pass 4: Sharp luminous foreground curve with multi-stop horizontal gradient
+            // Pass 4: Sharp luminous foreground curve with multi-stop horizontal gradient (Reference 1)
+            // Silver-white on bass, cyan/teal in mids/vocals, silver-white on highs
             const strokeGrad = c.createLinearGradient(0, 0, width, 0)
-            strokeGrad.addColorStop(0, 'rgba(214, 230, 234, 0.7)')
-            strokeGrad.addColorStop(0.18, '#ffffff')
-            strokeGrad.addColorStop(0.35, '#2de2d0')
-            strokeGrad.addColorStop(0.60, '#00f0ff')
-            strokeGrad.addColorStop(0.82, '#ffffff')
-            strokeGrad.addColorStop(1, 'rgba(214, 230, 234, 0.7)')
+            strokeGrad.addColorStop(0, '#e8f4f8')
+            strokeGrad.addColorStop(0.20, '#ffffff')
+            strokeGrad.addColorStop(0.38, '#2de2d0')
+            strokeGrad.addColorStop(0.55, '#00f0ff')
+            strokeGrad.addColorStop(0.75, '#ffffff')
+            strokeGrad.addColorStop(1, '#d8e8ee')
 
             buildCurvePath()
             c.strokeStyle = strokeGrad
-            c.lineWidth = 2.0
+            c.lineWidth = 2.2
             c.stroke()
         }
     }

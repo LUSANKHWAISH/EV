@@ -25,7 +25,7 @@ os.environ["QSG_RENDER_LOOP"] = "basic"
 os.environ["QT_QPA_FONTDIR"] = r"C:\Windows\Fonts"
 
 from PySide6.QtCore import QEventLoop, QTimer, QUrl, QSize
-from PySide6.QtGui import QGuiApplication, QImage
+from PySide6.QtGui import QFont, QGuiApplication, QImage
 from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtQuick import QQuickWindow
 from PySide6.QtQuickControls2 import QQuickStyle
@@ -55,6 +55,7 @@ def record_movement_demo() -> int:
     app = QGuiApplication.instance()
     if app is None:
         app = QGuiApplication([sys.argv[0], "-platform", "offscreen"])
+    app.setFont(QFont("Segoe UI", 10))
 
     QQuickStyle.setStyle("Basic")
     engine = QQmlApplicationEngine()
