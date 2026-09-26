@@ -6,9 +6,18 @@ Item {
     property real panelGap: 8
 
     readonly property string currentLayout: root.music && root.music.currentLayout ? root.music.currentLayout : 'reference-trio'
-    readonly property bool rainVisible: currentLayout === 'reference-trio' || currentLayout === 'single-rain'
-    readonly property bool traceVisible: currentLayout === 'reference-trio' || currentLayout === 'single-trace' || currentLayout === 'split-duo'
-    readonly property bool stackVisible: currentLayout === 'reference-trio' || currentLayout === 'split-duo' || currentLayout === 'single-stack'
+    readonly property bool spanVisible: currentLayout === 'studio-span'
+    readonly property bool rainVisible: !spanVisible && (currentLayout === 'reference-trio' || currentLayout === 'single-rain')
+    readonly property bool traceVisible: !spanVisible && (currentLayout === 'reference-trio' || currentLayout === 'single-trace' || currentLayout === 'split-duo')
+    readonly property bool stackVisible: !spanVisible && (currentLayout === 'reference-trio' || currentLayout === 'split-duo' || currentLayout === 'single-stack')
+
+    PrecisionSpectrum {
+        id: span
+        objectName: 'precisionSpectrum'
+        music: root.music
+        visible: root.spanVisible
+        anchors.fill: parent
+    }
 
     CeilingRain {
         id: rain

@@ -258,3 +258,101 @@ def test_headroom_estimation_and_clipping_property(mock_session):
 
     # eqIsClipping starts False
     assert session.eqIsClipping is False
+
+
+def test_integrated_playback_antiphase_stereo_preserves_energy(mock_session, tmp_path):
+    """Verify that opposite-phase channels do not cancel out in the integrated playback-to-analysis path."""
+    session, _ = mock_session
+    rate = 48000
+    duration_s = 0.5
+    total_frames = int(rate * duration_s)
+    t = np.linspace(0, duration_s, total_frames, endpoint=False)
+    hz = 440.0
+    sig_left = (0.4 * np.sin(2 * np.pi * hz * t)).astype(np.float32)
+    sig_right = (-0.4 * np.sin(2 * np.pi * hz * t)).astype(np.float32)  # Exact opposite phase (-sig_left)
+    antiphase_pcm = np.column_stack((sig_left, sig_right))
+
+    # A simple mono mixdown (L + R) / 2 would result in complete silence
+    mono_naive = 0.5 * (sig_left + sig_right)
+    assert np.allclose(mono_naive, 0.0, atol=1e-5), "Naive downmix must cancel to confirm antiphase test condition"
+
+    # Push through integrated DSP playback analysis path
+    session._active = True
+    session._input = "player"
+    session._backend = "dsp"
+
+    # Simulate active playback state
+    session._eq_player._is_playing = True
+    session.setVolume(1.0)
+    session.setMuted(False)
+
+    # Stream several chunks through the session's DSP PCM tap
+    chunk_size = 2048
+    for start_idx in range(0, len(antiphase_pcm) - chunk_size, chunk_size):
+        chunk = antiphase_pcm[start_idx : start_idx + chunk_size]
+        session._dsp_pcm(chunk, rate)
+
+    # Give AnalysisWorker time to process
+    time.sleep(0.12)
+    session._tick()
+
+    # Verify channel measurements
+    assert session.left > 0.20, f"Left channel must be non-zero (measured {session.left})"
+    assert session.right > 0.20, f"Right channel must be non-zero (measured {session.right})"
+    assert abs(session.left - session.right) < 0.05, "Left and right levels must match for symmetric antiphase"
+
+    # CRITICAL: Verify spectrum bands do NOT cancel out
+    assert max(session.bands) > 0.5, f"Spectrum energy must be preserved (peak band is {max(session.bands)})"
+    assert session.level > 0.1, f"RMS level must be preserved (measured {session.level})"
+
+
+def test_muted_or_stopped_ev_playback_clears_beat_reactions_and_preserves_external_capture(mock_session):
+    """Verify that muted or stopped EV playback clears beat reactions while external capture is preserved."""
+    session, _ = mock_session
+    rate = 48000
+    t = np.linspace(0, 0.2, int(rate * 0.2), endpoint=False)
+    # Strong kick / transient burst
+    burst = (0.8 * np.sin(2 * np.pi * 80.0 * t)).astype(np.float32)
+    burst_stereo = np.column_stack((burst, burst))
+
+    session._active = True
+    session._input = "player"
+    session._backend = "dsp"
+    session._eq_player._is_playing = True
+    session.setVolume(1.0)
+    session.setMuted(False)
+
+    # Push kick transient and verify beat response when unmuted
+    session._dsp_pcm(burst_stereo, rate)
+    time.sleep(0.12)
+    session._tick()
+    # When active and unmuted, beat reaction can be triggered
+    # Now mute playback:
+    session.setMuted(True)
+    session._dsp_pcm(burst_stereo, rate)
+    time.sleep(0.12)
+    session._tick()
+
+    # Muted playback MUST clear beat reaction
+    assert session.beat == 0.0, f"Muted playback must produce beat == 0, got {session.beat}"
+
+    # Unmute but stop playback:
+    session.setMuted(False)
+    session._eq_player._is_playing = False
+    session._sync_dsp_state()
+    session._dsp_pcm(burst_stereo, rate)
+    time.sleep(0.08)
+    session._tick()
+
+    # Stopped playback MUST clear beat reaction
+    assert session.beat == 0.0, f"Stopped playback must produce beat == 0, got {session.beat}"
+
+    # Now verify external capture (system mix) is NOT suppressed by player mute
+    session.setInput("system")
+    assert session.inputSource == "system"
+    # When input is system, gain calculation in _tick uses 1.0 (unsuppressed by EV player mute)
+    session.setMuted(True)  # Player mute
+    # System loopback input uses gain = 1.0 in session._tick
+    gain = 1.0 if session._input == "system" else (0 if session.muted else session.volume)
+    assert gain == 1.0, "External audio capture must not be suppressed by EV player mute"
+

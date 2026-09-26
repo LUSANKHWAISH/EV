@@ -152,38 +152,52 @@ class TestVisualizerBoardDynamicLayout:
         rain = board.findChild(QQuickItem, "ceilingRain")
         trace = board.findChild(QQuickItem, "flowTrace")
         stack = board.findChild(QQuickItem, "segmentStack")
+        span = board.findChild(QQuickItem, "precisionSpectrum")
 
         assert rain is not None
         assert trace is not None
         assert stack is not None
+        assert span is not None
 
-        # 1. reference-trio: all three visible
+        # 1. reference-trio: all three visible, span hidden
         session.setLayout("reference-trio")
         _wait(50)
         assert rain.isVisible() is True
         assert trace.isVisible() is True
         assert stack.isVisible() is True
+        assert span.isVisible() is False
 
-        # 2. single-trace: only trace visible
+        # 2. studio-span: only span visible
+        session.setLayout("studio-span")
+        _wait(50)
+        assert span.isVisible() is True
+        assert rain.isVisible() is False
+        assert trace.isVisible() is False
+        assert stack.isVisible() is False
+
+        # 3. single-trace: only trace visible
         session.setLayout("single-trace")
         _wait(50)
         assert rain.isVisible() is False
         assert trace.isVisible() is True
         assert stack.isVisible() is False
+        assert span.isVisible() is False
 
-        # 3. split-duo: trace and stack visible, rain hidden
+        # 4. split-duo: trace and stack visible, rain hidden
         session.setLayout("split-duo")
         _wait(50)
         assert rain.isVisible() is False
         assert trace.isVisible() is True
         assert stack.isVisible() is True
+        assert span.isVisible() is False
 
-        # 4. back to reference-trio
+        # 5. back to reference-trio
         session.setLayout("reference-trio")
         _wait(50)
         assert rain.isVisible() is True
         assert trace.isVisible() is True
         assert stack.isVisible() is True
+        assert span.isVisible() is False
 
         session.close()
 
@@ -213,10 +227,17 @@ class TestVisualizerBoardDynamicLayout:
         trio_btn = workspace.findChild(QQuickItem, "layoutTrioBtn")
         trace_btn = workspace.findChild(QQuickItem, "layoutTraceBtn")
         split_btn = workspace.findChild(QQuickItem, "layoutSplitBtn")
+        studio_btn = workspace.findChild(QQuickItem, "layoutStudioBtn")
 
         assert trio_btn is not None
         assert trace_btn is not None
         assert split_btn is not None
+        assert studio_btn is not None
+
+        # Click STUDIO button
+        studio_btn.clicked.emit()
+        _wait(50)
+        assert session.currentLayout == "studio-span"
 
         # Click TRACE button
         trace_btn.clicked.emit()

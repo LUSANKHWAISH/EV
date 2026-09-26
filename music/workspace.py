@@ -10,7 +10,7 @@ from pathlib import Path
 from core.paths import ensure_dir, get_config_dir
 
 SCHEMA = 1
-PRESETS = frozenset(("ceiling-rain", "flow-trace", "segment-stack"))
+PRESETS = frozenset(("ceiling-rain", "flow-trace", "segment-stack", "precision-spectrum"))
 
 PRESET_LAYOUTS = {
     "reference-trio": {
@@ -21,6 +21,14 @@ PRESET_LAYOUTS = {
             {"id": "rain-1", "preset": "ceiling-rain", "x": 0, "y": 0, "w": 12, "h": 2},
             {"id": "trace-1", "preset": "flow-trace", "x": 0, "y": 2, "w": 8, "h": 4},
             {"id": "stack-1", "preset": "segment-stack", "x": 8, "y": 2, "w": 4, "h": 4},
+        ],
+    },
+    "studio-span": {
+        "schema": SCHEMA,
+        "layout": "studio-span",
+        "columns": 12,
+        "panels": [
+            {"id": "span-1", "preset": "precision-spectrum", "x": 0, "y": 0, "w": 12, "h": 6},
         ],
     },
     "single-trace": {

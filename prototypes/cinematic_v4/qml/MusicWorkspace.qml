@@ -73,21 +73,28 @@ Rectangle {
             HudButton {
                 objectName: 'layoutTrioBtn'
                 text: 'TRIO'
-                height: 22; width: 55
+                height: 22; width: 50
                 selected: !musicPage.music || !musicPage.music.currentLayout || musicPage.music.currentLayout === 'reference-trio'
                 onClicked: if (musicPage.music) musicPage.music.setLayout('reference-trio')
             }
             HudButton {
+                objectName: 'layoutStudioBtn'
+                text: 'STUDIO'
+                height: 22; width: 62
+                selected: musicPage.music && musicPage.music.currentLayout === 'studio-span'
+                onClicked: if (musicPage.music) musicPage.music.setLayout('studio-span')
+            }
+            HudButton {
                 objectName: 'layoutTraceBtn'
                 text: 'TRACE'
-                height: 22; width: 60
+                height: 22; width: 55
                 selected: musicPage.music && musicPage.music.currentLayout === 'single-trace'
                 onClicked: if (musicPage.music) musicPage.music.setLayout('single-trace')
             }
             HudButton {
                 objectName: 'layoutSplitBtn'
                 text: 'SPLIT'
-                height: 22; width: 55
+                height: 22; width: 50
                 selected: musicPage.music && musicPage.music.currentLayout === 'split-duo'
                 onClicked: if (musicPage.music) musicPage.music.setLayout('split-duo')
             }
